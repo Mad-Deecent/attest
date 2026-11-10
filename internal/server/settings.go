@@ -88,18 +88,47 @@ func (s *Server) build(st Settings) (*live, error) {
 
 var errNotSaved = errors.New("could not save state")
 
+// statusError is a refusal with its own HTTP status.
+type statusError struct {
+	status int
+	msg    string
+}
+
+func (e statusError) Error() string { return e.msg }
+
+var errNoData = statusError{http.StatusConflict,
+	"settings need a data file to survive a restart: start attest with -data, or set data in the config file"}
+
 // apply saves settings and then puts them in force. If they cannot be saved,
 // nothing changes. Callers hold settingsMu.
 func (s *Server) apply(st Settings) (*live, error) {
+	return s.applyRoles(st, false)
+}
+
+// applyRoles is apply, also redefining roles from st.Policy when asked. The
+// role change is written in the same save and made in memory only after it
+// succeeds, under saveMu: a failed save changes nothing, so there is nothing
+// to undo that a concurrent role assignment could be lost in.
+func (s *Server) applyRoles(st Settings, roles bool) (*live, error) {
+	if s.data == "" {
+		return nil, errNoData
+	}
 	l, err := s.build(st)
 	if err != nil {
 		return nil, err
 	}
 	s.saveMu.Lock()
 	defer s.saveMu.Unlock()
-	if err := s.writeLocked(st); err != nil {
+	assignments := s.rbac.Assignments()
+	if roles {
+		assignments = decision.Prune(assignments, st.Policy.Roles)
+	}
+	if err := s.writeLocked(st, assignments); err != nil {
 		log.Printf("save state: %v", err)
 		return nil, errNotSaved
+	}
+	if roles {
+		s.rbac.Redefine(st.Policy.Roles)
 	}
 	s.live.Store(l)
 	return l, nil
@@ -129,54 +158,53 @@ func parsePublicURL(raw string) (*url.URL, error) {
 	return u, nil
 }
 
-// seed applies the config file's settings that changed since they were last
-// applied, and reports whether anything did.
+func digest(v any) string {
+	raw, _ := json.Marshal(v)
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
+}
+
+// seed applies the config file's settings that changed in the file since
+// they were last applied, and reports whether anything did. A changed value
+// replaces the stored one whole; when that overrides a change made at
+// runtime, it says so in the log. Role assignments are not seeded here: they
+// are role state, seeded once by New.
 func seed(st *Settings, cfg Config) (bool, error) {
 	changed := false
-	take := func(field string, present bool, value any, set func()) error {
-		if !present {
-			return nil
+	take := func(field string, value, stored any, set func()) {
+		d := digest(value)
+		old := st.Seeds[field]
+		if old == d {
+			return
 		}
-		raw, err := json.Marshal(value)
-		if err != nil {
-			return err
-		}
-		sum := sha256.Sum256(raw)
-		digest := hex.EncodeToString(sum[:])
-		if st.Seeds[field] == digest {
-			return nil
+		if now := digest(stored); !reflect.ValueOf(stored).IsZero() && now != old && now != d {
+			log.Printf("config file: %s changed in the file and replaces the value set at runtime", field)
 		}
 		if st.Seeds == nil {
 			st.Seeds = map[string]string{}
 		}
-		st.Seeds[field] = digest
+		st.Seeds[field] = d
 		set()
 		changed = true
-		return nil
 	}
-	if err := take("oidc", cfg.OIDC != nil, cfg.OIDC, func() {
-		o := *cfg.OIDC
-		st.OIDC, st.Provider = &o, "config"
-	}); err != nil {
-		return false, err
+	if cfg.OIDC != nil {
+		take("oidc", cfg.OIDC, st.OIDC, func() {
+			o := *cfg.OIDC
+			st.OIDC, st.Provider = &o, "config"
+		})
 	}
-	if err := take("publicUrl", cfg.PublicURL != "", cfg.PublicURL, func() {
-		st.PublicURL = strings.TrimRight(cfg.PublicURL, "/")
-	}); err != nil {
-		return false, err
+	if cfg.PublicURL != "" {
+		public := strings.TrimRight(cfg.PublicURL, "/")
+		take("publicUrl", public, st.PublicURL, func() { st.PublicURL = public })
 	}
-	var policyErr error
-	if err := take("policy", !reflect.ValueOf(cfg.Policy).IsZero(), cfg.Policy, func() {
-		// Assignments seed role state, which then lives with identities;
-		// they are not a setting.
-		_, policyErr = preparePolicy(cfg.Policy)
-		st.Policy = cfg.Policy
-		st.Policy.Assignments = nil
-	}); err != nil {
-		return false, err
-	}
-	if policyErr != nil {
-		return false, policyErr
+	policy := cfg.Policy
+	policy.Assignments = nil
+	if !reflect.ValueOf(policy).IsZero() {
+		prepared, err := preparePolicy(policy)
+		if err != nil {
+			return false, err
+		}
+		take("policy", prepared, st.Policy, func() { st.Policy = prepared })
 	}
 	// A config file that brings its own provider or admin token has done
 	// setup's job.
@@ -243,21 +271,28 @@ func (s *Server) getSettings(w http.ResponseWriter, _ *http.Request, _ Principal
 func (s *Server) update(w http.ResponseWriter, change func(*Settings) error) (*live, bool) {
 	s.settingsMu.Lock()
 	defer s.settingsMu.Unlock()
+	return s.updateLocked(w, change, false)
+}
+
+func (s *Server) updateLocked(w http.ResponseWriter, change func(*Settings) error, roles bool) (*live, bool) {
 	st := s.cur().settings
-	if err := change(&st); err != nil {
-		fail(w, http.StatusBadRequest, err.Error())
-		return nil, false
+	err := change(&st)
+	var l *live
+	if err == nil {
+		l, err = s.applyRoles(st, roles)
 	}
-	l, err := s.apply(st)
+	var refusal statusError
 	switch {
+	case err == nil:
+		return l, true
+	case errors.As(err, &refusal):
+		fail(w, refusal.status, refusal.msg)
 	case errors.Is(err, errNotSaved):
 		fail(w, http.StatusInternalServerError, err.Error())
-		return nil, false
-	case err != nil:
+	default:
 		fail(w, http.StatusBadRequest, err.Error())
-		return nil, false
 	}
-	return l, true
+	return nil, false
 }
 
 func (s *Server) getPublicURL(w http.ResponseWriter, _ *http.Request, _ Principal) {
@@ -305,14 +340,12 @@ func (s *Server) putPolicy(w http.ResponseWriter, r *http.Request, _ Principal) 
 	}
 	s.settingsMu.Lock()
 	defer s.settingsMu.Unlock()
-	st := s.cur().settings
-	st.Policy = p
-	// Role definitions change with policy; assignments of roles that are
-	// gone go with them, and come back if the change cannot be saved.
-	undo := s.rbac.Redefine(p.Roles)
-	if _, err := s.apply(st); err != nil {
-		undo()
-		fail(w, http.StatusInternalServerError, err.Error())
+	// Role definitions change with policy, and assignments of roles that are
+	// gone go with them.
+	if _, ok := s.updateLocked(w, func(st *Settings) error {
+		st.Policy = p
+		return nil
+	}, true); !ok {
 		return
 	}
 	reply(w, http.StatusOK, p)
@@ -321,7 +354,11 @@ func (s *Server) putPolicy(w http.ResponseWriter, r *http.Request, _ Principal) 
 // connectProvider connects an identity provider in one step. The admin
 // credential in the request is used for this call only: it is not stored,
 // logged, or returned.
-func (s *Server) connectProvider(w http.ResponseWriter, r *http.Request, _ Principal) {
+func (s *Server) connectProvider(w http.ResponseWriter, r *http.Request, p Principal) {
+	if s.data == "" {
+		fail(w, errNoData.status, errNoData.msg)
+		return
+	}
 	var body struct {
 		provider.Request
 		Audience   string            `json:"audience,omitempty"`
@@ -366,6 +403,11 @@ func (s *Server) connectProvider(w http.ResponseWriter, r *http.Request, _ Princ
 		return
 	}
 	l, ok := s.update(w, func(st *Settings) error {
+		// The provider call took a while. A setup session's change must not
+		// land after setup completed without it.
+		if p.viaSetup && st.SetupComplete {
+			return statusError{http.StatusConflict, "setup completed while connecting; nothing was stored"}
+		}
 		st.Provider = body.Kind
 		st.OIDC = &OIDCConfig{
 			Issuer: res.Issuer, ClientID: res.ClientID,

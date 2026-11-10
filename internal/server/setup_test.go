@@ -366,6 +366,21 @@ func TestAdminCredentialIsNeverKept(t *testing.T) {
 	c.do("POST", "/v1/settings/provider", connectKeycloak(map[string]string{"clientId": kcServiceUser, "clientSecret": kcSecret}, "", kc), http.StatusOK, nil)
 	c.do("POST", "/v1/settings/provider", connectKeycloak(map[string]string{"username": "ana", "password": kcPassword}, "", kc), http.StatusOK, nil)
 	c.do("GET", "/v1/settings", nil, http.StatusOK, nil)
+	// Fail at every stage, with either kind of credential.
+	for _, stage := range []string{"GET /roles", "POST /roles", "GET /clients", "POST /clients", "GET /users", "POST /users"} {
+		for _, cred := range []map[string]string{
+			{"username": "ana", "password": kcPassword},
+			{"clientId": kcServiceUser, "clientSecret": kcSecret},
+		} {
+			broken := newKeycloak(t)
+			broken.fail(stage)
+			want := http.StatusBadGateway
+			if strings.Contains(stage, "users") && cred["clientId"] != "" {
+				want = http.StatusOK // a service client never touches users
+			}
+			c.do("POST", "/v1/settings/provider", connectKeycloak(cred, "", broken), want, nil)
+		}
+	}
 
 	raw, err := os.ReadFile(data)
 	if err != nil {
@@ -373,7 +388,7 @@ func TestAdminCredentialIsNeverKept(t *testing.T) {
 	}
 	places := map[string]string{"log": logs.String(), "data file": string(raw), "responses": strings.Join(c.bodies, "\n")}
 	for where, text := range places {
-		for _, secret := range []string{"SEKRIT", kcAdminToken, "kc-refresh"} {
+		for _, secret := range []string{"SEKRIT", kcAnaToken, kcSvcToken, "kc-ADMIN", "kc-refresh"} {
 			if strings.Contains(text, secret) {
 				t.Errorf("%s contains %q:\n%s", where, secret, text)
 			}
@@ -402,6 +417,7 @@ func TestUnsupportedProviders(t *testing.T) {
 func TestReconnectingSwitchesVerificationLive(t *testing.T) {
 	a, b := newIssuer(t), newIssuer(t)
 	srv, err := New(Config{
+		Data:   filepath.Join(t.TempDir(), "attest.json"),
 		OIDC:   &OIDCConfig{Issuer: a.srv.URL},
 		Tokens: map[string]Principal{"root": {Kind: KindAdmin, ID: "root"}},
 		Fusion: perception.DefaultConfig(),
@@ -452,7 +468,7 @@ func TestReconnectingSwitchesVerificationLive(t *testing.T) {
 }
 
 func TestPolicyChangesLive(t *testing.T) {
-	hn := newHarness(t)
+	hn := newHarnessWith(t, filepath.Join(t.TempDir(), "attest.json"))
 	var p decision.Policy
 	hn.call("admin", "GET", "/v1/settings/policy", nil, http.StatusOK, &p)
 	if d := hn.decide("", "emergency.call"); !d.Granted {
@@ -521,5 +537,163 @@ func TestConfigSeedsSettingsOnce(t *testing.T) {
 	cfg.PublicURL = "http://c.example"
 	if got := publicURL(start()); got != "http://c.example" {
 		t.Fatalf("an edited config file was ignored: %q", got)
+	}
+}
+
+// residents is a config whose policy seeds alice with a role.
+func residents(data string) Config {
+	return Config{
+		Data:   data,
+		Tokens: map[string]Principal{"root": {Kind: KindAdmin, ID: "root"}},
+		Fusion: perception.DefaultConfig(),
+		Policy: decision.Policy{
+			Permissions: map[string]string{"door.unlock": "presumed"},
+			Roles:       map[string][]string{"resident": {"door.unlock"}},
+			Assignments: map[string][]string{"alice": {"resident"}},
+		},
+	}
+}
+
+func TestRevokedRolesStayRevokedAcrossRestarts(t *testing.T) {
+	restart := func(cfg Config) *Server {
+		t.Helper()
+		srv, err := New(cfg, time.Now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return srv
+	}
+	t.Run("cleared through the identities API", func(t *testing.T) {
+		cfg := residents(filepath.Join(t.TempDir(), "attest.json"))
+		srv := restart(cfg)
+		if got := srv.rbac.Roles("alice"); len(got) != 1 {
+			t.Fatalf("the first start did not seed alice: %v", got)
+		}
+		hn := &harness{t: t, h: srv.Handler(), now: time.Now()}
+		hn.call("root", "PUT", "/v1/identities/alice", map[string]string{"displayName": "Alice"}, http.StatusOK, nil)
+		hn.call("root", "PUT", "/v1/identities/alice/roles", map[string][]string{"roles": {}}, http.StatusOK, nil)
+		if got := restart(cfg).rbac.Roles("alice"); len(got) != 0 {
+			t.Fatalf("a restart gave back revoked roles: %v", got)
+		}
+	})
+	t.Run("removed with the role in policy", func(t *testing.T) {
+		cfg := residents(filepath.Join(t.TempDir(), "attest.json"))
+		srv := restart(cfg)
+		hn := &harness{t: t, h: srv.Handler(), now: time.Now()}
+		var p decision.Policy
+		hn.call("root", "GET", "/v1/settings/policy", nil, http.StatusOK, &p)
+		without := p
+		without.Roles = map[string][]string{}
+		hn.call("root", "PUT", "/v1/settings/policy", without, http.StatusOK, nil)
+		hn.call("root", "PUT", "/v1/settings/policy", p, http.StatusOK, nil)
+		if got := srv.rbac.Roles("alice"); len(got) != 0 {
+			t.Fatalf("re-adding the role restored it: %v", got)
+		}
+		if got := restart(cfg).rbac.Roles("alice"); len(got) != 0 {
+			t.Fatalf("a restart gave back revoked roles: %v", got)
+		}
+	})
+}
+
+func TestConfigEditsReplaceOnlyWhatChanged(t *testing.T) {
+	var logs bytes.Buffer
+	log.SetOutput(&logs)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+	cfg := residents(filepath.Join(t.TempDir(), "attest.json"))
+	start := func() *Server {
+		t.Helper()
+		srv, err := New(cfg, time.Now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return srv
+	}
+	hn := &harness{t: t, h: start().Handler(), now: time.Now()}
+	var p decision.Policy
+	hn.call("root", "GET", "/v1/settings/policy", nil, http.StatusOK, &p)
+	p.Permissions["music.play"] = "presumed"
+	hn.call("root", "PUT", "/v1/settings/policy", p, http.StatusOK, nil)
+
+	// Assignments are first-start role state, not policy: editing them in
+	// the file leaves the runtime policy alone.
+	cfg.Policy.Assignments = map[string][]string{"alice": {"resident"}, "bob": {"resident"}}
+	if _, ok := start().cur().policy().Permissions["music.play"]; !ok {
+		t.Fatal("editing config assignments replaced the runtime policy")
+	}
+	if strings.Contains(logs.String(), "replaces the value set at runtime") {
+		t.Fatalf("logged an override that did not happen:\n%s", logs.String())
+	}
+	// Editing the policy in the file replaces it whole, and says so.
+	cfg.Policy.Floor = []string{"emergency.call"}
+	srv := start()
+	if _, ok := srv.cur().policy().Permissions["music.play"]; ok {
+		t.Fatal("an edited config policy did not replace the runtime one")
+	}
+	if !strings.Contains(logs.String(), "config file: policy changed in the file and replaces the value set at runtime") {
+		t.Fatalf("no override line in the log:\n%s", logs.String())
+	}
+}
+
+func TestSettingsNeedADataFile(t *testing.T) {
+	var logs bytes.Buffer
+	log.SetOutput(&logs)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+	// Unconfigured and in memory: nothing set up could survive a restart.
+	srv, err := New(Config{Fusion: perception.DefaultConfig()}, time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if srv.setup.code != "" || strings.Contains(logs.String(), "setup code") {
+		t.Fatal("printed a setup code that could not set anything up")
+	}
+	c := newConsole(t, srv.Handler())
+	var r map[string]string
+	c.do("POST", "/v1/setup/session", map[string]string{"code": "ANY"}, http.StatusConflict, &r)
+	if !strings.Contains(r["error"], "data file") {
+		t.Fatalf("unclear refusal: %q", r["error"])
+	}
+
+	// The in-memory quickstart keeps working for everything but settings.
+	hn := newHarness(t)
+	hn.call("admin", "GET", "/v1/settings", nil, http.StatusOK, nil)
+	hn.call("admin", "PUT", "/v1/settings/public-url", map[string]string{"publicUrl": "http://attest.home"}, http.StatusConflict, nil)
+	var p decision.Policy
+	hn.call("admin", "GET", "/v1/settings/policy", nil, http.StatusOK, &p)
+	hn.call("admin", "PUT", "/v1/settings/policy", p, http.StatusConflict, nil)
+	hn.call("admin", "POST", "/v1/settings/provider", map[string]string{"kind": "oidc", "issuer": "http://127.0.0.1:1"}, http.StatusConflict, nil)
+	hn.call("admin", "PUT", "/v1/identities/eve", map[string]string{"displayName": "Eve"}, http.StatusOK, nil)
+	if d := hn.decide("", "emergency.call"); !d.Granted {
+		t.Fatalf("decisions stopped working: %+v", d)
+	}
+}
+
+func TestConnectStartedInSetupCannotLandAfterIt(t *testing.T) {
+	is, kc := newIssuer(t), newKeycloak(t)
+	now := time.Now()
+	srv, _ := unconfigured(t, &now)
+	c := openSetup(t, srv)
+	c.do("PUT", "/v1/settings/public-url", map[string]string{"publicUrl": "http://attest.home"}, http.StatusOK, nil)
+	c.do("POST", "/v1/settings/provider", map[string]string{"kind": "oidc", "issuer": is.srv.URL, "clientId": "attest-enrol"}, http.StatusOK, nil)
+
+	kc.gate = make(chan struct{})
+	done := make(chan *connectReply)
+	go func() {
+		var r connectReply
+		// Its own console: the main one's helper is not safe to share.
+		slow := &console{t: t, base: c.base, c: c.c, csrf: c.csrf}
+		slow.do("POST", "/v1/settings/provider", connectKeycloak(map[string]string{"username": "ana", "password": kcPassword}, "", kc), http.StatusConflict, &r)
+		done <- &r
+	}()
+	// Wait until the connect is at the provider, then finish setup under it.
+	for kc.waiting() == 0 {
+		time.Sleep(time.Millisecond)
+	}
+	c.do("POST", "/v1/setup/complete", nil, http.StatusOK, nil)
+	close(kc.gate)
+	if r := <-done; !strings.Contains(r.Error, "setup completed") {
+		t.Fatalf("late connect: %+v", r)
+	}
+	if got := srv.cur().settings.OIDC.Issuer; got != is.srv.URL {
+		t.Fatalf("a connect from a dead setup session was stored: %s", got)
 	}
 }

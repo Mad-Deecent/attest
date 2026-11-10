@@ -3,6 +3,7 @@ package provider
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,7 +53,7 @@ func (k Keycloak) Connect(ctx context.Context, req Request) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	a := &kcAdmin{client: k.Client, base: base, realm: url.PathEscape(req.Realm)}
+	a := &kcAdmin{client: noRedirects(k.Client), base: base, realm: url.PathEscape(req.Realm)}
 	logout, err := a.login(ctx, url.PathEscape(adminRealm), cred)
 	if err != nil {
 		return Result{}, err
@@ -83,7 +84,7 @@ func (k Keycloak) Connect(ctx context.Context, req Request) (Result, error) {
 	case adminRealm != req.Realm:
 		grant.Note = "the admin who connected lives in realm " + adminRealm + ": grant " + adminRole + " to a person in " + req.Realm
 	default:
-		grant, err = a.grant(ctx, cred.Username, roles[adminRole])
+		grant, err = a.grant(ctx, roles[adminRole])
 		if err != nil {
 			return res, err
 		}
@@ -97,6 +98,27 @@ type kcAdmin struct {
 	base   string
 	realm  string
 	token  string
+	// subject is the admin token's sub: for a person, their user id in the
+	// realm the token came from.
+	subject string
+}
+
+// tokenSubject reads sub from a JWT without checking its signature. Only for
+// a token that came straight from the token endpoint over the back channel.
+func tokenSubject(raw string) string {
+	parts := strings.Split(raw, ".")
+	if len(parts) != 3 {
+		return ""
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return ""
+	}
+	var claims struct {
+		Sub string `json:"sub"`
+	}
+	_ = json.Unmarshal(payload, &claims)
+	return claims.Sub
 }
 
 // login exchanges the credential for a short-lived admin token. The returned
@@ -129,6 +151,7 @@ func (a *kcAdmin) login(ctx context.Context, realm string, cred Credential) (log
 		return nil, fmt.Errorf("keycloak token endpoint returned no access token")
 	}
 	a.token = tok.AccessToken
+	a.subject = tokenSubject(tok.AccessToken)
 	return func() {
 		a.token = ""
 		if tok.RefreshToken == "" {
@@ -159,11 +182,14 @@ func (a *kcAdmin) send(ctx context.Context, method, target, contentType string, 
 		req.Header.Set("Authorization", "Bearer "+a.token)
 	}
 	resp, err := a.client.Do(req)
+	u, _ := url.Parse(target)
 	if err != nil {
-		u, _ := url.Parse(target)
 		return 0, nil, fmt.Errorf("keycloak at %s: unreachable", u.Host)
 	}
 	defer resp.Body.Close()
+	if redirected(resp.StatusCode) {
+		return 0, nil, fmt.Errorf("keycloak at %s answered with a redirect (%d), which attest does not follow with an admin credential; check the URL", u.Host, resp.StatusCode)
+	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	return resp.StatusCode, raw, err
 }
@@ -314,31 +340,26 @@ func add(c map[string]any, key, v string) bool {
 	return true
 }
 
-func (a *kcAdmin) grant(ctx context.Context, username string, role map[string]any) (Change, error) {
+// grant gives the admin role to the person the admin token belongs to,
+// identified by the token's subject rather than a name lookup that could
+// match someone else.
+func (a *kcAdmin) grant(ctx context.Context, role map[string]any) (Change, error) {
 	name, _ := role["name"].(string)
 	change := Change{Object: "role grant", Name: name, Action: "found"}
-	var users []struct {
-		ID       string `json:"id"`
-		Username string `json:"username"`
-	}
-	if _, err := a.admin(ctx, http.MethodGet, "/users?exact=true&username="+url.QueryEscape(username), nil, &users); err != nil {
-		return change, err
-	}
-	i := slices.IndexFunc(users, func(u struct {
-		ID       string `json:"id"`
-		Username string `json:"username"`
-	}) bool {
-		return strings.EqualFold(u.Username, username)
-	})
-	if i < 0 {
-		change.Action, change.Note = "skipped", "could not find the admin who connected in the realm"
+	if a.subject == "" {
+		change.Action, change.Note = "skipped", "the admin token names no user: grant "+name+" to a person in Keycloak"
 		return change, nil
 	}
-	change.Note = "to " + users[i].Username
-	path := "/users/" + url.PathEscape(users[i].ID) + "/role-mappings/realm"
+	change.Note = "to the admin who connected"
+	path := "/users/" + url.PathEscape(a.subject) + "/role-mappings/realm"
 	var held []map[string]any
-	if _, err := a.admin(ctx, http.MethodGet, path, nil, &held); err != nil {
+	status, err := a.admin(ctx, http.MethodGet, path, nil, &held)
+	if err != nil {
 		return change, err
+	}
+	if status == http.StatusNotFound {
+		change.Action, change.Note = "skipped", "the admin who connected is not a user of this realm"
+		return change, nil
 	}
 	if slices.ContainsFunc(held, func(r map[string]any) bool { return r["name"] == name }) {
 		return change, nil

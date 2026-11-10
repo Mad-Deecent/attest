@@ -77,20 +77,21 @@ func (s *Server) save() error {
 	// so it cannot interleave with a settings change (see apply).
 	s.saveMu.Lock()
 	defer s.saveMu.Unlock()
-	return s.writeLocked(s.cur().settings)
+	return s.writeLocked(s.cur().settings, s.rbac.Assignments())
 }
 
-// writeLocked writes state with the given settings atomically: a temp file in
+// writeLocked writes state with the given settings and role assignments
+// atomically: a temp file in
 // the same directory, synced, then renamed over the old one. Callers hold
 // saveMu.
-func (s *Server) writeLocked(settings Settings) error {
+func (s *Server) writeLocked(settings Settings, assignments map[string][]string) error {
 	if s.data == "" {
 		return nil
 	}
 	delegations, next := s.delegations.Snapshot()
 	raw, err := json.MarshalIndent(snapshot{
 		Identities:     s.registry.List(),
-		Assignments:    s.rbac.Assignments(),
+		Assignments:    assignments,
 		Delegations:    delegations,
 		NextDelegation: next,
 		Settings:       &settings,

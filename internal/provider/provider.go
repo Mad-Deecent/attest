@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -95,6 +96,16 @@ func inputf(format string, args ...any) error {
 // Client is the HTTP client adapters use.
 var Client = &http.Client{Timeout: 15 * time.Second}
 
+// noRedirects returns a copy of c that stops at a redirect. A redirect would
+// carry the admin credential, or a token, to wherever it points.
+func noRedirects(c *http.Client) *http.Client {
+	cp := *c
+	cp.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	return &cp
+}
+
+func redirected(status int) bool { return status >= 300 && status <= 399 }
+
 // For returns the adapter for a kind.
 func For(kind string) (Provider, error) {
 	switch kind {
@@ -140,18 +151,21 @@ func Discover(ctx context.Context, client *http.Client, issuer string) (string, 
 	if err != nil {
 		return "", err
 	}
-	resp, err := client.Do(req)
+	resp, err := noRedirects(client).Do(req)
 	if err != nil {
 		return "", fmt.Errorf("discovery at %s: %w", u.Host, err)
 	}
 	defer resp.Body.Close()
+	if redirected(resp.StatusCode) {
+		return "", fmt.Errorf("discovery at %s: answered with a redirect (%d), which attest does not follow; check the URL", u.Host, resp.StatusCode)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("discovery at %s: status %d", u.Host, resp.StatusCode)
 	}
 	var doc struct {
 		Issuer string `json:"issuer"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&doc); err != nil || doc.Issuer == "" {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&doc); err != nil || doc.Issuer == "" {
 		return "", fmt.Errorf("discovery at %s: not an OIDC discovery document", u.Host)
 	}
 	return doc.Issuer, nil

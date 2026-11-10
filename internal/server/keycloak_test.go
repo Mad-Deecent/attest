@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -26,16 +27,39 @@ type keycloak struct {
 	failOn  string
 	logouts int
 	nextID  int
+	// gate, when set, holds every token request until it is closed.
+	gate    chan struct{}
+	blocked int
+}
+
+// waiting is how many token requests the gate is holding.
+func (kc *keycloak) waiting() int {
+	kc.mu.Lock()
+	defer kc.mu.Unlock()
+	return kc.blocked
 }
 
 const (
 	kcRealm       = "home"
 	kcPassword    = "pw-SEKRIT-ana"
 	kcSecret      = "svc-SEKRIT-secret"
-	kcAdminToken  = "kc-ADMIN-TOKEN-do-not-store"
 	kcAnaID       = "user-ana"
 	kcServiceUser = "svc"
 )
+
+// Admin tokens are JWTs whose sub is the user id, as Keycloak's are.
+var (
+	kcAnaToken = fakeJWT(kcAnaID)
+	kcSvcToken = fakeJWT("service-account-" + kcServiceUser)
+)
+
+func fakeJWT(sub string) string {
+	enc := func(v any) string {
+		raw, _ := json.Marshal(v)
+		return base64.RawURLEncoding.EncodeToString(raw)
+	}
+	return enc(map[string]string{"alg": "none"}) + "." + enc(map[string]string{"sub": sub, "jti": "kc-ADMIN-" + sub}) + ".sig"
+}
 
 func newKeycloak(t *testing.T) *keycloak {
 	t.Helper()
@@ -58,21 +82,37 @@ func newKeycloak(t *testing.T) *keycloak {
 }
 
 func (kc *keycloak) token(w http.ResponseWriter, r *http.Request) {
+	kc.mu.Lock()
+	gate := kc.gate
+	if gate != nil {
+		kc.blocked++
+	}
+	kc.mu.Unlock()
+	if gate != nil {
+		<-gate
+	}
 	_ = r.ParseForm()
 	f := r.PostForm
-	ok := r.PathValue("realm") == kcRealm && ((f.Get("grant_type") == "password" && f.Get("client_id") == "admin-cli" &&
-		f.Get("username") == "ana" && f.Get("password") == kcPassword) ||
-		(f.Get("grant_type") == "client_credentials" && f.Get("client_id") == kcServiceUser && f.Get("client_secret") == kcSecret))
-	if !ok {
+	var token string
+	switch {
+	case r.PathValue("realm") != kcRealm:
+	case f.Get("grant_type") == "password" && f.Get("client_id") == "admin-cli" &&
+		f.Get("username") == "ana" && f.Get("password") == kcPassword:
+		token = kcAnaToken
+	case f.Get("grant_type") == "client_credentials" && f.Get("client_id") == kcServiceUser && f.Get("client_secret") == kcSecret:
+		token = kcSvcToken
+	}
+	if token == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(`{"error":"invalid_grant","error_description":"Invalid user credentials"}`))
 		return
 	}
-	_ = json.NewEncoder(w).Encode(map[string]any{"access_token": kcAdminToken, "refresh_token": "kc-refresh"})
+	_ = json.NewEncoder(w).Encode(map[string]any{"access_token": token, "refresh_token": "kc-refresh"})
 }
 
 func (kc *keycloak) admin(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Authorization") != "Bearer "+kcAdminToken || r.PathValue("realm") != kcRealm {
+	auth := r.Header.Get("Authorization")
+	if (auth != "Bearer "+kcAnaToken && auth != "Bearer "+kcSvcToken) || r.PathValue("realm") != kcRealm {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -131,12 +171,8 @@ func (kc *keycloak) admin(w http.ResponseWriter, r *http.Request) {
 		}
 		kc.clients[i] = roundTrip(body)
 		w.WriteHeader(http.StatusNoContent)
-	case r.Method == "GET" && path == "/users":
-		users := []map[string]any{}
-		if r.URL.Query().Get("username") == "ana" {
-			users = append(users, map[string]any{"id": kcAnaID, "username": "ana"})
-		}
-		out(users)
+	case len(parts) == 4 && parts[0] == "users" && parts[1] != kcAnaID:
+		w.WriteHeader(http.StatusNotFound)
 	case len(parts) == 4 && parts[0] == "users" && parts[2] == "role-mappings" && parts[3] == "realm":
 		if r.Method == "GET" {
 			out(append([]map[string]any{}, kc.mappings[parts[1]]...))

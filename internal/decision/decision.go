@@ -140,28 +140,27 @@ func (r *RBAC) Restore(assignments map[string][]string) {
 
 // Redefine replaces the role definitions, as when policy changes at runtime,
 // and drops assignments of roles that no longer exist: a role removed and
-// later re-added must not silently restore what it granted. undo puts back
-// the definitions and assignments as they were.
-func (r *RBAC) Redefine(roles map[string][]string) (undo func()) {
+// later re-added must not silently restore what it granted.
+func (r *RBAC) Redefine(roles map[string][]string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	oldRoles, oldAssignments := r.roles, r.assignments
 	r.roles = roles
-	r.assignments = make(map[string][]string, len(oldAssignments))
-	for id, held := range oldAssignments {
+	r.assignments = Prune(r.assignments, roles)
+}
+
+// Prune returns the assignments that remain once only roles are defined.
+func Prune(assignments map[string][]string, roles map[string][]string) map[string][]string {
+	out := make(map[string][]string, len(assignments))
+	for id, held := range assignments {
 		held = slices.DeleteFunc(slices.Clone(held), func(role string) bool {
 			_, ok := roles[role]
 			return !ok
 		})
 		if len(held) > 0 {
-			r.assignments[id] = held
+			out[id] = held
 		}
 	}
-	return func() {
-		r.mu.Lock()
-		defer r.mu.Unlock()
-		r.roles, r.assignments = oldRoles, oldAssignments
-	}
+	return out
 }
 
 func (r *RBAC) Check(identityID, permission, _ string) (bool, error) {

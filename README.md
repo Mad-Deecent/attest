@@ -132,7 +132,10 @@ Set `data` to a file path to keep identities, roles, delegations, and settings
 across restarts; attest refuses to start if its directory is missing or not
 writable. Empty keeps everything in memory. With a data file, the config's
 `oidc`, `publicUrl`, and `policy` are seeds: each is applied when it first
-appears or changes in the file, and changes made at runtime survive a restart.
+appears or changes in the file, replacing the runtime value whole (attest logs
+when it overrides a runtime change); otherwise changes made at runtime survive
+a restart. `policy.assignments` seeds roles on the first start only. Without a
+data file, settings cannot be changed at runtime.
 
 ## Development
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"path/filepath"
 	"slices"
@@ -26,6 +27,8 @@ type Principal struct {
 	ID   string `json:"id"`
 	// kinds are the kinds a provider-issued token confers through its roles.
 	kinds []string
+	// viaSetup marks the first-run setup session, which no token can claim.
+	viaSetup bool
 }
 
 func (p Principal) is(kind string) bool {
@@ -95,14 +98,16 @@ func New(cfg Config, now func() time.Time) (*Server, error) {
 		return nil, err
 	}
 	registry := identity.NewRegistry()
-	// Config assignments seed role state; saved assignments overlay them.
+	// Config assignments seed role state on the first start only. Once the
+	// data file holds role state it is the whole truth: roles emptied at
+	// runtime stay empty.
 	seedRoles := st.Policy
-	seedRoles.Assignments = map[string][]string{}
-	for id, roles := range cfg.Policy.Assignments {
-		seedRoles.Assignments[id] = slices.DeleteFunc(slices.Clone(roles), func(role string) bool {
-			_, ok := st.Policy.Roles[role]
-			return !ok
-		})
+	seedRoles.Assignments = nil
+	if snap == nil || snap.Assignments == nil {
+		seedRoles.Assignments = cfg.Policy.Assignments
+		if err := seedRoles.Validate(); err != nil {
+			return nil, err
+		}
 	}
 	s := &Server{
 		tokens:      cfg.Tokens,
@@ -128,7 +133,11 @@ func New(cfg Config, now func() time.Time) (*Server, error) {
 			return nil, fmt.Errorf("save data: %w", err)
 		}
 	}
-	if !st.SetupComplete {
+	switch {
+	case st.SetupComplete:
+	case s.data == "":
+		log.Printf("attest is not set up, and without a data file it cannot be: start it with -data, or set data in the config file")
+	default:
 		s.setup.begin()
 	}
 	return s, nil

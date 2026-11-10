@@ -146,6 +146,10 @@ func (s *Server) openSetup(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusGone, "setup is complete")
 		return
 	}
+	if s.data == "" {
+		fail(w, errNoData.status, errNoData.msg)
+		return
+	}
 	var body struct {
 		Code string `json:"code"`
 	}
@@ -182,7 +186,7 @@ func (s *Server) asAdmin(next handler) http.HandlerFunc {
 		}
 		switch status {
 		case http.StatusOK:
-			next(w, r, Principal{Kind: KindAdmin, ID: "setup"})
+			next(w, r, Principal{Kind: KindAdmin, ID: "setup", viaSetup: true})
 		case http.StatusForbidden:
 			fail(w, status, "missing or wrong X-CSRF-Token")
 		default:
@@ -195,6 +199,10 @@ func (s *Server) asAdmin(next handler) http.HandlerFunc {
 // the provider and send people back to itself. From then on the setup code
 // and session are dead, including across restarts.
 func (s *Server) completeSetup(w http.ResponseWriter, _ *http.Request, _ Principal) {
+	// Under the settings lock, so the provider checked here is the one that
+	// is saved as set up, not one a concurrent connect is replacing.
+	s.settingsMu.Lock()
+	defer s.settingsMu.Unlock()
 	l := s.cur()
 	if l.settings.SetupComplete {
 		fail(w, http.StatusGone, "setup is complete")
@@ -208,10 +216,10 @@ func (s *Server) completeSetup(w http.ResponseWriter, _ *http.Request, _ Princip
 		fail(w, http.StatusServiceUnavailable, "the identity provider is not answering; try again")
 		return
 	}
-	if _, ok := s.update(w, func(st *Settings) error {
+	if _, ok := s.updateLocked(w, func(st *Settings) error {
 		st.SetupComplete = true
 		return nil
-	}); !ok {
+	}, false); !ok {
 		return
 	}
 	s.setup.end()
