@@ -32,6 +32,20 @@ curl -X POST $A/v1/decisions -H 'Authorization: Bearer dev-agent-token' \
 `music.control` is granted. `door.unlock` is denied with `modalities 1 < min 2`
 until a second, independent modality supports the same subject.
 
+## Credentials from your identity provider
+
+The quickstart uses static development tokens. To accept tokens from an OIDC
+provider (Keycloak, Ory, Auth0, ...) instead, add its issuer to the config:
+
+```json
+"oidc": { "issuer": "https://idp.example.com/realms/home" }
+```
+
+A token opens the endpoints its roles allow: `attest-admin`, `attest-producer`,
+`attest-agent`, read from `realm_access.roles`. Set `rolesClaim` and `roles` if
+your provider names them differently, and `audience` to require one. An agent
+is known to policy by the client the token was issued to.
+
 ## Development
 
 ```bash

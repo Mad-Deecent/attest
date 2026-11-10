@@ -3,7 +3,9 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -19,6 +21,12 @@ import (
 type Principal struct {
 	Kind string `json:"kind"`
 	ID   string `json:"id"`
+	// kinds are the kinds a provider-issued token confers through its roles.
+	kinds []string
+}
+
+func (p Principal) is(kind string) bool {
+	return p.Kind == kind || slices.Contains(p.kinds, kind)
 }
 
 const (
@@ -29,14 +37,17 @@ const (
 
 type Config struct {
 	Listen string `json:"listen"`
-	// Tokens maps a static bearer token to its principal.
-	Tokens map[string]Principal `json:"tokens"`
+	// Tokens maps a static bearer token to its principal. For development;
+	// production credentials come from the identity provider.
+	Tokens map[string]Principal `json:"tokens,omitempty"`
+	OIDC   *OIDCConfig          `json:"oidc,omitempty"`
 	Fusion perception.Config    `json:"fusion"`
 	Policy decision.Policy      `json:"policy"`
 }
 
 type Server struct {
 	tokens      map[string]Principal
+	oidc        *oidcVerifier
 	registry    *identity.Registry
 	fusion      *perception.Fusion
 	delegations *decision.Delegations
@@ -56,8 +67,16 @@ func New(cfg Config, now func() time.Time) (*Server, error) {
 	fusion := perception.NewFusion(cfg.Fusion, registry)
 	delegations := decision.NewDelegations()
 	rbac := decision.NewRBAC(cfg.Policy)
+	var verifier *oidcVerifier
+	if cfg.OIDC != nil {
+		if cfg.OIDC.Issuer == "" {
+			return nil, errors.New("oidc.issuer is required")
+		}
+		verifier = &oidcVerifier{cfg: cfg.OIDC.withDefaults()}
+	}
 	return &Server{
 		tokens:      cfg.Tokens,
+		oidc:        verifier,
 		registry:    registry,
 		fusion:      fusion,
 		delegations: delegations,
@@ -98,18 +117,39 @@ type handler func(w http.ResponseWriter, r *http.Request, p Principal)
 
 func (s *Server) as(kind string, next handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-		p, known := s.tokens[token]
-		if !ok || !known {
-			fail(w, http.StatusUnauthorized, "missing or invalid bearer token")
-			return
-		}
-		if p.Kind != kind {
+		p, status := s.authenticate(r)
+		switch {
+		case status == http.StatusServiceUnavailable:
+			fail(w, status, "identity provider unavailable")
+		case status != http.StatusOK:
+			fail(w, status, "missing or invalid bearer token")
+		case !p.is(kind):
 			fail(w, http.StatusForbidden, "this endpoint requires a "+kind+" credential")
-			return
+		default:
+			next(w, r, p)
 		}
-		next(w, r, p)
 	}
+}
+
+func (s *Server) authenticate(r *http.Request) (Principal, int) {
+	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if !ok || token == "" {
+		return Principal{}, http.StatusUnauthorized
+	}
+	if p, known := s.tokens[token]; known {
+		return p, http.StatusOK
+	}
+	if s.oidc == nil {
+		return Principal{}, http.StatusUnauthorized
+	}
+	p, err := s.oidc.principal(r.Context(), token)
+	if errors.Is(err, errProviderUnavailable) {
+		return Principal{}, http.StatusServiceUnavailable
+	}
+	if err != nil {
+		return Principal{}, http.StatusUnauthorized
+	}
+	return p, http.StatusOK
 }
 
 func (s *Server) listIdentities(w http.ResponseWriter, _ *http.Request, _ Principal) {

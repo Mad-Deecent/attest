@@ -25,11 +25,11 @@ func newHarness(t *testing.T) *harness {
 	hn := &harness{t: t, now: time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
 	cfg := Config{
 		Tokens: map[string]Principal{
-			"admin": {KindAdmin, "admin"},
-			"face":  {KindProducer, "cam"},
-			"voice": {KindProducer, "mic"},
-			"agent": {KindAgent, "concierge"},
-			"other": {KindAgent, "stranger-bot"},
+			"admin": {Kind: KindAdmin, ID: "admin"},
+			"face":  {Kind: KindProducer, ID: "cam"},
+			"voice": {Kind: KindProducer, ID: "mic"},
+			"agent": {Kind: KindAgent, ID: "concierge"},
+			"other": {Kind: KindAgent, ID: "stranger-bot"},
 		},
 		Fusion: perception.DefaultConfig(),
 		Policy: decision.Policy{
