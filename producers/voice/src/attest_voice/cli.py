@@ -11,6 +11,8 @@ from pathlib import Path
 
 from .config import Config
 
+RECOMMENDED_MIN_ENROLL_SECONDS = 15.0
+
 
 def _models(cfg: Config):  # type: ignore[no-untyped-def]
     from .models import Models
@@ -20,14 +22,14 @@ def _models(cfg: Config):  # type: ignore[no-untyped-def]
 
 def cmd_enroll(cfg: Config, a: argparse.Namespace) -> int:
     from .audio import decode
-    from .enroll import TooLittleSpeech, enroll
+    from .enroll import Refused, enroll
     from .models import EMBEDDING_MODEL
     from .store import Store
 
     try:
         voiced = enroll(a.identity, decode(a.audio), _models(cfg), Store(cfg.data_dir),
                        model=EMBEDDING_MODEL, min_seconds=cfg.min_enroll_seconds)
-    except TooLittleSpeech as e:
+    except Refused as e:
         print(e, file=sys.stderr)
         return 2
     print(json.dumps({"identityId": a.identity, "voicedSeconds": round(voiced, 1)}))
@@ -71,6 +73,10 @@ def cmd_serve(cfg: Config, a: argparse.Namespace) -> int:
     from .store import Store
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+    if cfg.min_enroll_seconds < RECOMMENDED_MIN_ENROLL_SECONDS:
+        logging.getLogger("attest_voice").warning(
+            "enroll.minVoicedSeconds is %g; voiceprints from under %g s of speech are unreliable",
+            cfg.min_enroll_seconds, RECOMMENDED_MIN_ENROLL_SECONDS)
     svc = EnrollService(cfg.attest(), _models(cfg), Store(cfg.data_dir), model=EMBEDDING_MODEL,
                        min_seconds=cfg.min_enroll_seconds, cors_origin=cfg.cors_origin, max_body=cfg.max_body_bytes)
     serve(svc, a.listen or cfg.listen)

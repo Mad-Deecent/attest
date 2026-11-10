@@ -60,6 +60,13 @@ class Store:
             }
             self._write(data)
 
+    def get(self, identity: str) -> Voiceprint | None:
+        with self._lock:
+            v = self._read().get(identity)
+        if v is None:
+            return None
+        return Voiceprint(identity, np.asarray(v["embedding"], dtype=np.float32), v["model"], v["voicedSeconds"], v["enrolledAt"])
+
     def delete(self, identity: str) -> bool:
         with self._lock:
             data = self._read()

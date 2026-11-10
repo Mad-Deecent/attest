@@ -547,3 +547,69 @@ func TestDataDirectoryIsCheckedAtStartup(t *testing.T) {
 		t.Fatalf("a read-only data directory must fail startup, got %v", err)
 	}
 }
+
+// The voice step offers its lines one at a time from a list in the page, and
+// nothing a person reads uses the engine's words.
+func TestVoiceStepIsGuidedAndPlain(t *testing.T) {
+	e := newEnrollEnv(t, "")
+	b := e.signIn(ana)
+	page := b.body
+	list := regexp.MustCompile(`(?s)<ol id="prompt-list" hidden>(.*?)</ol>`).FindStringSubmatch(page)
+	if list == nil || strings.Count(list[1], "<li") != len(voicePrompts) {
+		t.Fatalf("want %d prompts in the page: %s", len(voicePrompts), page)
+	}
+	if strings.Count(list[1], "data-read") == 0 || strings.Count(list[1], "data-read") == len(voicePrompts) {
+		t.Fatal("prompts should mix lines to read with things to say")
+	}
+	for _, want := range []string{
+		`data-target="30"`, `role="progressbar"`, `aria-valuemax="30"`,
+		"This site never receives it", "discards it", "numeric summary",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("page lacks %q", want)
+		}
+	}
+	jargon := regexp.MustCompile(`(?i)\b(voiceprints?|embeddings?|llrs?|posterior|diariz\w*|vad)\b`)
+	for _, path := range []string{"/enroll", "/enroll/static/enroll.js"} {
+		if code := b.get(path); code != http.StatusOK {
+			t.Fatalf("%s: %d", path, code)
+		}
+		if m := jargon.FindAllString(b.body, -1); m != nil {
+			t.Errorf("%s uses words people shouldn't have to know: %v", path, m)
+		}
+	}
+}
+
+// Each save asks for a fresh ticket. A save the voice service refuses never
+// redeems its ticket; the next ticket voids it, so at most one is live per
+// person, and it still names only them.
+func TestEachSaveGetsAFreshTicket(t *testing.T) {
+	e := newEnrollEnv(t, "")
+	b := e.signIn(ana)
+	other := e.signIn(person{sub: "kc-bo", name: "Bo", username: "bo", accessRoles: []string{"guest"}})
+	issue := func(b *browser) string {
+		t.Helper()
+		b.get("/enroll")
+		if code := b.post("/enroll/ticket", nil, "X-CSRF-Token", b.csrf()); code != http.StatusOK {
+			t.Fatalf("ticket: %d %s", code, b.body)
+		}
+		var issued struct{ Ticket string }
+		_ = json.Unmarshal([]byte(b.body), &issued)
+		return issued.Ticket
+	}
+	refused := issue(b) // the voice service said "not enough yet" and did not redeem
+	bos := issue(other)
+	again := issue(b)
+	redeem := func(ticket string, status int) string {
+		t.Helper()
+		var out struct{ IdentityID string }
+		e.api.call("voice", "POST", "/v1/enrollment-tickets/redeem", map[string]string{"ticket": ticket}, status, &out)
+		return out.IdentityID
+	}
+	redeem(refused, http.StatusNotFound)
+	anaID, boID := redeem(again, http.StatusOK), redeem(bos, http.StatusOK)
+	if anaID == "" || boID == "" || anaID == boID {
+		t.Fatalf("tickets must stay bound to their own person: %q %q", anaID, boID)
+	}
+	redeem(again, http.StatusNotFound)
+}

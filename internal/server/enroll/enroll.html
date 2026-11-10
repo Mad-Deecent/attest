@@ -33,7 +33,7 @@
     <p>You're signed in{{with .Name}} as <strong>{{.}}</strong>{{end}}.</p>
     <form method="post" action="/enroll/logout">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <button class="secondary">Sign out</button>
+      <button>Sign out</button>
     </form>
   </li>
 
@@ -43,17 +43,41 @@
     <p>No voice service is set up here, so you can skip this step.</p>
     {{- else}}
     {{- with .VoiceDone}}
-    <p>Your voice was saved on {{.}}. You can record it again at any time.</p>
+    <p>Your voice was saved on {{.}}. You can record it again at any time. Your saved voice is replaced only if the new recording is good enough.</p>
     {{- end}}
-    <p>Your recording goes straight to the voice service. This site never receives it.</p>
-    <div id="recorder" data-voice-url="{{.VoiceURL}}" data-csrf="{{.CSRF}}" hidden>
-      <p>Press <strong>Start recording</strong>, read this sentence aloud at your normal pace, then press <strong>Stop and save</strong>.</p>
-      <blockquote>{{.Sentence}}</blockquote>
-      <div class="actions">
-        <button type="button" id="start">Start recording</button>
-        <button type="button" id="stop" class="secondary" disabled>Stop and save</button>
+    <p class="lede">You'll say a few short lines, one at a time: about {{.Target}} seconds of talking in all. Speak the way you normally would, from where you'd usually talk to your assistant.</p>
+    <dl class="kept">
+      <dt>What's kept</dt>
+      <dd>A numeric summary of how your voice sounds, kept by the voice service so it can recognize you.</dd>
+      <dt>Your recording</dt>
+      <dd>Goes straight to the voice service, which uses it once to make that summary and then discards it. This site never receives it.</dd>
+      <dt>Removing it</dt>
+      <dd>Ask whoever runs this system to delete your saved voice.</dd>
+    </dl>
+    <div id="recorder" class="recorder" data-voice-url="{{.VoiceURL}}" data-csrf="{{.CSRF}}" data-target="{{.Target}}" hidden>
+      <ol id="prompt-list" hidden>
+        {{- range .Prompts}}
+        <li{{if .Read}} data-read{{end}}>{{.Text}}</li>
+        {{- end}}
+      </ol>
+      <div id="stage" class="stage" hidden>
+        <p class="kicker"><span id="prompt-count"></span> <span aria-hidden="true">·</span> <span id="prompt-kind"></span></p>
+        <p id="prompt" class="prompt" aria-live="polite"></p>
+        <canvas id="trace" class="trace" aria-hidden="true"></canvas>
+        <div id="meter" class="meter" role="progressbar" aria-label="Speech recorded" aria-valuemin="0" aria-valuemax="{{.Target}}" aria-valuenow="0">
+          <span id="meter-fill" class="meter-fill"></span>
+        </div>
+        <p class="meter-label"><span><b id="heard">0</b> s of speech</span> <span class="dim">about {{.Target}} s</span></p>
       </div>
-      <p id="voice-status" class="note" role="status" aria-live="polite"></p>
+      <div class="actions">
+        <button type="button" id="start" class="primary">{{if .VoiceDone}}Record again{{else}}Start recording{{end}}</button>
+        <button type="button" id="next" hidden>Next line</button>
+        <button type="button" id="finish" class="primary" hidden>Finish</button>
+        <button type="button" id="more" class="primary" hidden>Keep going</button>
+        <button type="button" id="retry" class="primary" hidden>Try again</button>
+        <button type="button" id="restart" class="quiet" hidden>Start over</button>
+      </div>
+      <p id="voice-status" class="voice-status" role="status" aria-live="polite"></p>
     </div>
     <noscript><p>Recording needs JavaScript, which is turned off. You can skip this step and come back later.</p></noscript>
     {{- end}}
@@ -83,7 +107,7 @@
         {{- end}}
       </fieldset>
       {{- end}}
-      <button>Save my choices</button>
+      <button class="primary">Save my choices</button>
     </form>
     {{- end}}
 
@@ -99,7 +123,7 @@
         <form method="post" action="/enroll/revoke">
           <input type="hidden" name="csrf" value="{{$.CSRF}}">
           <input type="hidden" name="id" value="{{.ID}}">
-          <button class="secondary">Revoke<span class="visually-hidden"> what {{.Agent}} may do</span></button>
+          <button>Revoke<span class="visually-hidden"> what {{.Agent}} may do</span></button>
         </form>
         {{- end}}
       </li>

@@ -1,27 +1,23 @@
+/* Same tokens as the console (docs/design/console): near-monochrome, hairline
+   rules, one accent that means "now". */
 :root {
   color-scheme: light dark;
-  --bg: #ffffff;
-  --fg: #1b1b1b;
-  --muted: #565656;
-  --line: #c9c9c9;
-  --panel: #f3f4f6;
-  --accent: #0b57d0;
-  --accent-fg: #ffffff;
-  --ok: #146c2e;
-  --problem: #b3261e;
+  --bg: #fbfbfa; --sunk: #f3f3f1;
+  --ink: #141415; --ink-2: #505257; --ink-3: #6b6e74;
+  --rule: #e6e6e3; --rule-2: #d3d3cf; --faint: #d0d0cc;
+  --live: #5232e8; --live-soft: rgba(82, 50, 232, .14);
+  --ok: #17763a; --no: #c0352b;
+  --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #121212;
-    --fg: #ececec;
-    --muted: #b4b4b4;
-    --line: #4a4a4a;
-    --panel: #1f2023;
-    --accent: #8ab4f8;
-    --accent-fg: #0b1a33;
-    --ok: #7dd99b;
-    --problem: #ffb4ab;
+    --bg: #0c0c0d; --sunk: #121214;
+    --ink: #ededee; --ink-2: #a8aab0; --ink-3: #8a8d94;
+    --rule: #232326; --rule-2: #313136; --faint: #3a3a40;
+    --live: #a08fff; --live-soft: rgba(160, 143, 255, .18);
+    --ok: #4fc27c; --no: #ff7d70;
   }
 }
 
@@ -31,93 +27,139 @@
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--fg);
-  font: 1.0625rem/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink);
+  font: 400 16px/1.5 var(--sans);
+  font-feature-settings: "tnum" 1, "cv11" 1;
+  -webkit-font-smoothing: antialiased;
 }
 
-main { max-width: 40rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+main { max-width: 38rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
 
-h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 1rem; }
-h2 { font-size: 1.25rem; line-height: 1.3; margin: 0.35rem 0 0.5rem; }
-h3 { font-size: 1.0625rem; margin: 2rem 0 0.25rem; }
-p { margin: 0 0 0.75rem; }
+h1 { font-size: 1.5rem; font-weight: 600; line-height: 1.25; letter-spacing: -.015em; margin: 0 0 1.25rem; }
+h2 { font-size: 1.0625rem; font-weight: 600; line-height: 1.35; letter-spacing: -.005em; margin: 0 0 .5rem; }
+h3 { font-size: .6875rem; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); margin: 2rem 0 .5rem; }
+p { margin: 0 0 .75rem; }
+code { font-family: var(--mono); font-size: .875em; color: var(--ink-2); }
+a { color: inherit; text-underline-offset: 3px; text-decoration-color: var(--rule-2); }
+a:hover { text-decoration-color: currentColor; }
+.dim, .muted { color: var(--ink-3); }
+.lede { color: var(--ink-2); }
 
-a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 3px; }
 
-:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-
+/* Buttons: hairline by default, ink for the one primary action. 44px targets. */
 .button, button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 44px;
   min-width: 44px;
-  padding: 0.5rem 1.25rem;
-  border: 2px solid var(--accent);
-  border-radius: 0.5rem;
-  background: var(--accent);
-  color: var(--accent-fg);
+  padding: 0 1.1rem;
+  border: 1px solid var(--rule-2);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
   font: inherit;
-  font-weight: 600;
+  font-size: .9375rem;
+  font-weight: 500;
   text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
 }
-button.secondary { background: transparent; color: var(--accent); }
-button:disabled { opacity: 0.45; cursor: not-allowed; }
+button:not(:disabled):hover, .button:hover { border-color: var(--ink-3); }
+.button, button.primary { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.button:hover, button.primary:not(:disabled):hover { opacity: .9; }
+button.quiet { border-color: transparent; color: var(--ink-2); padding: 0 .5rem; text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; }
+button.quiet:not(:disabled):hover { color: var(--ink); text-decoration-color: currentColor; }
+button:disabled { color: var(--ink-3); border-color: var(--rule-2); background: transparent; cursor: not-allowed; }
 
-.status { padding: 0.75rem 1rem; border-left: 4px solid var(--ok); border-radius: 0.25rem; background: var(--panel); }
+.status, .problem { padding: .125rem 0 .125rem .875rem; border-left: 2px solid var(--ok); }
 .status:empty { padding: 0; border: 0; margin: 0; }
-.problem { padding: 0.75rem 1rem; border-left: 4px solid var(--problem); border-radius: 0.25rem; background: var(--panel); }
+.problem { border-left-color: var(--no); }
 
+/* Steps: hairline-separated sections with a quiet index; the current one is
+   marked in the accent, finished ones with a check and the word "Done". */
 .steps { list-style: none; margin: 2rem 0 0; padding: 0; counter-reset: step; }
-.steps > li { position: relative; padding: 0 0 2.25rem 3.25rem; counter-increment: step; }
+.steps > li {
+  position: relative;
+  padding: 1.5rem 0 1.75rem 2.75rem;
+  border-top: 1px solid var(--rule);
+  counter-increment: step;
+}
 .steps > li::before {
-  content: counter(step);
+  content: counter(step, decimal-leading-zero);
   position: absolute;
   left: 0;
-  top: 0;
-  width: 2.25rem;
-  height: 2.25rem;
-  display: grid;
-  place-items: center;
-  border: 2px solid var(--line);
-  border-radius: 50%;
-  font-weight: 700;
+  top: 1.6rem;
+  font: 500 .75rem/1 var(--mono);
+  color: var(--ink-3);
 }
-.steps > li[aria-current="step"]::before { border-color: var(--accent); color: var(--accent); }
-.steps > li.done::before { border-color: var(--ok); background: var(--ok); color: var(--bg); }
-
-.tag {
-  margin-left: 0.4rem;
-  color: var(--ok);
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  vertical-align: 0.1em;
+.steps > li[aria-current="step"]::before { color: var(--live); }
+.steps > li[aria-current="step"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: 2rem;
+  height: 2px;
+  background: var(--live);
 }
-
-blockquote {
-  margin: 0.75rem 0 1rem;
-  padding: 0.75rem 1rem;
-  border-left: 4px solid var(--accent);
-  border-radius: 0.25rem;
-  background: var(--panel);
-  font-size: 1.125rem;
-}
-
-.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
-.note { margin-top: 0.75rem; color: var(--muted); }
-.note:empty { margin: 0; }
+.steps > li.done::before { content: ""; top: 1.65rem; left: .15rem; width: .375rem; height: .7rem; border: solid var(--ok); border-width: 0 2px 2px 0; transform: rotate(45deg); }
 .steps > li > :last-child, .steps > li > div > :last-child { margin-bottom: 0; }
 
-fieldset { margin: 1rem 0; padding: 0.5rem 1rem 0.75rem; border: 1px solid var(--line); border-radius: 0.5rem; }
-legend { padding: 0 0.35rem; font-weight: 700; }
-fieldset.group { margin: 0.5rem 0 0; padding: 0; border: 0; }
-fieldset.group legend { padding: 0.5rem 0 0.25rem; font-weight: 400; color: var(--muted); }
+.tag {
+  margin-left: .5rem;
+  color: var(--ok);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  vertical-align: .1em;
+}
 
-.check { display: flex; align-items: center; gap: 0.75rem; min-height: 44px; cursor: pointer; }
-.check input { width: 1.25rem; height: 1.25rem; margin: 0; accent-color: var(--accent); flex: none; }
+/* What is kept, said plainly. */
+.kept { display: grid; grid-template-columns: 8.5rem 1fr; gap: .5rem 1rem; margin: 1.25rem 0; padding: .875rem 0 0; border-top: 1px solid var(--rule); font-size: .875rem; }
+.kept dt { color: var(--ink-3); }
+.kept dd { margin: 0; color: var(--ink-2); }
+
+/* The recorder: one prompt at a time over a live trace of the voice, and a
+   hairline meter toward the target. */
+.recorder { margin-top: 1.5rem; }
+.stage { margin: 0 0 1.25rem; padding: 1.25rem 0 0; border-top: 1px solid var(--rule); }
+.kicker { display: flex; gap: .4rem; align-items: center; margin: 0 0 .75rem; font-size: .6875rem; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.prompt {
+  min-height: 3.9em;
+  margin: 0 0 1rem;
+  font-size: clamp(1.25rem, 1rem + 1.4vw, 1.625rem);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -.012em;
+  text-wrap: balance;
+}
+.trace { display: block; width: 100%; height: 44px; margin: 0 0 .75rem; }
+.stage.paused .prompt { color: var(--ink-3); }
+.stage.paused .trace { display: none; }
+.kicker span { white-space: nowrap; }
+.meter { position: relative; height: 2px; background: var(--rule); overflow: hidden; }
+.meter-fill { position: absolute; inset: 0; background: var(--live); transform: scaleX(0); transform-origin: left center; }
+.meter-label { display: flex; justify-content: space-between; margin: .5rem 0 0; font-size: .8125rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.meter-label b { font-weight: 600; color: var(--ink); }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; }
+.voice-status { margin: .875rem 0 0; color: var(--ink-2); }
+.voice-status:empty { margin: 0; }
+.note { margin-top: .75rem; color: var(--ink-3); font-size: .875rem; }
+.note:empty { margin: 0; }
+
+/* Consent. */
+fieldset { margin: 1.25rem 0; padding: 0; border: 0; min-width: 0; }
+/* A floated legend sits inside the box, so the hairline can run above it. */
+legend { float: left; width: 100%; padding: .875rem 0 .25rem; border-top: 1px solid var(--rule); font-weight: 600; }
+legend + * { clear: both; }
+fieldset.group { margin: .25rem 0 0; }
+fieldset.group legend { padding: .5rem 0 .125rem; border-top: 0; font-weight: 400; font-size: .875rem; color: var(--ink-3); }
+.check { display: flex; align-items: center; gap: .75rem; min-height: 44px; cursor: pointer; }
+.check input { width: 1.125rem; height: 1.125rem; margin: 0; accent-color: var(--ink); flex: none; }
 
 .granted { list-style: none; margin: 0; padding: 0; }
 .granted li {
@@ -125,12 +167,11 @@ fieldset.group legend { padding: 0.5rem 0 0.25rem; font-weight: 400; color: var(
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem 1rem;
-  padding: 0.75rem 0;
-  border-top: 1px solid var(--line);
+  gap: .5rem 1rem;
+  padding: .75rem 0;
+  border-top: 1px solid var(--rule);
 }
 .granted p { margin: 0; flex: 1 1 18rem; }
-.muted { color: var(--muted); }
 
 .visually-hidden {
   position: absolute;
@@ -141,9 +182,23 @@ fieldset.group legend { padding: 0.5rem 0 0.25rem; font-weight: 400; color: var(
   white-space: nowrap;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  button, .button { transition: background-color 0.15s, color 0.15s; }
+@media (max-width: 30rem) {
+  main { padding-top: 2rem; }
+  .steps > li { padding-left: 2.25rem; }
+  .kept { grid-template-columns: 1fr; gap: .125rem; }
+  .kept dd + dt { margin-top: .5rem; }
+  .actions button.primary { flex: 1 1 auto; }
 }
-@media (hover: hover) {
-  button:not(:disabled):hover, .button:hover { filter: brightness(1.08); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .meter-fill { transition: transform .2s linear; }
+  button, .button { transition: opacity .15s, border-color .15s; }
+}
+
+/* Without motion there is no moving trace: a still dot says "hearing you". */
+@media (prefers-reduced-motion: reduce) {
+  .trace { display: none; }
+  .stage .kicker::before { content: ""; flex: none; width: 6px; height: 6px; margin-right: .25rem; border-radius: 50%; background: var(--faint); }
+  .stage.paused .kicker::before { display: none; }
+  .stage.hearing .kicker::before { background: var(--live); box-shadow: 0 0 0 3px var(--live-soft); }
 }

@@ -28,7 +28,7 @@ class Config:
     threads: int = 2
     callback_url: str = ""
     diarization: DiarizationParams = field(default_factory=DiarizationParams)
-    min_enroll_seconds: float = 6.0
+    min_enroll_seconds: float = 15.0
     listen: str = "127.0.0.1:8431"
     cors_origin: str = ""
     max_body_bytes: int = 20 * 1024 * 1024

@@ -204,37 +204,63 @@ voice.
 
 ## Browser enrollment (`serve`)
 
-`POST /enroll`, body = the raw recording (e.g. `MediaRecorder` output,
-`audio/webm;codecs=opus`), header `Authorization: Bearer <enrollment ticket>`.
+`POST /enroll`, header `Authorization: Bearer <enrollment ticket>`, body
+either the raw recording (`MediaRecorder` output: `audio/webm;codecs=opus` in
+Chrome and Firefox, `audio/mp4` with AAC in Safari, or any format PyAV
+decodes) or `multipart/form-data` with one or more `take` parts (at most 16),
+each a separately recorded file.
 
-1. The recording is decoded and voice activity measured. With less than
-   `enroll.minVoicedSeconds` (default 6 s) of speech the reply is **422**,
-   with a human-readable message, *before* the ticket is touched, so a retry
-   can reuse it.
+Takes let a person add to what they already said without starting over. The
+page keeps its takes in memory and, on each save, sends *all* of them with a
+fresh ticket; the producer decodes each, joins them with a short silence and
+judges the whole. Nothing is kept between requests, so there is no partial
+enrollment to clean up and a ticket still names one identity, is redeemed by
+one producer and is spent once.
+
+1. The takes are decoded (at most 120 s of audio in all) and voice activity
+   measured. The sample is refused with **422** *before* the ticket is touched,
+   so a retry can reuse it:
+
+   | `reason` | When |
+   |---|---|
+   | `too_short` | less than `enroll.minVoicedSeconds` (default 15 s) of speech |
+   | `mostly_silence` | as above, and under 30% of the recording is speech |
+   | `too_quiet` | the loudest sample is under 1% of full scale (a muted or wrong microphone), or the speech is quieter than about -46 dBFS |
+   | `clipping` | more than 1% of the speech samples are at full scale |
+
+   The body is `{"error", "reason", "voicedSeconds", "requiredSeconds",
+   "recordedSeconds"}`; `error` is for logs, a client words its own message
+   from `reason` and the numbers.
 2. The ticket is redeemed at attest:
    `POST {attest}/v1/enrollment-tickets/redeem {"ticket": "..."}` with the
    producer's own credential. 200 `{"identityId"}` → stored; attest's 404
    with a JSON `error` body (unknown, used, or expired ticket) → **401**.
-3. **201** `{"identityId", "voicedSeconds"}`.
+3. **201** `{"identityId", "voicedSeconds", "recordedSeconds", "replaced"}`,
+   plus `previousVoicedSeconds` when it replaced an earlier voiceprint. An
+   earlier voiceprint is only ever replaced by one that passed every check.
 
-Other replies: 415 undecodable, 413 too large, **502** when attest is
-unreachable or answers anything else: no redeem route (a plain-text 404),
-403 (attest's `enroll.voiceProducer` names another producer), 5xx, or a 200
-without an identity. The 502 body says which of the two it was, nothing is
-stored, and the cause is logged.
+Other replies: 415 undecodable, 413 too large (`enroll.maxBodyBytes`, default
+20 MiB; a minute of browser audio is well under 1 MiB) or longer than 120 s,
+**502** when attest is unreachable or answers anything else: no redeem route
+(a plain-text 404), 403 (attest's `enroll.voiceProducer` names another
+producer), 5xx, or a 200 without an identity. The 502 body says which of the
+two it was, nothing is stored, and the cause is logged.
 CORS allows only `enroll.corsOrigin`: preflight is answered for it, and
 requests carrying any other `Origin` get 403.
 
 ```js
-const rec = new MediaRecorder(stream, {mimeType: "audio/webm;codecs=opus"});
-// ... collect chunks into blob ...
-await fetch("http://127.0.0.1:8431/enroll", {method: "POST", body: blob,
-  headers: {"Authorization": `Bearer ${ticket}`, "Content-Type": blob.type}});
+const form = new FormData();
+for (const take of takes) form.append("take", take);   // Blobs from MediaRecorder
+await fetch("http://127.0.0.1:8431/enroll", {method: "POST", body: form,
+  headers: {"Authorization": `Bearer ${ticket}`}});
 ```
 
-Voiceprints are kept in `{dataDir}/voiceprints.json`: a 0700 directory and a
-0600 file, replaced atomically, keyed by identity id. `forget --identity`
-deletes one. Audio and embeddings are never logged or transmitted.
+The recording is decoded in memory and discarded. Voiceprints (the embedding,
+its model, voiced seconds and date) are kept in `{dataDir}/voiceprints.json`:
+a 0700 directory and a 0600 file, replaced atomically, keyed by identity id.
+`forget --identity` deletes one. Audio and embeddings are never logged or
+transmitted. `serve` warns at startup when `enroll.minVoicedSeconds` is under
+15 s: prints from less speech score unreliably on real room audio.
 
 ## Reproduce the end-to-end demo
 
@@ -292,8 +318,10 @@ The tests need no models. They cover:
 * Word attribution: overlap, straddle, uncovered words, pauses.
 * Evidence payloads and a whole session with a fake engine against a fake
   attest, including the guard and retirement.
-* Enrollment: webm/opus decoding (encoded by PyAV), 422 without redeeming the
-  ticket, unknown tickets, CORS, file modes.
+* Enrollment: webm/opus and mp4/AAC (plain and fragmented) decoding, encoded
+  by PyAV; takes that add up across requests; each refusal reason, without
+  redeeming the ticket; a refusal never replacing a stored voiceprint; the
+  recording not being kept; unknown tickets, CORS, file modes.
 * OIDC client credentials and token caching.
 * Trials from a manifest: target trials only across sessions.
 
