@@ -21,6 +21,8 @@ type snapshot struct {
 	Assignments    map[string][]string   `json:"assignments"`
 	Delegations    []decision.Delegation `json:"delegations"`
 	NextDelegation int                   `json:"nextDelegation"`
+	// Settings is absent in files written before settings moved here.
+	Settings *Settings `json:"settings,omitempty"`
 }
 
 // checkDataDir fails fast when the data file's directory is missing or not
@@ -43,44 +45,55 @@ func checkDataDir(dir string) error {
 	return os.Remove(probe.Name())
 }
 
-// load restores state from the data file. A missing file is a fresh start; an
+// readSnapshot reads the data file. A missing file is a fresh start (nil); an
 // unreadable one is an error, never silently empty.
-func (s *Server) load() error {
-	if s.data == "" {
-		return nil
+func readSnapshot(path string) (*snapshot, error) {
+	if path == "" {
+		return nil, nil
 	}
-	raw, err := os.ReadFile(s.data)
+	raw, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil
+		return nil, nil
 	}
 	if err != nil {
-		return fmt.Errorf("read data: %w", err)
+		return nil, fmt.Errorf("read data: %w", err)
 	}
 	var snap snapshot
 	if err := json.Unmarshal(raw, &snap); err != nil {
-		return fmt.Errorf("parse data %s: %w", s.data, err)
+		return nil, fmt.Errorf("parse data %s: %w", path, err)
 	}
+	return &snap, nil
+}
+
+func (s *Server) restore(snap snapshot) {
 	s.registry.Restore(snap.Identities)
 	s.rbac.Restore(snap.Assignments)
 	s.delegations.Restore(snap.Delegations, snap.NextDelegation)
-	return nil
 }
 
-// save writes the current state atomically: a temp file in the same
-// directory, synced, then renamed over the old one.
+// save writes the current state.
 func (s *Server) save() error {
+	// Serialised so an older snapshot can never land after a newer one, and
+	// so it cannot interleave with a settings change (see apply).
+	s.saveMu.Lock()
+	defer s.saveMu.Unlock()
+	return s.writeLocked(s.cur().settings)
+}
+
+// writeLocked writes state with the given settings atomically: a temp file in
+// the same directory, synced, then renamed over the old one. Callers hold
+// saveMu.
+func (s *Server) writeLocked(settings Settings) error {
 	if s.data == "" {
 		return nil
 	}
-	// Serialised so an older snapshot can never land after a newer one.
-	s.saveMu.Lock()
-	defer s.saveMu.Unlock()
 	delegations, next := s.delegations.Snapshot()
 	raw, err := json.MarshalIndent(snapshot{
 		Identities:     s.registry.List(),
 		Assignments:    s.rbac.Assignments(),
 		Delegations:    delegations,
 		NextDelegation: next,
+		Settings:       &settings,
 	}, "", "  ")
 	if err != nil {
 		return err

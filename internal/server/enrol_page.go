@@ -82,12 +82,13 @@ func (s *Server) enrolPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) renderEnrol(w http.ResponseWriter, r *http.Request, status int, problem string) {
-	v := enrolView{Configured: s.enrol != nil, Error: problem, Status: doneMessages[r.URL.Query().Get("done")]}
+	l := s.cur()
+	v := enrolView{Configured: l.enrolling(), Error: problem, Status: doneMessages[r.URL.Query().Get("done")]}
 	if v.Configured {
 		v.VoiceURL = s.enrol.voiceURL
 		if _, sess, ok := s.enrol.session(r, s.now()); ok {
 			if ident, known := s.registry.Get(sess.identityID); known {
-				s.signedInView(&v, ident.ID, sess)
+				s.signedInView(&v, l.policy(), ident.ID, sess)
 				v.Name = ident.DisplayName
 				if ident.VoiceEnrolledAt != nil {
 					v.VoiceDone = day(*ident.VoiceEnrolledAt)
@@ -114,21 +115,21 @@ func (s *Server) renderEnrol(w http.ResponseWriter, r *http.Request, status int,
 	}
 }
 
-func (s *Server) signedInView(v *enrolView, identityID string, sess session) {
+func (s *Server) signedInView(v *enrolView, policy decision.Policy, identityID string, sess session) {
 	v.SignedIn = true
 	v.CSRF = sess.csrf
 	v.Sentence = readAloud
 	v.NoRoles = len(s.rbac.Roles(identityID)) == 0
 	now := s.now()
-	for _, o := range s.offers(identityID) {
+	for _, o := range s.offers(policy, identityID) {
 		live := covered(o.permissions, s.ownConsent(identityID, o.agent, now))
 		agent := agentView{ID: o.agent, Name: label(o.agent, true)}
 		// Group by band, weakest first.
-		for _, band := range s.policy.Bands {
+		for _, band := range policy.Bands {
 			g := groupView{Need: describeBand(band)}
 			for _, p := range o.permissions {
-				if s.policy.Permissions[p] == band.Name {
-					g.Permissions = append(g.Permissions, permView{Name: p, Label: s.permLabel(p, true), Checked: slices.Contains(live, p)})
+				if policy.Permissions[p] == band.Name {
+					g.Permissions = append(g.Permissions, permView{Name: p, Label: permLabel(policy, p, true), Checked: slices.Contains(live, p)})
 				}
 			}
 			if len(g.Permissions) > 0 {
@@ -140,7 +141,7 @@ func (s *Server) signedInView(v *enrolView, identityID string, sess session) {
 	for _, d := range s.liveDelegations(identityID, "", now) {
 		what := make([]string, len(d.Permissions))
 		for i, p := range d.Permissions {
-			what[i] = s.permLabel(p, false)
+			what[i] = permLabel(policy, p, false)
 			if p == "*" {
 				what[i] = "anything you're allowed to do"
 			}
@@ -219,8 +220,8 @@ func duration(d time.Duration) string {
 
 // permLabel is the tenant's label for a permission (policy.labels), else one
 // derived from its name.
-func (s *Server) permLabel(name string, capital bool) string {
-	if l := s.policy.Labels[name]; l != "" {
+func permLabel(policy decision.Policy, name string, capital bool) string {
+	if l := policy.Labels[name]; l != "" {
 		return l
 	}
 	return label(name, capital)

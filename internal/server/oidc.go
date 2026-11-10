@@ -47,12 +47,16 @@ func (c OIDCConfig) withDefaults() OIDCConfig {
 var errProviderUnavailable = errors.New("identity provider unavailable")
 
 // oidcVerifier discovers the provider on first use, so attest starts and
-// keeps identifying people while the provider is down.
+// keeps identifying people while the provider is down. One belongs to one
+// connection: connecting another provider makes a new one, and requests
+// already holding the old one finish with it.
 type oidcVerifier struct {
 	cfg OIDCConfig
 	mu  sync.Mutex
 	p   *oidc.Provider
 	v   *oidc.IDTokenVerifier
+	// idv checks ID tokens issued to the enrolment client.
+	idv *oidc.IDTokenVerifier
 }
 
 var providerClient = &http.Client{Timeout: 10 * time.Second}
@@ -88,6 +92,17 @@ func (o *oidcVerifier) verifier() (*oidc.IDTokenVerifier, error) {
 		})
 	}
 	return o.v, nil
+}
+
+// enrolVerifier checks ID tokens issued to the enrolment client, never
+// skipping the audience check.
+func (o *oidcVerifier) enrolVerifier(p *oidc.Provider) *oidc.IDTokenVerifier {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.idv == nil {
+		o.idv = p.Verifier(&oidc.Config{ClientID: o.cfg.ClientID})
+	}
+	return o.idv
 }
 
 func (o *oidcVerifier) principal(ctx context.Context, raw string) (Principal, error) {
