@@ -1,0 +1,41 @@
+{
+  "listen": ":8420",
+  "tokens": {
+    "dev-admin-token": { "kind": "admin", "id": "admin" },
+    "dev-face-token": { "kind": "producer", "id": "face-cam-1" },
+    "dev-voice-token": { "kind": "producer", "id": "voice-mic-1" },
+    "dev-agent-token": { "kind": "agent", "id": "concierge" }
+  },
+  "fusion": {
+    "priorUnknown": 0.5,
+    "ambiguityMargin": 0.2,
+    "minAssociation": 0.9,
+    "maxLLR": 10,
+    "modalities": {
+      "face": { "group": "camera" },
+      "appearance": { "group": "camera", "maxLLR": 4 },
+      "voice": { "group": "microphone" }
+    }
+  },
+  "policy": {
+    "bands": [
+      { "name": "presumed", "minConfidence": 0.8, "maxAgeSeconds": 900 },
+      { "name": "confident", "minConfidence": 0.95, "maxAgeSeconds": 300 },
+      { "name": "corroborated", "minConfidence": 0.99, "maxAgeSeconds": 120, "minModalities": 2 }
+    ],
+    "permissions": {
+      "music.control": "presumed",
+      "calendar.read": "confident",
+      "door.unlock": "corroborated"
+    },
+    "floor": ["converse", "emergency.call"],
+    "agents": {
+      "concierge": ["*"]
+    },
+    "roles": {
+      "resident": ["music.control", "calendar.read", "door.unlock"],
+      "guest": ["music.control"]
+    },
+    "assignments": {}
+  }
+}
