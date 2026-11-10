@@ -98,7 +98,9 @@ If `callbackUrl` is set, each utterance object (without `type`) is also
 POSTed there. A downstream gateway tags a tool call with the `subject` of the
 utterance(s) that produced the request and asks attest about that subject.
 **`subject: null` means the words cannot be attributed to anyone**; a request
-built from them must not be acted on for anyone (re-ask).
+built from them must not be acted on for anyone (re-ask). `demo/car/` at the
+repo root shows the whole path: a runtime stamps tool calls with the subject
+and `attest-gateway` asks attest before each call reaches an MCP server.
 
 ### Word attribution
 
@@ -181,10 +183,15 @@ voice.
    can reuse it.
 2. The ticket is redeemed at attest:
    `POST {attest}/v1/enrolment-tickets/redeem {"ticket": "..."}` with the
-   producer's own credential. 200 `{"identityId"}` → stored; 404 → **401**.
+   producer's own credential. 200 `{"identityId"}` → stored; attest's 404
+   with a JSON `error` body (unknown, used, or expired ticket) → **401**.
 3. **201** `{"identityId", "voicedSeconds"}`.
 
-Other replies: 415 undecodable, 413 too large, 502 attest unreachable.
+Other replies: 415 undecodable, 413 too large, **502** when attest is
+unreachable or answers anything else: no redeem route (a plain-text 404),
+403 (attest's `enrol.voiceProducer` names another producer), 5xx, or a 200
+without an identity. The 502 body says which of the two it was, nothing is
+stored, and the cause is logged.
 CORS allows only `enrol.corsOrigin`: preflight is answered for it, and
 requests carrying any other `Origin` get 403.
 
@@ -232,10 +239,11 @@ for 9 s. Recorded result (2026-11-09):
 | attest, spk1 | `leading: null`, unknown 0.982; `music.control` denied |
 | Retirement | After a normal run (no `--keep-subjects`) both subjects' beliefs return 404 |
 
-attest reports spk1's state as `ambiguous`, not `unknown`. Both candidates
-are tiny (0.0098 and 0.0082) and within `ambiguityMargin` of each other, and
-`fusion.go` checks that before comparing the leader with the unknown mass.
-The outcome is the same (no leader, denied).
+When this was recorded, attest reported spk1's state as `ambiguous`: both
+candidates were tiny (0.0098 and 0.0082) and within `ambiguityMargin` of each
+other, and fusion checked that before comparing the leader with the unknown
+mass. Fusion now checks the unknown mass first, so spk1 is `unknown`. The
+outcome is the same (no leader, denied).
 
 Runtime on this machine's CPU (4 vCPU, Xeon Platinum 8260, 4 threads):
 about 19 s per minute of audio (RTF 0.32 on 120 s). Diarization is ~65% of

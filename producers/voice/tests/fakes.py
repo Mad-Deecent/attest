@@ -46,11 +46,13 @@ class FakeEngine:
 
 
 class FakeAttest:
-    """Records requests; redeems tickets from a dict."""
+    """Records requests; redeems tickets from a dict. ``redeem_reply`` =
+    (status, raw body) overrides the redeem route's answer."""
 
     def __init__(self, tickets: dict[str, str] | None = None, token: str = "producer-token"):
         self.tickets = dict(tickets or {})
         self.token = token
+        self.redeem_reply: tuple[int, bytes] | None = None
         self.requests: list[tuple[str, dict[str, Any], str]] = []
         fake = self
 
@@ -64,6 +66,13 @@ class FakeAttest:
                 fake.requests.append((self.path, body, auth))
                 if auth != f"Bearer {fake.token}":
                     return self._send(401, {"error": "unauthenticated"})
+                if self.path == "/v1/enrolment-tickets/redeem" and fake.redeem_reply:
+                    code, raw = fake.redeem_reply
+                    self.send_response(code)
+                    self.send_header("Content-Length", str(len(raw)))
+                    self.end_headers()
+                    self.wfile.write(raw)
+                    return
                 if self.path == "/v1/enrolment-tickets/redeem":
                     ident = fake.tickets.pop(body.get("ticket", ""), None)
                     return self._send(200, {"identityId": ident}) if ident else self._send(404, {"error": "unknown ticket"})

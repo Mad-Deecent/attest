@@ -90,9 +90,20 @@ def _get_json(url: str, timeout: float) -> Any:
 
 
 class AttestError(Exception):
-    def __init__(self, status: int, message: str):
+    """attest answered with an HTTP error. ``reported`` is True when the body
+    was attest's own JSON error (``{"error": ...}``), as opposed to something
+    else answering: a proxy, a server without the route, an HTML error page."""
+
+    def __init__(self, status: int, message: str, *, reported: bool = False):
         super().__init__(f"attest {status}: {message}")
         self.status = status
+        self.reported = reported
+
+
+class RedeemUnavailable(Exception):
+    """Ticket redemption did not work for a reason other than a bad ticket:
+    attest has no redeem route, refused this producer, or answered in a way
+    this producer does not understand."""
 
 
 def rfc3339(t: datetime) -> str:
@@ -142,10 +153,12 @@ class Attest:
                     continue
                 raw = e.read()
                 try:
-                    msg = json.loads(raw).get("error", raw.decode(errors="replace"))
-                except (ValueError, AttributeError):
-                    msg = raw.decode(errors="replace")
-                raise AttestError(e.code, msg) from None
+                    parsed = json.loads(raw)
+                except ValueError:
+                    parsed = None
+                if isinstance(parsed, dict) and isinstance(parsed.get("error"), str):
+                    raise AttestError(e.code, parsed["error"], reported=True) from None
+                raise AttestError(e.code, raw.decode(errors="replace")[:200]) from None
         raise AssertionError("unreachable")
 
     def post_evidence(self, payload: dict[str, Any]) -> None:
@@ -155,12 +168,21 @@ class Attest:
         self._post("/v1/retirements", {"subject": key})
 
     def redeem_ticket(self, ticket: str) -> str | None:
-        """Identity id the ticket enrols, or None if attest does not know it."""
+        """Identity id the ticket enrols, or None if attest says the ticket is
+        unknown, used, or expired (its 404 with a JSON ``error``).
+
+        Raises RedeemUnavailable for anything else attest answers, and OSError
+        when attest cannot be reached."""
+        path = "/v1/enrolment-tickets/redeem"
         try:
-            _, body = self._post("/v1/enrolment-tickets/redeem", {"ticket": ticket})
+            status, body = self._post(path, {"ticket": ticket})
         except AttestError as e:
-            if e.status == 404:
+            if e.status == 404 and e.reported:
                 return None
-            raise
-        ident = (body or {}).get("identityId")
-        return ident if isinstance(ident, str) and ident else None
+            raise RedeemUnavailable(f"POST {path}: {e}") from None
+        except ValueError as e:  # 2xx with a body that is not JSON
+            raise RedeemUnavailable(f"POST {path}: unreadable reply ({e})") from None
+        ident = body.get("identityId") if isinstance(body, dict) else None
+        if status != 200 or not isinstance(ident, str) or not ident:
+            raise RedeemUnavailable(f"POST {path}: unexpected {status} reply without an identityId")
+        return ident

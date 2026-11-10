@@ -6,8 +6,10 @@ producer's own credential; attest answers with the identity it enrols. The
 audio is checked before the ticket is redeemed, so a too-short recording does
 not burn a single-use ticket.
 
-Responses: 201 ``{"identityId", "voicedSeconds"}``; 401 no/unknown ticket;
-413 too large; 415 undecodable; 422 too little speech; 502 attest failure.
+Responses: 201 ``{"identityId", "voicedSeconds"}``; 401 no ticket, or attest
+says the ticket is unknown, used or expired; 413 too large; 415 undecodable;
+422 too little speech; 502 attest unreachable, without a redeem route, or
+answering unexpectedly (logged).
 Audio and embeddings are never logged.
 """
 
@@ -19,7 +21,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
-from .attest_client import Attest, AttestError
+from .attest_client import Attest, RedeemUnavailable
 from .audio import DecodeError, decode
 from .enrol import EnrolEngine, TooLittleSpeech, check
 from .speaker import voiceprint
@@ -56,9 +58,15 @@ class EnrolService:
                 return 422, {"error": str(e), "voicedSeconds": round(e.voiced, 1), "requiredSeconds": e.needed}
             try:
                 identity = self.attest.redeem_ticket(ticket)
-            except (AttestError, OSError) as e:
-                log.warning("ticket redemption failed: %s", e)
-                return 502, {"error": "could not reach attest to redeem the ticket"}
+            except RedeemUnavailable as e:
+                log.error("ticket redemption failed, not because of the ticket: %s", e)
+                return 502, {"error": "The voice service could not check your enrolment ticket with attest: attest "
+                                      "has no ticket-redemption endpoint or answered unexpectedly. Nothing was saved. "
+                                      "Ask whoever runs this system to check the voice service's log."}
+            except OSError as e:
+                log.error("ticket redemption failed, attest unreachable: %s", e)
+                return 502, {"error": "The voice service could not reach attest to check your enrolment ticket. "
+                                      "Nothing was saved. Please try again in a few minutes."}
             if identity is None:
                 return 401, {"error": "enrolment ticket is invalid, used, or expired"}
             vec = voiceprint(samples, self.engine.embed)

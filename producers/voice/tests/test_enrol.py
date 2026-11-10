@@ -122,3 +122,36 @@ def test_cli_path_enrol_and_forget(tmp_path):
     assert store.delete("x") is True
     assert store.delete("x") is False
     assert store.all() == []
+
+
+@pytest.mark.parametrize("reply", [
+    (404, b"404 page not found\n"),                   # an attest without the redeem route
+    (404, b"<html>Not Found</html>"),                 # something else on that port
+    (403, b'{"error": "only the configured voice producer may redeem enrolment tickets"}'),
+    (500, b'{"error": "could not save state"}'),
+    (200, b"{}"),                                     # a 200 that names nobody
+    (200, b"not json"),
+])
+def test_attest_problems_are_502_not_a_bad_ticket(env, reply, caplog):
+    fake, store, port = env
+    fake.redeem_reply = reply
+    with caplog.at_level("ERROR", logger="attest_voice.server"):
+        st, _, body = post(port, webm_opus(speech(8, 48000)), {"Authorization": "Bearer good"})
+    assert st == 502, body
+    assert "attest" in body["error"] and "Nothing was saved" in body["error"]
+    assert store.all() == []
+    assert any("ticket redemption failed" in r.getMessage() for r in caplog.records)
+
+
+def test_attest_unreachable_is_502(tmp_path):
+    svc = EnrolService(Attest("http://127.0.0.1:9", StaticToken("t"), timeout=2), FakeEngine(), Store(tmp_path),
+                       model="fake", min_seconds=6)
+    st, body = svc.handle("good", webm_opus(speech(8, 48000)))
+    assert st == 502 and "could not reach attest" in body["error"]
+
+
+def test_invalid_ticket_is_attests_json_404(env):
+    fake, store, port = env
+    fake.redeem_reply = (404, b'{"error": "unknown, used, or expired ticket"}')
+    st, _, body = post(port, webm_opus(speech(8, 48000)), {"Authorization": "Bearer good"})
+    assert st == 401 and "invalid, used, or expired" in body["error"]
