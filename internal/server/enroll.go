@@ -276,6 +276,11 @@ func (s *Server) enrollCallback(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/enroll", http.StatusSeeOther)
 		return
 	}
+	// The console signs administrators in through the same registered
+	// redirect URI; its own flow cookie says which sign-in this is.
+	if s.consoleCallback(w, r, l) {
+		return
+	}
 	const retry = "Sign-in didn't finish. Please try again."
 	c, err := r.Cookie(flowCookie)
 	http.SetCookie(w, &http.Cookie{Name: flowCookie, Path: "/enroll", MaxAge: -1, HttpOnly: true, Secure: l.secure(), SameSite: http.SameSiteLaxMode})
@@ -289,32 +294,17 @@ func (s *Server) enrollCallback(w http.ResponseWriter, r *http.Request) {
 		s.renderEnroll(w, r, http.StatusBadRequest, retry)
 		return
 	}
-	nonce, verifier := flow[1], flow[2]
-	p, err := l.oidc.provider()
-	if err != nil {
-		s.renderEnroll(w, r, http.StatusServiceUnavailable, "Sign-in is unavailable right now. Please try again in a few minutes.")
+	done, status := finishSignIn(r, l, flow[1], flow[2], "enroll")
+	switch status {
+	case http.StatusOK:
+	case http.StatusServiceUnavailable:
+		s.renderEnroll(w, r, status, "Sign-in is unavailable right now. Please try again in a few minutes.")
+		return
+	default:
+		s.renderEnroll(w, r, status, retry)
 		return
 	}
-	ctx, cancel := context.WithTimeout(oidc.ClientContext(r.Context(), providerClient), 15*time.Second)
-	defer cancel()
-	tok, err := l.oauth(p).Exchange(ctx, q.Get("code"), oauth2.VerifierOption(verifier))
-	if err != nil {
-		log.Printf("enroll: token exchange: %v", err)
-		s.renderEnroll(w, r, http.StatusBadGateway, retry)
-		return
-	}
-	rawID, _ := tok.Extra("id_token").(string)
-	idt, err := l.oidc.enrollVerifier(p).Verify(ctx, rawID)
-	if err != nil || subtle.ConstantTimeCompare([]byte(idt.Nonce), []byte(nonce)) != 1 {
-		log.Printf("enroll: id token rejected: %v", err)
-		s.renderEnroll(w, r, http.StatusBadRequest, retry)
-		return
-	}
-	var claims map[string]any
-	if err := idt.Claims(&claims); err != nil {
-		s.renderEnroll(w, r, http.StatusBadRequest, retry)
-		return
-	}
+	idt, claims, tok := done.idt, done.claims, done.tok
 
 	name, _ := claims["name"].(string)
 	if name == "" {
@@ -343,22 +333,63 @@ func (s *Server) enrollCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/enroll", http.StatusSeeOther)
 }
 
+// signedIn is what a finished authorization-code flow yields.
+type signedIn struct {
+	idt    *oidc.IDToken
+	claims map[string]any
+	tok    *oauth2.Token
+}
+
+// finishSignIn exchanges the code in the callback for tokens and checks the ID
+// token, its audience (the enrollment client), and the flow's nonce. Shared by
+// enrollment and console sign-in; what is done with the person differs.
+func finishSignIn(r *http.Request, l *live, nonce, verifier, what string) (signedIn, int) {
+	p, err := l.oidc.provider()
+	if err != nil {
+		return signedIn{}, http.StatusServiceUnavailable
+	}
+	ctx, cancel := context.WithTimeout(oidc.ClientContext(r.Context(), providerClient), 15*time.Second)
+	defer cancel()
+	tok, err := l.oauth(p).Exchange(ctx, r.URL.Query().Get("code"), oauth2.VerifierOption(verifier))
+	if err != nil {
+		log.Printf("%s: token exchange: %v", what, err)
+		return signedIn{}, http.StatusBadGateway
+	}
+	rawID, _ := tok.Extra("id_token").(string)
+	idt, err := l.oidc.enrollVerifier(p).Verify(ctx, rawID)
+	if err != nil || subtle.ConstantTimeCompare([]byte(idt.Nonce), []byte(nonce)) != 1 {
+		log.Printf("%s: id token rejected: %v", what, err)
+		return signedIn{}, http.StatusBadRequest
+	}
+	var claims map[string]any
+	if err := idt.Claims(&claims); err != nil {
+		return signedIn{}, http.StatusBadRequest
+	}
+	return signedIn{idt: idt, claims: claims, tok: tok}, http.StatusOK
+}
+
 // policyRoles reads the provider's roles for the person signing in and keeps
 // those the policy defines. Keycloak puts realm roles in the access token by
 // default, so it is the fallback when the ID token has no roles claim.
 func (l *live) policyRoles(idClaims map[string]any, accessToken string) []string {
-	path := l.oidc.cfg.RolesClaim
-	if _, ok := claimAt(idClaims, path); !ok {
-		idClaims = unverifiedClaims(accessToken)
-	}
 	var kept []string
-	for _, role := range rolesAt(idClaims, path) {
+	for _, role := range l.providerRoles(idClaims, accessToken) {
 		if _, defined := l.settings.Policy.Roles[role]; defined && !slices.Contains(kept, role) {
 			kept = append(kept, role)
 		}
 	}
 	slices.Sort(kept)
 	return kept
+}
+
+// providerRoles is every role the provider gave the person signing in, from
+// the ID token's roles claim or, failing that, the access token's.
+func (l *live) providerRoles(idClaims map[string]any, accessToken string) []string {
+	path := l.oidc.cfg.RolesClaim
+	if _, ok := claimAt(idClaims, path); !ok {
+		idClaims = unverifiedClaims(accessToken)
+	}
+	return rolesAt(idClaims, path)
 }
 
 // unverifiedClaims decodes a JWT payload without checking its signature. Only
