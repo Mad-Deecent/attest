@@ -1,0 +1,1173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>attest console — mockup</title>
+<style>
+/* Tokens: the enrolment page's, unchanged, plus --warn, --ok-soft/--problem-soft and --surface. */
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1b1b1b;
+  --muted: #565656;
+  --line: #c9c9c9;
+  --line-soft: #e3e4e8;
+  --panel: #f3f4f6;
+  --surface: #ffffff;
+  --accent: #0b57d0;
+  --accent-fg: #ffffff;
+  --accent-soft: #e8f0fe;
+  --ok: #146c2e;
+  --warn: #8a5300;
+  --problem: #b3261e;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 1px 1px rgb(0 0 0 / 0.04);
+  --radius: 0.5rem;
+  --radius-lg: 0.875rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121212; --fg: #ececec; --muted: #b4b4b4; --line: #4a4a4a; --line-soft: #2c2d31;
+    --panel: #1f2023; --surface: #18191b; --accent: #8ab4f8; --accent-fg: #0b1a33; --accent-soft: #1c2a42;
+    --ok: #7dd99b; --warn: #f2c46d; --problem: #ffb4ab; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121212; --fg: #ececec; --muted: #b4b4b4; --line: #4a4a4a; --line-soft: #2c2d31;
+  --panel: #1f2023; --surface: #18191b; --accent: #8ab4f8; --accent-fg: #0b1a33; --accent-soft: #1c2a42;
+  --ok: #7dd99b; --warn: #f2c46d; --problem: #ffb4ab; --shadow: none;
+}
+:root[data-theme="light"] { color-scheme: light; }
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 0.35rem; }
+h2 { font-size: 1.25rem; line-height: 1.3; margin: 0 0 0.75rem; }
+h3 { font-size: 1.0625rem; line-height: 1.35; margin: 0 0 0.25rem; }
+p { margin: 0 0 0.75rem; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+h1:focus { outline: none; }
+code { font-size: 0.9em; }
+.muted { color: var(--muted); }
+.small { font-size: 0.875rem; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.icon { width: 1.25rem; height: 1.25rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Buttons: as on the enrolment page. */
+.button, button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  min-height: 44px; min-width: 44px; padding: 0.5rem 1.1rem;
+  border: 2px solid var(--accent); border-radius: var(--radius);
+  background: var(--accent); color: var(--accent-fg);
+  font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.button.secondary, button.secondary { background: transparent; color: var(--accent); }
+.button.quiet, button.quiet { background: transparent; color: var(--accent); border-color: transparent; padding-inline: 0.6rem; }
+button.danger { background: transparent; color: var(--problem); border-color: var(--problem); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+
+/* Notices: the enrolment page's left-border pattern. */
+.status, .problem, .warning, .info {
+  display: flex; gap: 0.75rem; align-items: flex-start;
+  padding: 0.75rem 1rem; border-left: 4px solid var(--ok); border-radius: 0.25rem; background: var(--panel); margin: 0 0 1rem;
+}
+.problem { border-color: var(--problem); }
+.warning { border-color: var(--warn); }
+.info { border-color: var(--accent); }
+.status > .icon { color: var(--ok); margin-top: 0.15rem; }
+.problem > .icon { color: var(--problem); margin-top: 0.15rem; }
+.warning > .icon { color: var(--warn); margin-top: 0.15rem; }
+.info > .icon { color: var(--accent); margin-top: 0.15rem; }
+.status p, .problem p, .warning p, .info p { margin: 0; }
+.notice-body { flex: 1; min-width: 0; }
+.notice-body .actions { margin-top: 0.6rem; }
+
+/* Shell */
+.skip { position: absolute; left: 0.5rem; top: -4rem; z-index: 10; }
+.skip:focus { top: 0.5rem; }
+.shell { display: grid; grid-template-columns: 15rem 1fr; min-height: 100vh; background: linear-gradient(to right, var(--panel) calc(15rem - 1px), var(--line-soft) calc(15rem - 1px), var(--line-soft) 15rem, transparent 15rem); }
+.sidebar {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 1rem;
+  padding: 1.25rem 0.75rem; border-right: 1px solid var(--line-soft); background: var(--panel);
+}
+.brand { display: flex; align-items: center; gap: 0.6rem; padding: 0 0.5rem; }
+.brand-mark { width: 2rem; height: 2rem; border-radius: 0.55rem; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; }
+.brand-mark .icon { width: 1.15rem; height: 1.15rem; stroke-width: 2.2; }
+.brand strong { display: block; line-height: 1.2; }
+.brand div > span { display: block; font-size: 0.8125rem; color: var(--muted); line-height: 1.2; }
+.nav { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.15rem; }
+.nav a {
+  display: flex; align-items: center; gap: 0.75rem; min-height: 44px; padding: 0.4rem 0.75rem;
+  border-radius: var(--radius); color: var(--fg); text-decoration: none; font-weight: 500;
+}
+.nav a:hover { background: var(--line-soft); }
+.nav a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+.nav .badge { margin-left: auto; }
+.sidebar-foot { margin-top: auto; display: grid; gap: 0.5rem; padding: 0 0.25rem; }
+.badge {
+  display: inline-grid; place-items: center; min-width: 1.4rem; height: 1.4rem; padding: 0 0.4rem;
+  border-radius: 999px; background: var(--accent); color: var(--accent-fg); font-size: 0.75rem; font-weight: 700;
+}
+.badge.warn { background: var(--warn); color: var(--bg); }
+
+.main { min-width: 0; }
+.mockbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem;
+  padding: 0.5rem 1.5rem; border-bottom: 1px dashed var(--line); font-size: 0.875rem; color: var(--muted);
+}
+.mockbar .label { font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.75rem; }
+.mockbar nav { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.mockbar a {
+  display: inline-flex; align-items: center; min-height: 32px; padding: 0 0.7rem; border: 1px solid var(--line);
+  border-radius: 999px; color: var(--fg); text-decoration: none;
+}
+.mockbar a[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+.mockbar .theme { margin-left: auto; }
+.mockbar .theme button { min-height: 32px; padding: 0 0.7rem; border-width: 1px; font-weight: 500; font-size: 0.875rem; }
+
+.content { max-width: 72rem; margin: 0 auto; padding: 2rem 2rem 5rem; }
+.page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+.page-head p { margin: 0; color: var(--muted); }
+.crumb { display: inline-flex; align-items: center; gap: 0.25rem; margin-bottom: 0.5rem; font-size: 0.9375rem; min-height: 44px; }
+
+/* Cards and lists */
+.card { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 1.25rem; }
+.card + .card, .card + section, section + .card, .stack > * + * { margin-top: 1.25rem; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
+.card-head h2 { margin: 0; }
+.card-head a { font-size: 0.9375rem; white-space: nowrap; }
+.rows { list-style: none; margin: 0; padding: 0; }
+.rows > li { display: flex; align-items: center; gap: 0.9rem; padding: 0.8rem 0; border-top: 1px solid var(--line-soft); }
+.rows > li:first-child { border-top: 0; padding-top: 0.2rem; }
+.rows > li:last-child { padding-bottom: 0; }
+.row-main { flex: 1; min-width: 0; }
+.row-main p { margin: 0; }
+.row-end { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
+.grid-2 { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+.grid-2 > .card + .card { margin-top: 0; }
+.cols-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+.cols-2 > .card + .card { margin-top: 0; }
+
+.avatar {
+  width: 2.5rem; height: 2.5rem; flex: none; border-radius: 50%; display: grid; place-items: center;
+  font-weight: 700; font-size: 0.9375rem; color: #fff;
+}
+.avatar.lg { width: 4rem; height: 4rem; font-size: 1.4rem; }
+.a1 { background: #8a4fbd; } .a2 { background: #1f7a6d; } .a3 { background: #b3541e; } .a4 { background: #3b5bab; }
+.a0 { background: transparent; color: var(--muted); border: 2px dashed var(--line); }
+.thing { width: 2.5rem; height: 2.5rem; flex: none; border-radius: 0.65rem; display: grid; place-items: center; background: var(--panel); color: var(--fg); }
+
+/* Status words (always text + icon, never colour alone) */
+.pill { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; font-weight: 600; white-space: nowrap; }
+.pill .icon { width: 1rem; height: 1rem; stroke-width: 2.4; }
+.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--problem); } .pill.info { color: var(--accent); } .pill.off { color: var(--muted); }
+.tag { display: inline-block; padding: 0.05rem 0.5rem; border: 1px solid var(--line); border-radius: 999px; font-size: 0.8125rem; color: var(--muted); white-space: nowrap; }
+.tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+/* Certainty: the four levels as a stepped meter, always with words. */
+.meter { display: inline-flex; gap: 3px; vertical-align: middle; }
+.meter i { width: 0.9rem; height: 0.4rem; border-radius: 2px; background: var(--line); }
+.meter[data-level="1"] i:nth-child(-n+1), .meter[data-level="2"] i:nth-child(-n+2), .meter[data-level="3"] i:nth-child(-n+3) { background: var(--accent); }
+.sure { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.9375rem; }
+
+/* Home: rooms */
+.summary { display: flex; align-items: center; gap: 1rem; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+.summary .big { font-size: 1.375rem; font-weight: 700; line-height: 1.3; margin: 0; }
+.summary p { margin: 0; color: var(--muted); }
+.summary p.big { color: var(--fg); }
+.summary-dot { width: 3rem; height: 3rem; border-radius: 50%; flex: none; display: grid; place-items: center; background: var(--panel); color: var(--ok); }
+.summary-dot.warn { color: var(--warn); }
+.summary-dot.bad { color: var(--problem); }
+.summary-dot .icon { width: 1.6rem; height: 1.6rem; }
+.rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(16.5rem, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.room { padding: 1rem 1.1rem; margin: 0 !important; }
+.room h3 { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; }
+.room h3 .icon { color: var(--muted); }
+.room h3 .count { margin-left: auto; font-weight: 500; font-size: 0.875rem; color: var(--muted); }
+.room .rows > li { padding: 0.6rem 0; gap: 0.75rem; align-items: flex-start; }
+.room .rows > li:first-child { padding-top: 0; }
+.room.empty { background: transparent; box-shadow: none; border-style: dashed; }
+.room .who { font-weight: 650; }
+.room .how { font-size: 0.8125rem; color: var(--muted); }
+.can { font-size: 0.8125rem; color: var(--muted); margin-top: 0.2rem; }
+
+/* Decisions */
+.decision { align-items: flex-start !important; }
+.decision .mark { width: 2rem; height: 2rem; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--panel); }
+.decision .mark.ok { color: var(--ok); } .decision .mark.bad { color: var(--problem); }
+.decision .mark .icon { width: 1.1rem; height: 1.1rem; stroke-width: 2.6; }
+.decision .what { font-weight: 600; }
+.decision .why { color: var(--muted); font-size: 0.9375rem; }
+.decision time { font-size: 0.8125rem; color: var(--muted); white-space: nowrap; }
+
+/* Health */
+.health .rows > li { padding: 0.65rem 0; }
+
+/* Empty states */
+.empty-state { text-align: center; padding: 3rem 1.5rem; }
+.empty-state .thing { width: 4rem; height: 4rem; margin: 0 auto 1rem; border-radius: 1rem; }
+.empty-state .thing .icon { width: 2rem; height: 2rem; }
+.empty-state p { max-width: 32rem; margin-inline: auto; color: var(--muted); }
+.empty-state .actions { justify-content: center; margin-top: 1rem; }
+
+/* Forms */
+label.field { display: grid; gap: 0.35rem; font-weight: 600; }
+input[type="text"], input[type="url"], input[type="email"], input[type="search"], input[type="number"], select {
+  min-height: 44px; width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); color: var(--fg); font: inherit; font-weight: 400;
+}
+input::placeholder { color: var(--muted); opacity: 0.85; }
+.inline-form { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; }
+.inline-form .field { flex: 1 1 18rem; }
+.hint { font-weight: 400; font-size: 0.875rem; color: var(--muted); }
+
+/* Choice tiles (provider pick, presets) */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.75rem; margin: 0 0 1.25rem; padding: 0; border: 0; }
+.tile { position: relative; display: grid; gap: 0.25rem; padding: 1rem; border: 2px solid var(--line-soft); border-radius: var(--radius-lg); cursor: pointer; background: var(--surface); }
+.tile:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.tile:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 3px; }
+.tile input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.tile strong { font-size: 1.0625rem; }
+.tile span { font-size: 0.875rem; color: var(--muted); }
+.tiles.wide { grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }
+.tile .check-mark { position: absolute; top: 0.75rem; right: 0.75rem; color: var(--accent); display: none; }
+.tile:has(input:checked) .check-mark { display: block; }
+
+/* Level picker: segmented radio group */
+.levels { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: var(--radius); padding: 3px; gap: 3px; margin: 0; background: var(--panel); }
+.levels legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.levels label { position: relative; display: inline-flex; align-items: center; min-height: 38px; padding: 0 0.75rem; border-radius: 0.35rem; font-size: 0.875rem; font-weight: 550; cursor: pointer; white-space: nowrap; }
+.levels input { position: absolute; opacity: 0; inset: 0; cursor: pointer; margin: 0; }
+.levels label:has(input:checked) { background: var(--surface); color: var(--accent); box-shadow: 0 0 0 1px var(--accent); font-weight: 700; }
+.levels label:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+.tool { display: grid !important; grid-template-columns: 2.5rem minmax(0, 1fr) auto; gap: 0.4rem 0.9rem !important; align-items: center; }
+.tool .levels-wrap { grid-column: 3; display: grid; justify-items: end; gap: 0.3rem; }
+.tool .tool-note { grid-column: 2 / -1; }
+.suggest { font-size: 0.8125rem; color: var(--muted); }
+
+/* Toggles (checkbox styled as switch) */
+.switch { display: flex; align-items: center; gap: 0.75rem; min-height: 44px; cursor: pointer; }
+.switch input { appearance: none; -webkit-appearance: none; width: 2.75rem; height: 1.6rem; border-radius: 999px; background: var(--line); position: relative; margin: 0; flex: none; cursor: pointer; }
+.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: calc(1.6rem - 6px); height: calc(1.6rem - 6px); border-radius: 50%; background: #fff; }
+.switch input:checked { background: var(--ok); }
+.switch input:checked::after { left: calc(100% - 1.6rem + 3px); }
+@media (prefers-reduced-motion: no-preference) { .switch input::after { transition: left 0.15s; } }
+
+/* Disclosure */
+details.advanced { margin-top: 1rem; border-top: 1px solid var(--line-soft); padding-top: 0.5rem; }
+details.advanced > summary { display: flex; align-items: center; gap: 0.4rem; min-height: 44px; cursor: pointer; color: var(--accent); font-weight: 600; list-style: none; }
+details.advanced > summary::-webkit-details-marker { display: none; }
+details.advanced > summary::before { content: ""; width: 0.5rem; height: 0.5rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); margin-right: 0.35rem; }
+details.advanced[open] > summary::before { transform: rotate(45deg); }
+
+/* Tables (Advanced only) */
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9375rem; }
+th, td { text-align: left; padding: 0.5rem 0.75rem 0.5rem 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+th { font-size: 0.8125rem; color: var(--muted); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td input[type="number"] { width: 6rem; min-height: 38px; text-align: right; }
+
+/* Wizard */
+.wizard { max-width: 44rem; margin: 0 auto; }
+.wizard-steps { list-style: none; display: flex; gap: 0.5rem; margin: 0 0 2rem; padding: 0; counter-reset: s; }
+.wizard-steps li { flex: 1; counter-increment: s; font-size: 0.8125rem; color: var(--muted); }
+.wizard-steps li::before { content: ""; display: block; height: 4px; border-radius: 2px; background: var(--line); margin-bottom: 0.4rem; }
+.wizard-steps li.done::before { background: var(--ok); }
+.wizard-steps li[aria-current="step"]::before { background: var(--accent); }
+.wizard-steps li[aria-current="step"] { color: var(--fg); font-weight: 650; }
+.wizard .card { padding: 2rem; }
+.wizard-foot { display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap; }
+.hero { text-align: center; }
+.hero .brand-mark { width: 4rem; height: 4rem; border-radius: 1.1rem; margin: 0 auto 1.25rem; }
+.hero .brand-mark .icon { width: 2rem; height: 2rem; }
+.hero p { max-width: 34rem; margin-inline: auto; }
+.hero ul { text-align: left; max-width: 30rem; margin: 1.25rem auto 0; }
+.checklist { list-style: none; margin: 0.75rem 0 0; padding: 0; display: grid; gap: 0.5rem; }
+.checklist li { display: flex; gap: 0.6rem; align-items: flex-start; }
+.checklist .icon { color: var(--ok); margin-top: 0.15rem; stroke-width: 2.4; }
+.spinner { width: 1.25rem; height: 1.25rem; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; }
+@media (prefers-reduced-motion: no-preference) { .spinner { animation: spin 0.9s linear infinite; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Filters */
+.filters { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; margin-bottom: 1.25rem; }
+.filters .field { flex: 1 1 11rem; font-size: 0.875rem; }
+.filters .field.search { flex: 2 1 16rem; }
+.chips { display: inline-flex; flex-wrap: wrap; gap: 0.35rem; border: 0; padding: 0; margin: 0; }
+.chips label { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 0 1rem; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; font-weight: 550; }
+.chips input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.chips label:has(input:checked) { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.chips label:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+.day { font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 1.5rem 0 0.5rem; }
+.log { padding: 0.25rem 1.25rem; }
+.log .rows > li { padding: 0.85rem 0; }
+.log .rows > li:first-child { padding-top: 0.85rem; }
+.expanded { background: var(--panel); margin: 0 -1.25rem; padding: 1rem 1.25rem !important; flex-wrap: wrap; }
+.trail { width: 100%; padding-left: 2.9rem; }
+.trail ol { margin: 0.25rem 0 0.75rem; padding-left: 1.25rem; }
+.trail li { margin-bottom: 0.25rem; }
+.reason-ok { color: var(--ok); font-weight: 600; } .reason-bad { color: var(--problem); font-weight: 600; }
+
+/* People */
+.enrol-marks { display: flex; gap: 1.1rem; flex-wrap: wrap; }
+.enrol-marks span { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
+.enrol-marks .yes { color: var(--fg); }
+.enrol-marks .yes .icon { color: var(--ok); stroke-width: 2.6; }
+.enrol-marks .no { color: var(--muted); }
+.person-head { display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.person-head h1 { margin: 0; }
+.allow-list { list-style: none; margin: 0; padding: 0; }
+.allow-list li { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; flex-wrap: wrap; padding: 0.7rem 0; border-top: 1px solid var(--line-soft); }
+.allow-list li:first-child { border-top: 0; }
+.allow-list li > span { flex: 1 1 18rem; }
+.allow-list .lvl { font-size: 0.8125rem; color: var(--muted); }
+.managed { border-left: 3px solid var(--line); padding-left: 0.85rem !important; }
+.copybox { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.copybox code { flex: 1 1 14rem; padding: 0.6rem 0.75rem; min-height: 44px; display: flex; align-items: center; border-radius: var(--radius); background: var(--panel); overflow-wrap: anywhere; }
+
+/* More (phone) */
+.more-list a { display: flex; align-items: center; gap: 0.9rem; min-height: 56px; color: var(--fg); text-decoration: none; font-weight: 600; }
+
+/* Bottom tab bar: phone only */
+.tabbar { display: none; }
+
+@media (max-width: 820px) {
+  .shell { grid-template-columns: 1fr; background: none; }
+  .sidebar { display: none; }
+  .topbar { display: flex !important; }
+  .content { padding: 1.25rem 1rem 6.5rem; }
+  .mockbar { padding: 0.5rem 1rem; }
+  .grid-2, .cols-2 { grid-template-columns: minmax(0, 1fr); }
+  td input[type="number"] { width: 4.25rem; }
+  .rows.wrap-sm .row-main { flex-basis: calc(100% - 3.4rem); }
+  .grid-2 > * + *, .cols-2 > * + * { margin-top: 0 !important; }
+  h1 { font-size: 1.5rem; }
+  .tabbar {
+    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; inset: auto 0 0 0; z-index: 5;
+    background: var(--panel); border-top: 1px solid var(--line-soft); padding: 0.25rem 0.25rem calc(0.25rem + env(safe-area-inset-bottom));
+  }
+  .tabbar a { display: grid; justify-items: center; gap: 0.1rem; min-height: 52px; padding-top: 0.35rem; font-size: 0.75rem; color: var(--muted); text-decoration: none; font-weight: 600; position: relative; }
+  .tabbar a[aria-current="page"] { color: var(--accent); }
+  .tabbar .badge { position: absolute; top: 0.1rem; left: calc(50% + 0.35rem); min-width: 1.1rem; height: 1.1rem; font-size: 0.6875rem; padding: 0 0.3rem; }
+  .tiles { grid-template-columns: 1fr 1fr; }
+  .tiles.wide { grid-template-columns: 1fr; }
+  .summary { padding: 1rem; }
+  .summary .big { font-size: 1.125rem; }
+  .rooms { grid-template-columns: 1fr; }
+  .tool { grid-template-columns: 2.5rem minmax(0, 1fr); }
+  .tool .levels-wrap { grid-column: 1 / -1; justify-items: start; }
+  .tool .tool-note { grid-column: 1 / -1; }
+  .levels { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; }
+  .levels label { justify-content: center; padding: 0 0.2rem; font-size: 0.8125rem; }
+  .wizard .card { padding: 1.25rem; }
+  .card { padding: 1rem; }
+  .log { padding: 0.25rem 1rem; }
+  .expanded { margin: 0 -1rem; padding: 1rem !important; }
+  .trail { padding-left: 0; }
+  .rows.wrap-sm > li { flex-wrap: wrap; }
+  .rows.wrap-sm .row-end { margin-left: 3.4rem; justify-content: flex-start; }
+  .page-head .actions { width: 100%; }
+  .mockbar .theme { margin-left: 0; }
+}
+.topbar { display: none; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--line-soft); background: var(--panel); }
+
+@media (prefers-reduced-motion: no-preference) {
+  button, .button, .nav a { transition: background-color 0.15s, color 0.15s; }
+}
+@media (hover: hover) {
+  button:not(:disabled):hover, .button:hover { filter: brightness(1.08); }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-6 6.5-6s5.9 2.4 6.5 6"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.2c2.6.2 4.5 2.4 5 5.3"/></symbol>
+  <symbol id="i-device" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="3"/><circle cx="12" cy="9" r="2.5"/><path d="M9.5 16h5"/></symbol>
+  <symbol id="i-assistant" viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.3v.2"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.7v.2"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 10.5l5-3v9l-5-3"/></symbol>
+  <symbol id="i-room" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 13h7v7"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 01-12 0zM12 17v4"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 018 0v3"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0012 3z"/></symbol>
+  <symbol id="i-temp" viewBox="0 0 24 24"><path d="M14 14.5V5a2 2 0 00-4 0v9.5a4 4 0 104 0z"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M5 16V11l2-5h10l2 5v5M3 16h18v3H3zM5 11h14"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-user-q" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.7 9.5a2.4 2.4 0 114 1.8c-.9.6-1.7 1.1-1.7 2.2M12 16.6v.2"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></symbol>
+</svg>
+
+<a class="button skip" href="#content">Skip to content</a>
+<div class="shell">
+  <aside class="sidebar" aria-label="Main">
+    <div class="brand">
+      <span class="brand-mark"><svg class="icon"><use href="#i-shield"/></svg></span>
+      <div><strong>attest</strong><span>Maple House</span></div>
+    </div>
+    <nav aria-label="Sections">
+      <ul class="nav">
+        <li><a href="#home" data-nav="home"><svg class="icon"><use href="#i-home"/></svg>Home</a></li>
+        <li><a href="#people" data-nav="people"><svg class="icon"><use href="#i-people"/></svg>People</a></li>
+        <li><a href="#devices" data-nav="devices"><svg class="icon"><use href="#i-device"/></svg>Devices <span class="badge" aria-label="1 new">1</span></a></li>
+        <li><a href="#assistants" data-nav="assistants"><svg class="icon"><use href="#i-assistant"/></svg>Assistants</a></li>
+        <li><a href="#activity" data-nav="activity"><svg class="icon"><use href="#i-activity"/></svg>Activity</a></li>
+        <li><a href="#settings" data-nav="settings"><svg class="icon"><use href="#i-settings"/></svg>Settings</a></li>
+      </ul>
+    </nav>
+    <div class="sidebar-foot">
+      <a class="button secondary" href="#setup/1" data-nav="setup">Run first-time setup</a>
+      <p class="small muted" style="margin:0;padding:0 0.25rem">Signed in as Noor Haddad</p>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar" aria-label="Header">
+      <div class="brand">
+        <span class="brand-mark"><svg class="icon"><use href="#i-shield"/></svg></span>
+        <div><strong>attest</strong><span>Maple House</span></div>
+      </div>
+      <span class="avatar a1" style="width:2.25rem;height:2.25rem" role="img" aria-label="Noor Haddad, signed in">NH</span>
+    </div>
+    <div class="mockbar" aria-label="Mockup controls">
+      <span class="label">Mockup</span>
+      <span id="states-label">Show:</span>
+      <nav id="states" aria-labelledby="states-label"></nav>
+      <span class="theme"><button type="button" class="secondary" id="theme">Theme: system</button></span>
+    </div>
+
+    <main id="content" class="content">
+
+<!-- ============================ SETUP ============================ -->
+<section data-screen="setup" data-default-view="1" data-states="normal problem" hidden>
+  <div class="wizard">
+    <ol class="wizard-steps" aria-label="Setup progress">
+      <li data-step="1">Welcome</li><li data-step="2">Accounts</li><li data-step="3">Your space</li><li data-step="4">People</li><li data-step="5">Done</li>
+    </ol>
+
+    <div data-view="1">
+      <div class="card hero">
+        <span class="brand-mark"><svg class="icon"><use href="#i-shield"/></svg></span>
+        <h1 tabindex="-1">Let your assistants know who they're talking to</h1>
+        <p>attest listens to the microphones and cameras you already have, works out who is in the room, and only lets an assistant act for someone in the ways that person has allowed.</p>
+        <ul class="checklist">
+          <li><svg class="icon"><use href="#i-check"/></svg><span>Uses the accounts you already have. Nobody gets a new password.</span></li>
+          <li><svg class="icon"><use href="#i-check"/></svg><span>Never stores voices or faces. Your devices keep those; attest only hears who they think it is.</span></li>
+          <li><svg class="icon"><use href="#i-check"/></svg><span>Everyone decides for themselves what an assistant may do for them.</span></li>
+        </ul>
+        <div class="actions" style="justify-content:center;margin-top:1.75rem"><a class="button" href="#setup/2">Get started</a></div>
+        <p class="small muted" style="margin-top:1rem">Takes about five minutes.</p>
+      </div>
+    </div>
+
+    <div data-view="2">
+      <div class="card">
+        <h1 tabindex="-1">Connect your accounts</h1>
+        <p class="muted">attest uses your existing sign-in service for people and their roles. Pick yours and we'll set up what attest needs there.</p>
+        <fieldset class="tiles" style="margin-top:1.25rem">
+          <legend class="visually-hidden">Account service</legend>
+          <label class="tile"><input type="radio" name="idp" checked><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Keycloak</strong><span>Self-hosted</span></label>
+          <label class="tile"><input type="radio" name="idp"><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Auth0</strong><span>Cloud</span></label>
+          <label class="tile"><input type="radio" name="idp"><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Ory</strong><span>Cloud or self-hosted</span></label>
+          <label class="tile"><input type="radio" name="idp"><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Something else</strong><span>Any OpenID provider</span></label>
+        </fieldset>
+
+        <div data-when="normal" id="idp-form">
+          <form class="inline-form" onsubmit="connectIdp(event)">
+            <label class="field">Address of your Keycloak
+              <input type="url" value="https://id.maple.home" autocomplete="url">
+            </label>
+            <button>Connect</button>
+          </form>
+          <p class="hint" style="margin-top:0.5rem">You'll be asked to sign in to Keycloak as an administrator once. attest doesn't keep that password.</p>
+        </div>
+
+        <div data-when="connecting" class="status" role="status" style="border-color:var(--accent);margin-top:0.5rem">
+          <span class="spinner" aria-hidden="true"></span><p>Connecting to id.maple.home…</p>
+        </div>
+
+        <div data-when="connected">
+          <div class="status" role="status">
+            <svg class="icon"><use href="#i-check"/></svg>
+            <div class="notice-body">
+              <p><strong>Connected to Keycloak at id.maple.home</strong></p>
+              <p>Found 4 people in the <em>home</em> realm. Here's what attest added there, so you don't have to:</p>
+              <ul class="checklist">
+                <li><svg class="icon"><use href="#i-check"/></svg><span>A sign-in for the page where people set themselves up</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span>Three roles: <em>attest admin</em>, <em>device</em> and <em>assistant</em></span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span>Made you, Noor Haddad, an attest admin</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div data-when="problem" class="problem" role="alert">
+          <svg class="icon"><use href="#i-alert"/></svg>
+          <div class="notice-body">
+            <p><strong>We couldn't reach id.maple.home</strong></p>
+            <p>Check the address is right and that Keycloak is running. If it uses a certificate you made yourself, you can trust it here.</p>
+            <div class="actions"><button type="button">Try again</button><button type="button" class="secondary">Trust its certificate</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="wizard-foot"><a class="button quiet" href="#setup/1"><svg class="icon"><use href="#i-back"/></svg>Back</a><a class="button" href="#setup/3" data-when="connected">Continue</a></div>
+    </div>
+
+    <div data-view="3">
+      <div class="card">
+        <h1 tabindex="-1">Name your space</h1>
+        <p class="muted">This is how assistants and people will see it.</p>
+        <label class="field" style="margin:1.25rem 0 1.5rem">Name
+          <input type="text" value="Maple House">
+        </label>
+        <fieldset class="tiles wide" style="margin-bottom:0">
+          <legend style="font-weight:600;margin-bottom:0.5rem;padding:0">What kind of place is it?</legend>
+          <label class="tile"><input type="radio" name="preset" checked><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Household</strong><span>Family and regular guests. Everyday things are easy; unlocking doors and sending messages need more certainty.</span></label>
+          <label class="tile"><input type="radio" name="preset"><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Small office</strong><span>Colleagues and visitors. Assistants are stricter, and anything with company data needs two kinds of recognition.</span></label>
+        </fieldset>
+        <p class="hint" style="margin-top:0.75rem">You can change this later in Settings. Nothing to configure now.</p>
+      </div>
+      <div class="wizard-foot"><a class="button quiet" href="#setup/2/connected"><svg class="icon"><use href="#i-back"/></svg>Back</a><a class="button" href="#setup/4">Continue</a></div>
+    </div>
+
+    <div data-view="4">
+      <div class="card">
+        <h1 tabindex="-1">Invite people</h1>
+        <p class="muted">These people are already in Keycloak. Invite them to set themselves up: sign in, teach it their voice, and choose what assistants may do for them.</p>
+        <ul class="rows" style="margin-top:1rem">
+          <li><span class="avatar a1">NH</span><div class="row-main"><p><strong>Noor Haddad</strong> <span class="muted">(you)</span></p><p class="small muted">noor@maple.home</p></div><span class="row-end pill ok"><svg class="icon"><use href="#i-check"/></svg>Admin</span></li>
+          <li><label class="switch" style="flex:1"><span class="avatar a2">TR</span><span class="row-main"><strong>Tomás Reyes</strong><br><span class="small muted">tomas@maple.home</span></span><input type="checkbox" checked style="margin-left:auto" aria-label="Invite Tomás Reyes"></label></li>
+          <li><label class="switch" style="flex:1"><span class="avatar a3">IR</span><span class="row-main"><strong>Ilse Reyes</strong><br><span class="small muted">ilse@maple.home</span></span><input type="checkbox" checked style="margin-left:auto" aria-label="Invite Ilse Reyes"></label></li>
+          <li><label class="switch" style="flex:1"><span class="avatar a4">RH</span><span class="row-main"><strong>Ruth Haddad</strong><br><span class="small muted">ruth.haddad@example.net</span></span><input type="checkbox" style="margin-left:auto" aria-label="Invite Ruth Haddad"></label></li>
+        </ul>
+        <h2 style="margin-top:1.5rem;font-size:1.0625rem">Or share a link</h2>
+        <div class="copybox"><code>https://attest.maple.home/join</code><button type="button" class="secondary">Copy link</button></div>
+      </div>
+      <div class="wizard-foot"><a class="button quiet" href="#setup/3"><svg class="icon"><use href="#i-back"/></svg>Back</a><a class="button" href="#setup/5">Send 2 invites</a></div>
+    </div>
+
+    <div data-view="5">
+      <div class="card hero">
+        <span class="brand-mark" style="background:var(--ok)"><svg class="icon"><use href="#i-check"/></svg></span>
+        <h1 tabindex="-1">Maple House is ready</h1>
+        <p>Tomás and Ilse will get an email. Next, plug in or turn on a microphone or camera: it will show up under Devices, ready to adopt.</p>
+        <div class="actions" style="justify-content:center;margin-top:1.5rem"><a class="button" href="#home">Go to Home</a><a class="button secondary" href="#devices/empty">Add a device</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ HOME ============================ -->
+<section data-screen="home" data-states="normal problem empty" hidden>
+  <div class="page-head">
+    <div><h1 tabindex="-1">Home</h1><p>Tuesday evening at Maple House</p></div>
+  </div>
+
+  <div data-when="normal" class="card summary">
+    <span class="summary-dot"><svg class="icon"><use href="#i-check"/></svg></span>
+    <div><p class="big">Three people are home, and everything is working.</p><p>Assistants are acting for Noor, Tomás and Ilse in the ways each of them allowed.</p></div>
+  </div>
+  <div data-when="problem" class="card summary">
+    <span class="summary-dot warn"><svg class="icon"><use href="#i-alert"/></svg></span>
+    <div><p class="big">Two things need you.</p><p>The front door camera is offline, and Keycloak can't be reached. Assistants still work, but more carefully.</p></div>
+  </div>
+
+  <div data-when="problem" class="problem" role="alert">
+    <svg class="icon"><use href="#i-alert"/></svg>
+    <div class="notice-body">
+      <p><strong>Can't reach Keycloak at id.maple.home</strong> since 18:52.</p>
+      <p>People can't sign in or change what assistants may do. Decisions keep using the roles attest saw last, for up to 24 hours.</p>
+      <div class="actions"><a class="button secondary" href="#settings/problem">Check connection</a></div>
+    </div>
+  </div>
+  <div data-when="problem" class="warning" role="status">
+    <svg class="icon"><use href="#i-alert"/></svg>
+    <div class="notice-body">
+      <p><strong>Front door camera is offline</strong> since 18:40. Unlocking the front door will be refused until it's back, because only it can confirm a face there.</p>
+      <div class="actions"><a class="button secondary" href="#devices/problem">See device</a></div>
+    </div>
+  </div>
+
+  <div data-when="normal problem">
+    <h2>Who's here</h2>
+    <div class="rooms">
+      <article class="card room">
+        <h3><svg class="icon"><use href="#i-room"/></svg>Kitchen <span class="count">2 people</span></h3>
+        <ul class="rows">
+          <li><span class="avatar a1">NH</span><div class="row-main"><p class="who">Noor</p>
+            <p class="sure"><span class="meter" data-level="3" aria-hidden="true"><i></i><i></i><i></i></span>Certain</p>
+            <p class="how">Voice and face · just now</p></div></li>
+          <li><span class="avatar a3">IR</span><div class="row-main"><p class="who">Ilse</p>
+            <p class="sure"><span class="meter" data-level="2" aria-hidden="true"><i></i><i></i><i></i></span>Sure</p>
+            <p class="how">Voice · 1 min ago</p></div></li>
+        </ul>
+      </article>
+      <article class="card room">
+        <h3><svg class="icon"><use href="#i-room"/></svg>Living room <span class="count">2 people</span></h3>
+        <ul class="rows">
+          <li><span class="avatar a2">TR</span><div class="row-main"><p class="who">Tomás</p>
+            <p class="sure"><span class="meter" data-level="1" aria-hidden="true"><i></i><i></i><i></i></span>Probably</p>
+            <p class="how">Voice · 9 min ago</p></div></li>
+          <li><span class="avatar a0"><svg class="icon"><use href="#i-user-q"/></svg></span><div class="row-main"><p class="who">Someone new</p>
+            <p class="sure"><span class="meter" data-level="0" aria-hidden="true"><i></i><i></i><i></i></span>Not recognised</p>
+            <p class="how">Voice · 2 min ago. Treated as a guest.</p></div></li>
+        </ul>
+      </article>
+      <article class="card room empty">
+        <h3><svg class="icon"><use href="#i-room"/></svg>Hallway <span class="count">Nobody</span></h3>
+        <p class="small muted" style="margin:0">Last: Ilse, 25 min ago</p>
+      </article>
+      <article class="card room empty">
+        <h3><svg class="icon"><use href="#i-room"/></svg>Front door <span class="count">Nobody</span></h3>
+        <p class="small muted" style="margin:0" data-when="normal">Last: Tomás, 1 hr ago</p>
+        <p class="pill warn" style="margin:0" data-when="problem"><svg class="icon"><use href="#i-alert"/></svg>Camera offline, can't tell</p>
+      </article>
+    </div>
+    <p class="small muted" style="margin:-0.75rem 0 1.5rem"><span class="meter" data-level="1" aria-hidden="true"><i></i><i></i><i></i></span> Probably · <span class="meter" data-level="2" aria-hidden="true"><i></i><i></i><i></i></span> Sure · <span class="meter" data-level="3" aria-hidden="true"><i></i><i></i><i></i></span> Certain (recognised two ways). <a href="#settings">What these mean</a></p>
+
+    <div class="grid-2">
+      <section class="card" aria-labelledby="recent-h">
+        <div class="card-head"><h2 id="recent-h">Recent decisions</h2><a href="#activity">See all</a></div>
+        <ul class="rows">
+          <li class="decision"><span class="mark ok"><svg class="icon"><use href="#i-check"/></svg></span>
+            <div class="row-main"><p class="what">Played music for Noor</p><p class="why">Allowed: Home assistant, in the Kitchen.</p></div><time>19:42</time></li>
+          <li class="decision"><span class="mark bad"><svg class="icon"><use href="#i-x"/></svg></span>
+            <div class="row-main"><p class="what">Didn't unlock the front door for Tomás</p><p class="why">Refused: only his voice was recognised. Unlocking needs his voice and his face.</p></div><time>19:38</time></li>
+          <li class="decision"><span class="mark ok"><svg class="icon"><use href="#i-check"/></svg></span>
+            <div class="row-main"><p class="what">Read Ilse's calendar to her</p><p class="why">Allowed: Home assistant, in the Kitchen.</p></div><time>19:31</time></li>
+          <li class="decision"><span class="mark bad"><svg class="icon"><use href="#i-x"/></svg></span>
+            <div class="row-main"><p class="what">Didn't send an email for someone new</p><p class="why">Refused: we didn't recognise who asked. Guests can only use things anyone may.</p></div><time>19:24</time></li>
+        </ul>
+      </section>
+
+      <section class="card health" aria-labelledby="health-h">
+        <div class="card-head"><h2 id="health-h">System</h2><a href="#devices">Devices</a></div>
+        <ul class="rows">
+          <li><span class="thing"><svg class="icon"><use href="#i-device"/></svg></span><div class="row-main"><p>Devices</p>
+            <p class="small muted" data-when="normal">4 working · 1 new to adopt</p><p class="small muted" data-when="problem">3 working · 1 offline · 1 new</p></div>
+            <span class="row-end" data-when="normal"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Good</span></span>
+            <span class="row-end" data-when="problem"><span class="pill warn"><svg class="icon"><use href="#i-alert"/></svg>1 offline</span></span></li>
+          <li><span class="thing"><svg class="icon"><use href="#i-key"/></svg></span><div class="row-main"><p>Keycloak</p><p class="small muted">Accounts and roles</p></div>
+            <span class="row-end" data-when="normal"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Connected</span></span>
+            <span class="row-end" data-when="problem"><span class="pill bad"><svg class="icon"><use href="#i-x"/></svg>Unreachable</span></span></li>
+          <li><span class="thing"><svg class="icon"><use href="#i-assistant"/></svg></span><div class="row-main"><p>Assistants</p><p class="small muted">2 assistants · 3 tool connections</p></div>
+            <span class="row-end"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Good</span></span></li>
+          <li><span class="thing"><svg class="icon"><use href="#i-people"/></svg></span><div class="row-main"><p>People</p><p class="small muted">4 people · Ruth hasn't been invited</p></div>
+            <span class="row-end"><a href="#people">Invite</a></span></li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  <div data-when="empty" class="card empty-state">
+    <span class="thing"><svg class="icon"><use href="#i-home"/></svg></span>
+    <h2>Nobody to show yet</h2>
+    <p>Once a microphone or camera is adopted and people have taught it their voice or face, you'll see who's in each room here.</p>
+    <div class="actions"><a class="button" href="#devices/empty">Add a device</a><a class="button secondary" href="#people">Invite people</a></div>
+  </div>
+</section>
+
+<!-- ============================ DEVICES ============================ -->
+<section data-screen="devices" data-states="normal problem empty" hidden>
+  <div class="page-head">
+    <div><h1 tabindex="-1">Devices</h1><p>Microphones and cameras that tell attest who they think is there.</p></div>
+  </div>
+
+  <div data-when="normal problem">
+    <section class="card" aria-labelledby="new-h" style="border-color:var(--accent)">
+      <h2 id="new-h" style="display:flex;align-items:center;gap:0.5rem">New device found <span class="badge">1</span></h2>
+      <ul class="rows wrap-sm">
+        <li><span class="thing"><svg class="icon"><use href="#i-mic"/></svg></span>
+          <div class="row-main"><p><strong>Kitchen mic</strong></p><p class="small muted">Recognises voices · found on your network 3 min ago</p></div>
+          <span class="row-end"><button type="button" class="quiet">Ignore</button><button type="button">Adopt</button></span></li>
+      </ul>
+    </section>
+
+    <div data-when="problem" class="warning" role="status" style="margin-top:1.25rem">
+      <svg class="icon"><use href="#i-alert"/></svg>
+      <div class="notice-body"><p><strong>Front door camera stopped reporting at 18:40.</strong> It may be unplugged or off the network. Until it's back, nobody can be recognised at the front door.</p></div>
+    </div>
+
+    <section class="card" aria-labelledby="adopted-h" style="margin-top:1.25rem">
+      <div class="card-head"><h2 id="adopted-h">Your devices</h2></div>
+      <ul class="rows wrap-sm">
+        <li><span class="thing"><svg class="icon"><use href="#i-mic"/></svg></span>
+          <div class="row-main"><p><strong>Living room speaker</strong></p><p class="small muted">Living room · recognises voices · knows 3 of 4 people</p></div>
+          <span class="row-end"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Working</span></span></li>
+        <li><span class="thing"><svg class="icon"><use href="#i-camera"/></svg></span>
+          <div class="row-main"><p><strong>Kitchen camera</strong></p><p class="small muted">Kitchen · recognises faces · knows 2 of 4 people</p></div>
+          <span class="row-end"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Working</span></span></li>
+        <li><span class="thing"><svg class="icon"><use href="#i-mic"/></svg></span>
+          <div class="row-main"><p><strong>Hallway panel</strong></p><p class="small muted">Hallway, Front door · recognises voices · knows 3 of 4 people</p></div>
+          <span class="row-end"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Working</span></span></li>
+        <li><span class="thing"><svg class="icon"><use href="#i-camera"/></svg></span>
+          <div class="row-main"><p><strong>Front door camera</strong></p><p class="small muted">Front door · recognises faces · knows 2 of 4 people</p></div>
+          <span class="row-end" data-when="normal"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Working</span></span>
+          <span class="row-end" data-when="problem"><span class="pill bad"><svg class="icon"><use href="#i-x"/></svg>Offline since 18:40</span></span></li>
+        <li><span class="thing"><svg class="icon"><use href="#i-car"/></svg></span>
+          <div class="row-main"><p><strong>Car cabin mic</strong></p><p class="small muted">Car · recognises voices · knows 2 of 4 people</p></div>
+          <span class="row-end"><span class="pill off"><svg class="icon"><use href="#i-info"/></svg>Asleep · car parked</span></span></li>
+      </ul>
+      <details class="advanced">
+        <summary>Advanced</summary>
+        <p class="small muted">Each device reports how strongly a voice or face matches each person, as a likelihood ratio. attest caps any one device so it can never be certain on its own.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Device</th><th>Kind</th><th class="num">Strongest single report</th><th>Calibration</th><th>Last report</th></tr></thead>
+          <tbody>
+            <tr><td>Living room speaker</td><td>Voice</td><td class="num">LLR 6.0</td><td>voice-v1</td><td>19:42:10</td></tr>
+            <tr><td>Kitchen camera</td><td>Face</td><td class="num">LLR 8.0</td><td>face-v1</td><td>19:42:31</td></tr>
+            <tr><td>Hallway panel</td><td>Voice</td><td class="num">LLR 6.0</td><td>voice-v1</td><td>19:17:04</td></tr>
+            <tr><td>Front door camera</td><td>Face</td><td class="num">LLR 8.0</td><td>face-v1</td><td>18:40:12</td></tr>
+          </tbody>
+        </table></div>
+      </details>
+    </section>
+  </div>
+
+  <div data-when="empty" class="card empty-state">
+    <span class="thing"><svg class="icon"><use href="#i-device"/></svg></span>
+    <h2>No devices yet</h2>
+    <p>Turn on a microphone or camera that works with attest. When it's on the same network, it shows up here and you can adopt it with one click.</p>
+    <div class="actions"><span class="status" role="status" style="margin:0;display:inline-flex;align-items:center;border-color:var(--accent)"><span class="spinner" aria-hidden="true"></span>Looking for devices…</span></div>
+    <p class="small" style="margin-top:1.25rem"><a href="#devices">Add one by address instead</a></p>
+  </div>
+</section>
+
+<!-- ============================ ASSISTANTS ============================ -->
+<section data-screen="assistants" data-states="normal pending empty" hidden>
+  <div class="page-head">
+    <div><h1 tabindex="-1">Assistants &amp; tools</h1><p>What assistants can do, and how sure attest must be before it lets them.</p></div>
+  </div>
+
+  <div data-when="normal pending">
+    <div class="cols-2" style="margin-bottom:1.25rem">
+      <a class="card" href="#assistants" style="text-decoration:none;color:inherit;display:flex;gap:0.9rem;align-items:center;border-color:var(--accent)">
+        <span class="thing"><svg class="icon"><use href="#i-assistant"/></svg></span>
+        <span class="row-main"><strong>Home assistant</strong><br><span class="small muted">Speakers in every room · 3 people let it act for them</span></span>
+        <span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Online</span></a>
+      <a class="card" href="#assistants" style="text-decoration:none;color:inherit;display:flex;gap:0.9rem;align-items:center">
+        <span class="thing"><svg class="icon"><use href="#i-car"/></svg></span>
+        <span class="row-main"><strong>Car assistant</strong><br><span class="small muted">In the car · 2 people let it act for them</span></span>
+        <span class="pill off"><svg class="icon"><use href="#i-info"/></svg>Asleep</span></a>
+    </div>
+
+    <section class="card" aria-labelledby="add-h">
+      <h2 id="add-h">Add tools</h2>
+      <form class="inline-form" onsubmit="event.preventDefault();location.hash='#assistants/pending'">
+        <label class="field">Address of a tool server
+          <input type="url" placeholder="https://tools.example.com/mcp" value="https://ha.maple.home/mcp">
+        </label>
+        <button>Connect</button>
+      </form>
+      <p class="hint" style="margin-top:0.5rem">Assistants reach tools through attest, so every request is checked first.</p>
+
+      <div data-when="pending" style="margin-top:1.5rem">
+        <div class="info" role="status"><svg class="icon"><use href="#i-info"/></svg>
+          <div class="notice-body"><p><strong>Found 3 tools at Home control (ha.maple.home).</strong> We've suggested how careful to be with each. Change any, then add them.</p></div></div>
+        <ul class="rows">
+          <li class="tool"><span class="thing"><svg class="icon"><use href="#i-bulb"/></svg></span><div class="row-main"><p><strong>Turn lights on or off</strong></p><p class="small muted">Home control</p></div>
+            <div class="levels-wrap"><fieldset class="levels"><legend>Who can use Turn lights on or off</legend>
+              <label><input type="radio" name="t1" checked>Anyone</label><label><input type="radio" name="t1">Probably</label><label><input type="radio" name="t1">Sure</label><label><input type="radio" name="t1">Certain</label></fieldset><span class="suggest">Suggested: Anyone</span></div></li>
+          <li class="tool"><span class="thing"><svg class="icon"><use href="#i-temp"/></svg></span><div class="row-main"><p><strong>Change the heating</strong></p><p class="small muted">Home control</p></div>
+            <div class="levels-wrap"><fieldset class="levels"><legend>Who can use Change the heating</legend>
+              <label><input type="radio" name="t2">Anyone</label><label><input type="radio" name="t2" checked>Probably</label><label><input type="radio" name="t2">Sure</label><label><input type="radio" name="t2">Certain</label></fieldset><span class="suggest">Suggested: Probably</span></div></li>
+          <li class="tool"><span class="thing"><svg class="icon"><use href="#i-lock"/></svg></span><div class="row-main"><p><strong>Unlock the front door</strong></p><p class="small muted">Home control</p></div>
+            <div class="levels-wrap"><fieldset class="levels"><legend>Who can use Unlock the front door</legend>
+              <label><input type="radio" name="t3">Anyone</label><label><input type="radio" name="t3">Probably</label><label><input type="radio" name="t3">Sure</label><label><input type="radio" name="t3" checked>Certain</label></fieldset><span class="suggest">Suggested: Certain</span></div>
+            <p class="tool-note small warning" style="margin:0.25rem 0 0"><svg class="icon"><use href="#i-alert"/></svg><span>Certain means recognised two ways, such as voice and face. The front door has a camera and the Hallway panel's mic, so this works. In rooms with only a mic, it will always be refused.</span></p></li>
+        </ul>
+        <div class="actions" style="margin-top:1rem"><button type="button">Add 3 tools</button><button type="button" class="secondary">Cancel</button></div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="tools-h">
+      <div class="card-head"><h2 id="tools-h">Home assistant can use</h2></div>
+      <h3 style="display:flex;gap:0.5rem;align-items:center;margin-top:0.25rem"><svg class="icon"><use href="#i-plug"/></svg>Google Workspace <span class="pill ok" style="margin-left:auto"><svg class="icon"><use href="#i-check"/></svg>Connected</span></h3>
+      <ul class="rows" style="margin-bottom:1.25rem">
+        <li class="tool"><span class="thing"><svg class="icon"><use href="#i-cal"/></svg></span><div class="row-main"><p><strong>Read your calendar</strong></p><p class="small muted">Used 14 times today</p></div>
+          <div class="levels-wrap"><fieldset class="levels"><legend>Who can use Read your calendar</legend>
+            <label><input type="radio" name="g1">Anyone</label><label><input type="radio" name="g1">Probably</label><label><input type="radio" name="g1" checked>Sure</label><label><input type="radio" name="g1">Certain</label></fieldset></div></li>
+        <li class="tool"><span class="thing"><svg class="icon"><use href="#i-mail"/></svg></span><div class="row-main"><p><strong>Send email as you</strong></p><p class="small muted">Used twice today</p></div>
+          <div class="levels-wrap"><fieldset class="levels"><legend>Who can use Send email as you</legend>
+            <label><input type="radio" name="g2">Anyone</label><label><input type="radio" name="g2">Probably</label><label><input type="radio" name="g2" checked>Sure</label><label><input type="radio" name="g2">Certain</label></fieldset></div></li>
+      </ul>
+      <h3 style="display:flex;gap:0.5rem;align-items:center"><svg class="icon"><use href="#i-plug"/></svg>Music <span class="pill ok" style="margin-left:auto"><svg class="icon"><use href="#i-check"/></svg>Connected</span></h3>
+      <ul class="rows">
+        <li class="tool"><span class="thing"><svg class="icon"><use href="#i-music"/></svg></span><div class="row-main"><p><strong>Play and pause music</strong></p><p class="small muted">Used 31 times today</p></div>
+          <div class="levels-wrap"><fieldset class="levels"><legend>Who can use Play and pause music</legend>
+            <label><input type="radio" name="m1">Anyone</label><label><input type="radio" name="m1" checked>Probably</label><label><input type="radio" name="m1">Sure</label><label><input type="radio" name="m1">Certain</label></fieldset></div></li>
+        <li class="tool"><span class="thing"><svg class="icon"><use href="#i-phone"/></svg></span><div class="row-main"><p><strong>Call emergency services</strong></p><p class="small muted">Always allowed, for anyone</p></div>
+          <div class="levels-wrap"><span class="tag">Anyone · can't be changed</span></div></li>
+      </ul>
+      <details class="advanced">
+        <summary>Advanced</summary>
+        <p class="small muted">Levels map to permissions by name. These are the names your tool server and Keycloak roles use.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Tool</th><th>Permission</th><th>Level</th></tr></thead>
+          <tbody>
+            <tr><td>Read your calendar</td><td><code>calendar.read</code></td><td><code>confident</code></td></tr>
+            <tr><td>Send email as you</td><td><code>email.send</code></td><td><code>confident</code></td></tr>
+            <tr><td>Play and pause music</td><td><code>music.control</code></td><td><code>presumed</code></td></tr>
+            <tr><td>Call emergency services</td><td><code>emergency.call</code></td><td>floor</td></tr>
+          </tbody>
+        </table></div>
+      </details>
+    </section>
+  </div>
+
+  <div data-when="empty" class="card empty-state">
+    <span class="thing"><svg class="icon"><use href="#i-assistant"/></svg></span>
+    <h2>No assistants yet</h2>
+    <p>Point your assistant at attest instead of straight at its tools. It shows up here the first time it asks for something.</p>
+    <div class="copybox" style="max-width:30rem;margin:1rem auto 0"><code>https://attest.maple.home/tools</code><button type="button" class="secondary">Copy</button></div>
+  </div>
+</section>
+
+<!-- ============================ PEOPLE ============================ -->
+<section data-screen="people" data-states="normal problem" hidden>
+  <div data-view="main">
+    <div class="page-head">
+      <div><h1 tabindex="-1">People</h1><p>From Keycloak. Roles are managed there.</p></div>
+      <div class="actions"><button type="button"><svg class="icon"><use href="#i-link"/></svg>Copy invite link</button></div>
+    </div>
+    <div data-when="problem" class="problem" role="alert"><svg class="icon"><use href="#i-alert"/></svg>
+      <div class="notice-body"><p><strong>Can't reach Keycloak.</strong> Showing people and roles as of 18:52. New people can't sign in until it's back.</p></div></div>
+    <section class="card">
+      <ul class="rows wrap-sm">
+        <li><span class="avatar a1">NH</span><div class="row-main"><p><a href="#people/noor"><strong>Noor Haddad</strong></a> <span class="tags" style="display:inline-flex"><span class="tag">Admin</span><span class="tag">Resident</span></span></p>
+          <div class="enrol-marks"><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Signed in</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Voice</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Face</span></div></div>
+          <span class="row-end small muted">2 assistants</span></li>
+        <li><span class="avatar a2">TR</span><div class="row-main"><p><a href="#people/tomas"><strong>Tomás Reyes</strong></a> <span class="tags" style="display:inline-flex"><span class="tag">Resident</span></span></p>
+          <div class="enrol-marks"><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Signed in</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Voice</span><span class="no">— No face</span></div></div>
+          <span class="row-end small muted">2 assistants</span></li>
+        <li><span class="avatar a3">IR</span><div class="row-main"><p><a href="#people/ilse"><strong>Ilse Reyes</strong></a> <span class="tags" style="display:inline-flex"><span class="tag">Child</span></span></p>
+          <div class="enrol-marks"><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Signed in</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Voice</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Face</span></div></div>
+          <span class="row-end small muted">1 assistant</span></li>
+        <li><span class="avatar a4">RH</span><div class="row-main"><p><strong>Ruth Haddad</strong> <span class="tags" style="display:inline-flex"><span class="tag">Guest</span></span></p>
+          <div class="enrol-marks"><span class="no">Not invited yet</span></div></div>
+          <span class="row-end"><button type="button" class="secondary">Invite</button></span></li>
+      </ul>
+    </section>
+    <p class="small muted" style="margin-top:1rem">To add someone, add them in Keycloak. They appear here within a minute.</p>
+  </div>
+
+  <div data-view="tomas">
+    <a class="crumb" href="#people"><svg class="icon"><use href="#i-back"/></svg>People</a>
+    <div class="person-head">
+      <span class="avatar a2 lg">TR</span>
+      <div><h1 tabindex="-1">Tomás Reyes</h1><p class="muted" style="margin:0">tomas@maple.home · Resident</p></div>
+    </div>
+    <div class="grid-2">
+      <div>
+        <section class="card" aria-labelledby="tchose-h">
+          <h2 id="tchose-h">What Tomás has allowed</h2>
+          <p class="small muted">He chose these himself when he set up. He can change them any time on his own page.</p>
+          <h3 style="margin-top:1rem">Home assistant may:</h3>
+          <ul class="allow-list">
+            <li><span>Play and pause music <span class="lvl">· Probably him</span></span></li>
+            <li><span>Read his calendar <span class="lvl">· Sure it's him</span></span></li>
+            <li><span>Change the heating <span class="lvl">· Probably him</span></span></li>
+          </ul>
+          <h3 style="margin-top:1.25rem">Car assistant may:</h3>
+          <ul class="allow-list">
+            <li><span>Play and pause music <span class="lvl">· Probably him</span></span></li>
+            <li><span>Read his calendar <span class="lvl">· Sure it's him</span></span></li>
+          </ul>
+          <h3 style="margin-top:1.25rem">Not allowed:</h3>
+          <p class="small muted" style="margin:0">Send email as him</p>
+        </section>
+        <section class="card" aria-labelledby="tset-h">
+          <h2 id="tset-h">Set up by you</h2>
+          <ul class="allow-list">
+            <li class="managed"><span><strong>Home assistant</strong> may unlock the front door <span class="lvl">· Certain it's him · only at the front door · until 31 Dec</span></span>
+              <button type="button" class="secondary">Change</button></li>
+          </ul>
+          <p class="small muted" style="margin-top:0.75rem">Tomás sees this on his page but can't change it.</p>
+        </section>
+      </div>
+      <div>
+        <section class="card" aria-labelledby="trec-h">
+          <h2 id="trec-h">Recognised by</h2>
+          <ul class="rows">
+            <li><span class="thing"><svg class="icon"><use href="#i-mic"/></svg></span><div class="row-main"><p>Voice</p><p class="small muted">Taught on 3 Nov</p></div><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Set up</span></li>
+            <li><span class="thing"><svg class="icon"><use href="#i-camera"/></svg></span><div class="row-main"><p>Face</p><p class="small muted">Not taught yet</p></div><span class="pill off">Not set up</span></li>
+          </ul>
+          <div class="warning" style="margin:1rem 0 0"><svg class="icon"><use href="#i-info"/></svg><p class="small">Without his face, Tomás can't reach <strong>Certain</strong>, so the front door won't unlock for him. <a href="#people/tomas">Send him a reminder</a></p></div>
+        </section>
+        <section class="card" aria-labelledby="troles-h">
+          <h2 id="troles-h">Roles</h2>
+          <div class="tags"><span class="tag">Resident</span></div>
+          <p class="small muted" style="margin-top:0.75rem">From Keycloak. <a href="#people/tomas">Open in Keycloak</a></p>
+        </section>
+        <section class="card">
+          <h2>Remove Tomás</h2>
+          <p class="small muted">Removes everything attest knows about him and asks your devices to forget his voice and face. His Keycloak account stays.</p>
+          <button type="button" class="danger">Remove from attest</button>
+        </section>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ACTIVITY ============================ -->
+<section data-screen="activity" data-states="normal empty" hidden>
+  <div class="page-head">
+    <div><h1 tabindex="-1">Activity</h1><p>Every time an assistant asked to do something, and what attest said.</p></div>
+    <div class="actions"><button type="button" class="secondary"><svg class="icon"><use href="#i-down"/></svg>Export</button></div>
+  </div>
+  <form class="filters" onsubmit="event.preventDefault()">
+    <fieldset class="chips"><legend class="visually-hidden">Show</legend>
+      <label><input type="radio" name="af" checked>All</label><label><input type="radio" name="af">Allowed</label><label><input type="radio" name="af">Refused</label></fieldset>
+    <label class="field">Person<select><option>Everyone</option><option>Noor</option><option>Tomás</option><option>Ilse</option><option>Not recognised</option></select></label>
+    <label class="field">Assistant<select><option>All assistants</option><option>Home assistant</option><option>Car assistant</option></select></label>
+    <label class="field search">Search<input type="search" placeholder="e.g. door, email"></label>
+  </form>
+
+  <div data-when="normal">
+    <p class="day">Today</p>
+    <section class="card log">
+      <ul class="rows">
+        <li class="decision"><span class="mark ok"><svg class="icon"><use href="#i-check"/></svg></span>
+          <div class="row-main"><p class="what">Played music for Noor</p><p class="why">Allowed. Home assistant, Kitchen. Noor allowed it, and we were certain it was her.</p></div><time>19:42</time></li>
+        <li class="decision expanded"><span class="mark bad"><svg class="icon"><use href="#i-x"/></svg></span>
+          <div class="row-main"><p class="what">Didn't unlock the front door for Tomás</p><p class="why">Refused. Home assistant, Front door. We were sure it was Tomás from his voice, but unlocking needs two ways, such as voice and face, and the camera didn't see him.</p></div><time>19:38</time>
+          <div class="trail">
+            <p class="small" style="margin:0.75rem 0 0.25rem"><strong>What we checked</strong></p>
+            <ol class="small">
+              <li><span class="reason-ok">Yes</span> Home assistant is allowed to ask to unlock doors.</li>
+              <li><span class="reason-ok">Yes</span> We believe the person asking is Tomás.</li>
+              <li><span class="reason-ok">Yes</span> You let Home assistant unlock the front door for Tomás.</li>
+              <li><span class="reason-ok">Yes</span> His Keycloak role, Resident, may unlock doors.</li>
+              <li><span class="reason-bad">No</span> Certain it's him: recognised only one way (voice).</li>
+            </ol>
+            <details class="advanced" open>
+              <summary>Advanced</summary>
+              <div class="table-wrap"><table>
+                <thead><tr><th>Time</th><th>Device</th><th>Kind</th><th>Best match</th><th class="num">LLR</th><th class="num">Runner-up</th></tr></thead>
+                <tbody>
+                  <tr><td>19:38:02</td><td>Hallway panel</td><td>voice</td><td>tomas</td><td class="num">5.4</td><td class="num">noor −2.1</td></tr>
+                  <tr><td>19:37:55</td><td>Hallway panel</td><td>voice</td><td>tomas</td><td class="num">4.8</td><td class="num">noor −1.6</td></tr>
+                  <tr><td>19:37:40</td><td>Front door camera</td><td>face</td><td>no match</td><td class="num">—</td><td class="num">—</td></tr>
+                </tbody>
+              </table></div>
+              <p class="small" style="margin-top:0.75rem">Belief: <code>tomas</code> 0.982 · fresh 6 s · modalities 1. Required band <code>corroborated</code>: posterior ≥ 0.99, age ≤ 2 min, modalities ≥ 2.<br>
+              Reasons: <code>agent may request door.unlock</code> · <code>leading identity tomas</code> · <code>delegation d-71 covers door.unlock</code> · <code>engine: resident holds door.unlock</code> · <code>band corroborated: confidence 0.982 &lt; 0.99; modalities 1 &lt; min 2</code></p>
+            </details>
+          </div></li>
+        <li class="decision"><span class="mark ok"><svg class="icon"><use href="#i-check"/></svg></span>
+          <div class="row-main"><p class="what">Read Ilse's calendar to her</p><p class="why">Allowed. Home assistant, Kitchen. Ilse allowed it, and we were sure it was her.</p></div><time>19:31</time></li>
+        <li class="decision"><span class="mark bad"><svg class="icon"><use href="#i-x"/></svg></span>
+          <div class="row-main"><p class="what">Didn't send an email for someone new</p><p class="why">Refused. Home assistant, Living room. We didn't recognise who asked; guests can only use things anyone may.</p></div><time>19:24</time></li>
+        <li class="decision"><span class="mark ok"><svg class="icon"><use href="#i-check"/></svg></span>
+          <div class="row-main"><p class="what">Turned on the living room lights</p><p class="why">Allowed. Anyone may.</p></div><time>19:20</time></li>
+        <li class="decision"><span class="mark bad"><svg class="icon"><use href="#i-x"/></svg></span>
+          <div class="row-main"><p class="what">Didn't send an email for Ilse</p><p class="why">Refused. Car assistant. Ilse hasn't allowed it to send email for her.</p></div><time>17:05</time></li>
+      </ul>
+    </section>
+    <p class="day">Yesterday</p>
+    <section class="card log">
+      <ul class="rows">
+        <li class="decision"><span class="mark ok"><svg class="icon"><use href="#i-check"/></svg></span>
+          <div class="row-main"><p class="what">Unlocked the front door for Noor</p><p class="why">Allowed. Home assistant, Front door. Certain: voice and face.</p></div><time>18:12</time></li>
+      </ul>
+    </section>
+  </div>
+  <div data-when="empty" class="card empty-state">
+    <span class="thing"><svg class="icon"><use href="#i-activity"/></svg></span>
+    <h2>Nothing yet</h2>
+    <p>When an assistant asks to do something for someone, you'll see what it asked and why it was allowed or refused.</p>
+  </div>
+</section>
+
+<!-- ============================ SETTINGS ============================ -->
+<section data-screen="settings" data-states="normal problem" hidden>
+  <div class="page-head"><div><h1 tabindex="-1">Settings</h1><p>Maple House</p></div></div>
+  <div class="grid-2">
+    <div>
+      <section class="card" aria-labelledby="conn-h">
+        <h2 id="conn-h">Accounts</h2>
+        <ul class="rows wrap-sm">
+          <li><span class="thing"><svg class="icon"><use href="#i-key"/></svg></span><div class="row-main"><p><strong>Keycloak</strong></p><p class="small muted">id.maple.home · realm “home” · 4 people</p></div>
+            <span class="row-end" data-when="normal"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Connected</span></span>
+            <span class="row-end" data-when="problem"><span class="pill bad"><svg class="icon"><use href="#i-x"/></svg>Unreachable</span></span></li>
+        </ul>
+        <div data-when="problem" class="problem" role="alert" style="margin:1rem 0 0"><svg class="icon"><use href="#i-alert"/></svg>
+          <div class="notice-body"><p><strong>No answer from id.maple.home since 18:52.</strong> Last tried 19:44. Assistants keep using the roles seen last, for up to 24 hours.</p>
+          <div class="actions"><button type="button">Try now</button><button type="button" class="secondary">Change address</button></div></div></div>
+        <div class="actions" data-when="normal" style="margin-top:1rem"><button type="button" class="secondary">Check connection</button><button type="button" class="quiet">Switch provider</button></div>
+      </section>
+
+      <section class="card" aria-labelledby="preset-h">
+        <h2 id="preset-h">How careful to be</h2>
+        <fieldset class="tiles wide" style="margin:0">
+          <legend class="visually-hidden">Preset</legend>
+          <label class="tile"><input type="radio" name="sp" checked><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Household</strong><span>Everyday things are easy; doors and messages need more certainty.</span></label>
+          <label class="tile"><input type="radio" name="sp"><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Small office</strong><span>Stricter. Company data needs two kinds of recognition.</span></label>
+        </fieldset>
+        <h3 style="margin-top:1.25rem">The four levels</h3>
+        <ul class="allow-list">
+          <li><span><strong>Anyone</strong> <span class="lvl">· no need to know who's asking</span></span></li>
+          <li><span><strong>Probably</strong> <span class="lvl">· recognised fairly recently</span></span></li>
+          <li><span><strong>Sure</strong> <span class="lvl">· recognised clearly in the last few minutes</span></span></li>
+          <li><span><strong>Certain</strong> <span class="lvl">· recognised two ways, such as voice and face, just now</span></span></li>
+        </ul>
+        <details class="advanced">
+          <summary>Advanced</summary>
+          <p class="small muted">Changing a number switches the preset to “Custom”. It takes effect on the next decision; nothing to restart.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Level</th><th>Band</th><th class="num">At least</th><th class="num">Within</th><th class="num">Kinds</th></tr></thead>
+            <tbody>
+              <tr><td>Probably</td><td><code>presumed</code></td><td class="num"><input type="number" value="0.80" step="0.01" aria-label="Probably: minimum posterior"></td><td class="num"><input type="number" value="900" aria-label="Probably: max age in seconds"> s</td><td class="num"><input type="number" value="1" aria-label="Probably: kinds"></td></tr>
+              <tr><td>Sure</td><td><code>confident</code></td><td class="num"><input type="number" value="0.95" step="0.01" aria-label="Sure: minimum posterior"></td><td class="num"><input type="number" value="300" aria-label="Sure: max age in seconds"> s</td><td class="num"><input type="number" value="1" aria-label="Sure: kinds"></td></tr>
+              <tr><td>Certain</td><td><code>corroborated</code></td><td class="num"><input type="number" value="0.99" step="0.01" aria-label="Certain: minimum posterior"></td><td class="num"><input type="number" value="120" aria-label="Certain: max age in seconds"> s</td><td class="num"><input type="number" value="2" aria-label="Certain: kinds"></td></tr>
+            </tbody>
+          </table></div>
+          <label class="field" style="margin-top:1rem;max-width:20rem">Chance it's someone we don't know <span class="hint">prior for unknown people</span>
+            <input type="number" value="0.10" step="0.01"></label>
+        </details>
+      </section>
+    </div>
+    <div>
+      <section class="card" aria-labelledby="backup-h">
+        <h2 id="backup-h">Backup</h2>
+        <p class="small muted">Saves people, roles you set here, permissions and settings. No voices or faces: attest never has them.</p>
+        <p class="small">Last automatic backup: today at 03:00</p>
+        <div class="actions"><button type="button"><svg class="icon"><use href="#i-down"/></svg>Download backup</button><button type="button" class="secondary">Restore…</button></div>
+      </section>
+      <section class="card" aria-labelledby="priv-h">
+        <h2 id="priv-h">Privacy</h2>
+        <label class="switch"><input type="checkbox" checked> Keep activity for 30 days</label>
+        <label class="switch"><input type="checkbox"> Show who was in a room in the activity log</label>
+        <p class="small muted" style="margin-top:0.5rem">attest stores who it believed was present and why it decided, never recordings.</p>
+      </section>
+      <section class="card" aria-labelledby="about-h">
+        <h2 id="about-h">This system</h2>
+        <p class="small muted" style="margin:0">Up 12 days · <a href="#settings">Check for updates</a></p>
+      </section>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ MORE (phone) ============================ -->
+<section data-screen="more" data-states="normal" hidden>
+  <div class="page-head"><div><h1 tabindex="-1">More</h1></div></div>
+  <section class="card more-list">
+    <ul class="rows">
+      <li><a href="#activity"><span class="thing"><svg class="icon"><use href="#i-activity"/></svg></span>Activity</a></li>
+      <li><a href="#settings"><span class="thing"><svg class="icon"><use href="#i-settings"/></svg></span>Settings</a></li>
+      <li><a href="#setup/1"><span class="thing"><svg class="icon"><use href="#i-shield"/></svg></span>First-time setup</a></li>
+    </ul>
+  </section>
+</section>
+
+    </main>
+  </div>
+</div>
+
+<nav class="tabbar" aria-label="Sections">
+  <a href="#home" data-nav="home"><svg class="icon"><use href="#i-home"/></svg>Home</a>
+  <a href="#people" data-nav="people"><svg class="icon"><use href="#i-people"/></svg>People</a>
+  <a href="#devices" data-nav="devices"><svg class="icon"><use href="#i-device"/></svg>Devices<span class="badge" aria-label="1 new">1</span></a>
+  <a href="#assistants" data-nav="assistants"><svg class="icon"><use href="#i-assistant"/></svg>Assistants</a>
+  <a href="#more" data-nav="more activity settings setup"><svg class="icon"><use href="#i-more"/></svg>More</a>
+</nav>
+
+<script>
+(function () {
+  var stateNames = { normal: "Normal", empty: "Empty", problem: "Problem", pending: "Adding tools", connected: "Connected" };
+
+  function route() {
+    var parts = (location.hash.slice(1) || "home").split("/");
+    var screen = parts[0];
+    var sec = document.querySelector('[data-screen="' + screen + '"]');
+    if (!sec) { screen = "home"; sec = document.querySelector('[data-screen="home"]'); parts = ["home"]; }
+    var view = sec.dataset.defaultView || "main", state = "normal";
+    parts.slice(1).forEach(function (p) {
+      if (sec.querySelector('[data-view="' + p + '"]')) view = p; else if (p) state = p;
+    });
+
+    document.querySelectorAll("[data-screen]").forEach(function (s) { s.hidden = s !== sec; });
+    sec.querySelectorAll("[data-view]").forEach(function (v) { v.hidden = v.dataset.view !== view; });
+    sec.querySelectorAll("[data-when]").forEach(function (el) { el.hidden = el.dataset.when.split(" ").indexOf(state) < 0; });
+
+    document.querySelectorAll("[data-nav]").forEach(function (a) {
+      if (a.dataset.nav.split(" ").indexOf(screen) >= 0) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    });
+
+    if (screen === "setup") {
+      document.querySelectorAll(".wizard-steps li").forEach(function (li) {
+        var n = +li.dataset.step;
+        li.classList.toggle("done", n < +view);
+        if (n === +view) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current");
+      });
+    }
+
+    var states = (sec.dataset.states || "normal").split(" ");
+    if (screen === "setup" && view === "2") states = ["normal", "connected", "problem"];
+    if (screen === "setup" && view !== "2") states = [];
+    var base = "#" + screen + (view !== (sec.dataset.defaultView || "main") || screen === "setup" ? "/" + view : "");
+    var nav = document.getElementById("states");
+    nav.innerHTML = "";
+    states.forEach(function (s) {
+      var a = document.createElement("a");
+      a.href = base + (s === "normal" ? "" : "/" + s);
+      a.textContent = stateNames[s] || s;
+      if (s === state) a.setAttribute("aria-current", "true");
+      nav.appendChild(a);
+    });
+    document.getElementById("states-label").hidden = states.length < 2;
+    if (states.length < 2) nav.innerHTML = "";
+
+    var visibleView = sec.querySelector('[data-view="' + view + '"]') || sec;
+    var h1 = visibleView.querySelector("h1");
+    document.title = (h1 ? h1.textContent : "attest") + " · attest";
+    if (h1 && route.ready) { h1.focus({ preventScroll: true }); window.scrollTo(0, 0); }
+    route.ready = true;
+  }
+  window.addEventListener("hashchange", route);
+  route();
+
+  window.connectIdp = function (e) {
+    e.preventDefault();
+    location.hash = "#setup/2/connecting";
+    setTimeout(function () { location.hash = "#setup/2/connected"; }, 1200);
+  };
+
+  var modes = ["system", "light", "dark"], themeBtn = document.getElementById("theme");
+  var mode = 0;
+  themeBtn.addEventListener("click", function () {
+    mode = (mode + 1) % 3;
+    if (modes[mode] === "system") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", modes[mode]);
+    themeBtn.textContent = "Theme: " + modes[mode];
+  });
+})();
+</script>
+</body>
+</html>
