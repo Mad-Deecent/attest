@@ -358,7 +358,12 @@ table.mx tr.sec-row td { height: auto; padding: 18px 8px 6px; border-bottom: 1px
   .menu { left: 12px !important; right: 12px; width: auto; }
   .setup-in { padding-top: 28px; }
   .btn { height: 44px; }
-  .filters { gap: 10px 16px; } .filters select { height: 36px; }
+  .filters { gap: 10px 16px; } .filters select, .sel { height: 44px; }
+  details.numbers summary { min-height: 44px; }
+  .lines li { min-height: 44px; align-items: center; }
+  .lines a.x { min-height: 44px; display: inline-flex; align-items: center; }
+  .linkbtn { min-height: 44px; }
+  .ph .mtop .btn { height: 44px; }
 }
 @media (min-width: 761px) { .mtop { display: none !important; } .cov tr.gapnote { display: none; } }
 </style>
@@ -396,7 +401,7 @@ if (STILL) document.body.classList.add('still');
 
 /* ---------- Clock: "now" is 19:44:00, advancing live ---------- */
 const BASE = 19*3600 + 44*60;
-let tick = 0;
+let tick = +(Q.get('t') || 0);
 const clock = s => { s = Math.round(BASE + s); const h = Math.floor(s/3600)%24, m = Math.floor(s/60)%60, x = s%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`; };
 const hm = s => clock(s).slice(0,5);
 const short = s => { s = Math.round(s); return s < 60 ? `${s} s` : `${Math.floor(s/60)} min`; };
@@ -539,6 +544,9 @@ const CONSENT_LOG = [
   ['2 Oct 20:20','Noor','allowed Home assistant to do five things'],
 ];
 
+// A deterministic feed of future evidence, so the live view steps up as well as decays.
+const FEED = { noor: [['voice', 47, 3.55, 9], ['face', 61, 3.65, 23]], tomas: [['voice', 95, 2.6, 40]], ilse: [['face', 170, 2.5, 120], ['voice', 230, 2.45, 200]] };
+for (const [id, streams] of Object.entries(FEED)) { const p = PEOPLE.find(x => x.id === id); for (const [m, every, pos, first] of streams) for (let t = first; t < 3600; t += every + (t % 7)) p.ev.push({ t, m, p: pos - ((t / every) % 3) * 0.04 }); p.ev.sort((a, b) => a.t - b.t); }
 const P = id => PEOPLE.find(p => p.id === id);
 const S = id => SPACES.find(s => s.id === id);
 const A = id => ACTIONS.find(a => a.id === id);
@@ -547,9 +555,9 @@ const AG = id => AGENTS.find(a => a.id === id);
 /* ---------- Shared logic: belief, reach ---------- */
 // age -> highest position the evidence can still support. Crosses 3 at 120 s, 2 at 300 s, 1 at 900 s; gone at 1200 s.
 function agePos(a) { const k = [[0,3.75],[120,3],[300,2],[900,1],[1200,0]]; if (a <= 0) return 3.75; for (let i=1;i<k.length;i++) if (a <= k[i][0]) { const [a0,p0]=k[i-1],[a1,p1]=k[i]; return p0 + (p1-p0)*(a-a0)/(a1-a0); } return 0; }
-function vAt(ev, t) { let last = null; for (const e of ev) if (e.p != null && e.t <= t) last = e; if (!last) return 0; return Math.max(0, Math.min(last.p, agePos(t - last.t))); }
+function vAt(ev, t, known = Infinity) { let last = null; const h = Math.min(t, known); for (const e of ev) if (e.p != null && e.t <= h) last = e; if (!last) return 0; return Math.max(0, Math.min(last.p, agePos(t - last.t))); }
 const lvOf = v => v >= 3 ? 3 : v >= 2 ? 2 : v >= 1 ? 1 : 0;
-function untilOf(ev, now) { const l = lvOf(vAt(ev, now)); if (!l) return null; for (let s = 1; s < 1500; s++) if (lvOf(vAt(ev, now + s)) < l) return now + s; return null; }
+function untilOf(ev, now) { const l = lvOf(vAt(ev, now)); if (!l) return null; for (let s = 1; s < 1500; s++) if (lvOf(vAt(ev, now + s, now)) < l) return now + s; return null; }
 function lastOf(ev, m, now) { let r = null; for (const e of ev) if (e.m === m && e.t <= now) r = e; return r; }
 // Highest level a space can reach, from adopted, reporting sensors.
 function spaceReach(sp, live = true) { const mods = new Set(SENSORS.filter(s => s.spaces.includes(sp) && (!live || s.health === 'ok')).map(s => s.mod)); return mods.size >= 2 ? 3 : mods.size === 1 ? 2 : 0; }
@@ -591,9 +599,10 @@ function trace(ev, { w = 520, h = 150, mini = false, now = 0, id = '' } = {}) {
   const pts = [];
   for (let t = now + x0; t <= now; t += 4) pts.push(t);
   for (const e of ev) if (e.p != null && e.t > now + x0 && e.t <= now) { pts.push(e.t - 0.01, e.t); }
+  const known = now;
   pts.push(now); pts.sort((a, b) => a - b);
-  for (const t of pts) { const v = vAt(ev, t); past += `${past ? 'L' : 'M'}${X(t).toFixed(1)} ${Y(v).toFixed(1)}`; prev = v; }
-  for (let t = now; t <= now + x1; t += 4) fut += `${fut ? 'L' : 'M'}${X(t).toFixed(1)} ${Y(vAt(ev, t)).toFixed(1)}`;
+  for (const t of pts) { const v = vAt(ev, t, known); past += `${past ? 'L' : 'M'}${X(t).toFixed(1)} ${Y(v).toFixed(1)}`; prev = v; }
+  for (let t = now; t <= now + x1; t += 4) fut += `${fut ? 'L' : 'M'}${X(t).toFixed(1)} ${Y(vAt(ev, t, now)).toFixed(1)}`;
   const area = past + `L${X(now).toFixed(1)} ${Y(0)}L${X(now + x0).toFixed(1)} ${Y(0)}Z`;
   const vn = vAt(ev, now);
   let g = `<svg class="trace${mini ? ' mini' : ' big'}" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${mini ? '' : 'How sure attest is over the last ten minutes'}"${id ? ` id="${id}"` : ''}>`;
@@ -805,14 +814,14 @@ function actionDetail(a) {
   <p class="sub">${a.floor ? 'Anyone may have this done, even when attest recognises nobody.' : `Needs ${LV[a.need]}: ${LVD[a.need].toLowerCase()}.`}</p>
   ${a.floor ? '' : `<div class="sec" style="margin-top:16px"><h3>Who can have this done</h3><ul class="lines">${ppl.map(x => `<li>${x.can ? mark('ok').replace('<svg', '<svg style="color:var(--ok)"') : mark('skip')}<span>${x.p.short}</span><span class="rt">${why(x)}</span></li>`).join('')}</ul>
   <p class="small dim" style="margin-top:8px">A person needs the role <em>and</em> to have allowed it themselves. <a class="x" href="#identities">Identities</a></p></div>
-  <div class="sec"><h3>Where it can be granted</h3><ul class="lines">${sp.map(({ s, r }) => `<li>${r >= a.need ? mark('ok').replace('<svg', '<svg style="color:var(--ok)"') : mark('skip')}<span>${s.name}</span><span class="rt">${r >= a.need ? `up to ${LV[r]}` : `${r === 2 ? 'Voice only' : 'No sensors'}: never here`}</span></li>`).join('')}</ul><p class="small dim" style="margin-top:8px">From sensor coverage. <a class="x" href="#sensors">Sensors</a></p></div>`}
+  <div class="sec"><h3>Where it can be granted</h3><ul class="lines">${sp.map(({ s, r }) => `<li>${r >= a.need && spaceReach(s.id) >= a.need ? mark('ok').replace('<svg', '<svg style="color:var(--ok)"') : r >= a.need ? mark('warn').replace('<svg', '<svg style="color:var(--warn)"') : mark('skip')}<span>${s.name}</span><span class="rt">${r >= a.need ? (spaceReach(s.id) < r ? `up to ${LV[r]}, once ${SENSORS.find(x => x.spaces.includes(s.id) && x.health === 'off').name} reports` : `up to ${LV[r]}`) : `${r === 2 ? 'Voice only' : 'No sensors'}: never here`}</span></li>`).join('')}</ul><p class="small dim" style="margin-top:8px">From sensor coverage. <a class="x" href="#sensors">Sensors</a></p></div>`}
   <div class="sec"><h3>Tools that do this</h3><ul class="lines">${tools.map(x => `<li><code>${x.t}</code><span class="rt"><a class="x" href="#agents/${x.ag.id}">${x.ag.name}</a></span></li>`).join('') || '<li class="dim">No tool is mapped to this yet</li>'}</ul></div>
   <div class="sec"><h3>Today</h3><ul class="lines">${DECISIONS.filter(d => d.action === a.id).map(d => `<li><a class="x" href="#decisions/${d.id}">${hm(d.t)}</a>${outcome(d.ok)}<span class="rt">${d.who ? P(d.who).short : 'Not named'}</span></li>`).join('') || '<li class="dim">Not asked for today</li>'}</ul></div>`;
 }
 
 /* ---------- Identities ---------- */
 function vIdentities() {
-  const row = p => { const n = Object.values(CONSENT[p.id]).flat().length; return `<a class="row r-id" href="#identities/${p.id}" ${route.id === p.id ? 'aria-current="true"' : ''}><span><span class="name">${p.name}</span>${p.admin ? ' <span class="dim small">· admin</span>' : ''}</span><span class="sub">${p.roles.map(r => ROLES.find(x => x.id === r).name).join(', ')}</span><span class="mod ${p.voice ? '' : 'off'}">${modGlyph('voice', !!p.voice)}${p.voice ? 'Voice' : 'No voice'}</span><span class="mod ${p.face ? '' : 'off'}">${modGlyph('face', !!p.face)}${p.face ? 'Face' : 'No face'}</span><span class="sub">${n} allowed</span><span class="end">${lvTag(personReach(p))}</span></a>`; };
+  const row = p => { const n = Object.values(CONSENT[p.id]).flat().length + LIMITS.filter(x => x.person === p.id).length; return `<a class="row r-id" href="#identities/${p.id}" ${route.id === p.id ? 'aria-current="true"' : ''}><span><span class="name">${p.name}</span>${p.admin ? ' <span class="dim small">· admin</span>' : ''}</span><span class="sub">${p.roles.map(r => ROLES.find(x => x.id === r).name).join(', ')}</span><span class="mod ${p.voice ? '' : 'off'}">${modGlyph('voice', !!p.voice)}${p.voice ? 'Voice' : 'No voice'}</span><span class="mod ${p.face ? '' : 'off'}">${modGlyph('face', !!p.face)}${p.face ? 'Face' : 'No face'}</span><span class="sub">${n} allowed</span><span class="end">${lvTag(personReach(p))}</span></a>`; };
   const master = `<div class="colhead r-id" aria-hidden="true"><span>Person</span><span>Role</span><span>Voice</span><span>Face</span><span>Has allowed</span><span style="text-align:right">Can reach</span></div>${PEOPLE.map(row).join('')}
   <p class="note">People and roles come from Keycloak at id.maple.home. To add someone, add them there; they appear here within a minute. <a class="x" href="#connections/idp">Connection</a></p>`;
   const p = P(route.id);
@@ -821,7 +830,7 @@ function vIdentities() {
 function idDetail(p) {
   const l = lvOf(vAt(p.ev, tick));
   const lim = LIMITS.filter(x => x.person === p.id);
-  const consent = AGENTS.map(ag => { const list = (CONSENT[p.id][ag.id] || []).map(A); return `<li style="display:block"><b style="font-weight:500">${ag.name}</b> may<ul class="lines" style="margin-top:4px">${list.length ? list.map(a => { const lm = lim.find(x => x.action === a.id && x.agent === ag.id); return `<li>${a.label}${lm ? `<span class="small dim">, at the ${lm.spaces.map(s => S(s).name.toLowerCase())} until ${lm.until}: <a class="x" href="#policy">limit set by ${lm.by}</a></span>` : ''}<span class="rt">${lvTag(a.need)}</span></li>`; }).join('') : '<li class="dim">Nothing yet</li>'}</ul></li>`; }).join('');
+  const consent = AGENTS.map(ag => { const list = [...new Set([...(CONSENT[p.id][ag.id] || []), ...lim.filter(x => x.agent === ag.id).map(x => x.action)])].map(A); return `<li style="display:block"><b style="font-weight:500">${ag.name}</b> may<ul class="lines" style="margin-top:4px">${list.length ? list.map(a => { const lm = lim.find(x => x.action === a.id && x.agent === ag.id); return `<li>${a.label}${lm ? `<span class="small dim" style="flex-basis:100%">Set up by ${lm.by}: ${lm.spaces.map(s => S(s).name)} only, until ${lm.until}. <a class="x" href="#policy/${lm.action}">Edit in Policy</a></span>` : ''}<span class="rt">${lvTag(a.need)}</span></li>`; }).join('') : '<li class="dim">Nothing yet</li>'}</ul></li>`; }).join('');
   return `<div class="dh"><div><div class="kicker">${p.email}</div><h2 style="font-size:18px">${p.name}</h2></div><a class="btn" href="#presence/${p.id}">${l ? `In ${S(p.space).name}` : 'Not present'}</a></div>
   <dl class="kv"><dt>Role</dt><dd>${p.roles.map(r => ROLES.find(x => x.id === r).name).join(', ')} <span class="dim small">· from Keycloak</span></dd><dt>Identity</dt><dd><code>${p.uuid}</code></dd><dt>Linked to</dt><dd>id.maple.home · realm home</dd></dl>
   <div class="sec" style="margin-top:16px"><h3>Last ten minutes</h3>${trace(p.ev, { w: 392, h: 130, now: tick })}</div>
@@ -963,13 +972,19 @@ function render(focus) {
 }
 addEventListener('hashchange', () => { closeMenu(); render(true); });
 
-/* live clock: only the trace moves */
+/* live clock: beliefs step and decay; the view is re-derived each second, keeping focus and scroll */
+let lastN = -1;
 function liveTick() {
-  if (route.d === 'presence' || route.d === 'identities') {
-    tick += 1;
-    document.querySelectorAll('[data-live]').forEach(a => { const p = P(a.dataset.live); const t = a.querySelector('.c-t'); if (t) t.innerHTML = trace(p.ev, { w: 116, h: 28, mini: true, now: tick }); });
-    const bt = document.getElementById('bigtrace'); if (bt) { const p = P(bt.dataset.person); bt.innerHTML = trace(p.ev, { w: 392, h: 160, now: tick, id: 'tr-big' }); wireTrace(); }
-  }
+  tick += 1;
+  if (menu || pal.classList.contains('on') || parse().d === 'setup') return;
+  const n = PEOPLE.filter(p => lvOf(vAt(p.ev, tick)) > 0).length;
+  if (route.d !== 'presence' && route.d !== 'identities' && n === lastN) return;
+  lastN = n;
+  const ae = document.activeElement, href = ae && ae.getAttribute && ae.getAttribute('href'), inRail = ae && ae.closest && ae.closest('.rail, .tabbar');
+  const main = document.getElementById('main'), ds = main.querySelector('.detail')?.scrollTop || 0;
+  if (route.d === 'presence' || route.d === 'identities') render(false); else navHTML();
+  const d = main.querySelector('.detail'); if (d) d.scrollTop = ds;
+  if (href) document.querySelector(`${inRail ? '.rail, .tabbar' : '#main'} [href="${href}"]`)?.focus({ preventScroll: true });
 }
 if (!STILL) setInterval(liveTick, 1000);
 
@@ -977,7 +992,7 @@ function wireTrace() {
   const svg = document.getElementById('tr-big'), out = document.getElementById('readout'); if (!svg || !out) return;
   const p = P(document.getElementById('bigtrace').dataset.person), hov = svg.querySelector('.hov');
   const pw = 392 - 64;
-  svg.onmousemove = e => { const r = svg.getBoundingClientRect(), x = (e.clientX - r.left) * 392 / r.width; if (x < 0 || x > pw) return; const t = tick - 600 + x / pw * 840; const l = lvOf(vAt(p.ev, t)); hov.setAttribute('x1', x); hov.setAttribute('x2', x); hov.style.display = ''; out.textContent = `${clock(t)} · ${LV[l]}${t > tick ? ' (if nothing new arrives)' : ''}`; };
+  svg.onmousemove = e => { const r = svg.getBoundingClientRect(), x = (e.clientX - r.left) * 392 / r.width; if (x < 0 || x > pw) return; const t = tick - 600 + x / pw * 840; const l = lvOf(vAt(p.ev, t, tick)); hov.setAttribute('x1', x); hov.setAttribute('x2', x); hov.style.display = ''; out.textContent = `${clock(t)} · ${LV[l]}${t > tick ? ' (if nothing new arrives)' : ''}`; };
   svg.onmouseleave = () => { hov.style.display = 'none'; out.textContent = ''; };
 }
 
