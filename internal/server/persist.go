@@ -23,6 +23,26 @@ type snapshot struct {
 	NextDelegation int                   `json:"nextDelegation"`
 }
 
+// checkDataDir fails fast when the data file's directory is missing or not
+// writable, rather than at the first mutation after people have used it.
+func checkDataDir(dir string) error {
+	info, err := os.Stat(dir)
+	if err != nil {
+		return fmt.Errorf("data directory %s: %w", dir, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("data directory %s is not a directory", dir)
+	}
+	// Permission bits do not tell the whole story (ACLs, read-only mounts):
+	// try what save does.
+	probe, err := os.CreateTemp(dir, ".attest-probe-*")
+	if err != nil {
+		return fmt.Errorf("data directory %s is not writable: %w", dir, err)
+	}
+	probe.Close()
+	return os.Remove(probe.Name())
+}
+
 // load restores state from the data file. A missing file is a fresh start; an
 // unreadable one is an error, never silently empty.
 func (s *Server) load() error {

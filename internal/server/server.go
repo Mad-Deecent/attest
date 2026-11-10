@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -75,6 +76,11 @@ func New(cfg Config, now func() time.Time) (*Server, error) {
 	}
 	if err := cfg.Policy.Validate(); err != nil {
 		return nil, err
+	}
+	if cfg.Data != "" {
+		if err := checkDataDir(filepath.Dir(cfg.Data)); err != nil {
+			return nil, err
+		}
 	}
 	registry := identity.NewRegistry()
 	fusion := perception.NewFusion(cfg.Fusion, registry)
@@ -333,8 +339,10 @@ func (s *Server) postDecision(w http.ResponseWriter, r *http.Request, p Principa
 	if !decode(w, r, &req) {
 		return
 	}
-	if req.Subject == "" || req.Permission == "" {
-		fail(w, http.StatusBadRequest, "subject and permission are required")
+	// An absent subject is allowed: the request can then only be granted
+	// floor permissions.
+	if req.Permission == "" {
+		fail(w, http.StatusBadRequest, "permission is required")
 		return
 	}
 	req.Agent = p.ID

@@ -38,6 +38,9 @@
       "resident": ["music.control", "calendar.read", "door.unlock"],
       "guest": ["music.control"]
     },
+    "labels": {
+      "door.unlock": "Unlock the front door"
+    },
     "assignments": {}
   }
 }

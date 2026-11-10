@@ -30,7 +30,22 @@ curl -X POST $A/v1/decisions -H 'Authorization: Bearer dev-agent-token' \
 ```
 
 `music.control` is granted. `door.unlock` is denied with `modalities 1 < min 2`
-until a second, independent modality supports the same subject.
+until a second, independent modality supports the same subject. A decision
+request without a `subject` can only be granted floor permissions.
+
+## Demo
+
+[`demo/car/`](demo/car/) runs the whole path in one command: a voice producer
+works out who said which words in a two-speaker recording, a scripted
+assistant runtime turns trigger phrases into MCP tool calls, and
+[`attest-gateway`](internal/gateway/README.md) asks attest before each call
+reaches the MCP server. The owner's calendar request is served; the
+passenger's email request is refused, with reasons.
+
+```bash
+demo/car/run.sh              # self-contained, static dev tokens
+demo/car/run.sh --keycloak   # gateway and producer use OIDC client credentials
+```
 
 ## Credentials from your identity provider
 
@@ -63,10 +78,19 @@ Signing in links an identity to the provider account and adopts its roles that
 `policy.roles` defines, refreshed on every sign-in. The voice recording goes
 from the browser straight to the voice producer at `enrol.voiceUrl`, carrying a
 single-use ticket; the producer redeems it at `POST /v1/enrolment-tickets/redeem`
-to learn which identity it is for. attest never receives audio.
+to learn which identity it is for. attest never receives audio. Set
+`enrol.voiceProducer` to the producer's principal id so no other producer can
+redeem tickets. Requests to `/enrol` under any host other than `publicUrl`'s
+are redirected there, because sign-in cookies only work on that host.
+
+Choices saved on the page replace only the delegations the person granted
+themselves. Delegations an administrator made (with zones, ceilings, or an
+expiry) are shown read-only. `policy.labels` maps permissions to the words the
+page shows, e.g. `{"email.send": "Send email as you"}`.
 
 Set `data` to a file path to keep identities, roles, and delegations across
-restarts. Empty keeps everything in memory.
+restarts; attest refuses to start if its directory is missing or not
+writable. Empty keeps everything in memory.
 
 ## Development
 

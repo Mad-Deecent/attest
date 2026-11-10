@@ -26,6 +26,9 @@ type EnrolConfig struct {
 	// VoiceURL is the voice producer's enrolment endpoint. The browser posts
 	// the recording there directly; attest never receives audio.
 	VoiceURL string `json:"voiceUrl,omitempty"`
+	// VoiceProducer is the principal id of the voice producer. When set, only
+	// it may redeem enrolment tickets; any other producer is refused.
+	VoiceProducer string `json:"voiceProducer,omitempty"`
 }
 
 const (
@@ -50,22 +53,24 @@ type ticket struct {
 // enrolment is the sign-in, session, and ticket state behind /enrol. Sessions
 // and tickets are short-lived and deliberately not persisted.
 type enrolment struct {
-	oidc     *oidcVerifier
-	public   *url.URL
-	voiceURL string
-	mu       sync.Mutex
-	idv      *oidc.IDTokenVerifier
-	sessions map[string]session
-	tickets  map[string]ticket
+	oidc          *oidcVerifier
+	public        *url.URL
+	voiceURL      string
+	voiceProducer string
+	mu            sync.Mutex
+	idv           *oidc.IDTokenVerifier
+	sessions      map[string]session
+	tickets       map[string]ticket
 }
 
 func newEnrolment(v *oidcVerifier, public *url.URL, cfg EnrolConfig) *enrolment {
 	return &enrolment{
-		oidc:     v,
-		public:   public,
-		voiceURL: cfg.VoiceURL,
-		sessions: map[string]session{},
-		tickets:  map[string]ticket{},
+		oidc:          v,
+		public:        public,
+		voiceURL:      cfg.VoiceURL,
+		voiceProducer: cfg.VoiceProducer,
+		sessions:      map[string]session{},
+		tickets:       map[string]ticket{},
 	}
 }
 
@@ -132,8 +137,10 @@ func (e *enrolment) endSession(id string) {
 func (e *enrolment) issueTicket(identityID string, now time.Time) string {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	// A new ticket replaces the identity's earlier ones, so at most one
+	// recording can be pending for a person at a time.
 	for k, t := range e.tickets {
-		if !now.Before(t.expires) {
+		if !now.Before(t.expires) || t.identityID == identityID {
 			delete(e.tickets, k)
 		}
 	}
@@ -161,14 +168,44 @@ func randomToken() string {
 }
 
 func (s *Server) enrolRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /enrol", s.enrolPage)
-	mux.Handle("GET /enrol/static/", http.StripPrefix("/enrol/static/", http.FileServerFS(enrolStatic)))
-	mux.HandleFunc("GET /enrol/login", s.enrolLogin)
-	mux.HandleFunc("GET /enrol/callback", s.enrolCallback)
-	mux.HandleFunc("POST /enrol/logout", s.withSession(s.enrolLogout))
-	mux.HandleFunc("POST /enrol/ticket", s.withSession(s.enrolTicket))
-	mux.HandleFunc("POST /enrol/consent", s.withSession(s.enrolConsent))
-	mux.HandleFunc("POST /enrol/revoke", s.withSession(s.enrolRevoke))
+	mux.Handle("GET /enrol", s.canonical(http.HandlerFunc(s.enrolPage)))
+	mux.Handle("GET /enrol/static/", s.canonical(http.StripPrefix("/enrol/static/", http.FileServerFS(enrolStatic))))
+	mux.Handle("GET /enrol/login", s.canonical(http.HandlerFunc(s.enrolLogin)))
+	mux.Handle("GET /enrol/callback", s.canonical(http.HandlerFunc(s.enrolCallback)))
+	mux.Handle("POST /enrol/logout", s.canonical(s.withSession(s.enrolLogout)))
+	mux.Handle("POST /enrol/ticket", s.canonical(s.withSession(s.enrolTicket)))
+	mux.Handle("POST /enrol/consent", s.canonical(s.withSession(s.enrolConsent)))
+	mux.Handle("POST /enrol/revoke", s.canonical(s.withSession(s.enrolRevoke)))
+}
+
+// canonical sends a request that arrived under another host name (say
+// 127.0.0.1 instead of localhost) to the same path on publicUrl. Cookies are
+// per host and the provider returns people to publicUrl, so sign-in only
+// works there. 307 keeps the method and body.
+func (s *Server) canonical(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.enrol == nil || sameHost(r.Host, s.enrol.public) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		http.Redirect(w, r, s.enrol.public.String()+r.URL.RequestURI(), http.StatusTemporaryRedirect)
+	})
+}
+
+// sameHost compares a request's Host with a URL's, ignoring case and the
+// scheme's default port.
+func sameHost(host string, u *url.URL) bool {
+	norm := func(h string) string {
+		h = strings.ToLower(h)
+		switch {
+		case u.Scheme == "http":
+			h = strings.TrimSuffix(h, ":80")
+		case u.Scheme == "https":
+			h = strings.TrimSuffix(h, ":443")
+		}
+		return h
+	}
+	return norm(host) == norm(u.Host)
 }
 
 type sessionHandler func(w http.ResponseWriter, r *http.Request, id string, sess session)
@@ -351,7 +388,7 @@ func (s *Server) enrolTicket(w http.ResponseWriter, _ *http.Request, _ string, s
 }
 
 // redeemTicket lets a voice producer learn which identity a recording is for.
-func (s *Server) redeemTicket(w http.ResponseWriter, r *http.Request, _ Principal) {
+func (s *Server) redeemTicket(w http.ResponseWriter, r *http.Request, p Principal) {
 	var body struct {
 		Ticket string `json:"ticket"`
 	}
@@ -360,6 +397,12 @@ func (s *Server) redeemTicket(w http.ResponseWriter, r *http.Request, _ Principa
 	}
 	if s.enrol == nil {
 		fail(w, http.StatusNotFound, "unknown, used, or expired ticket")
+		return
+	}
+	// Refused before the ticket is touched, so the right producer can still
+	// redeem it.
+	if s.enrol.voiceProducer != "" && p.ID != s.enrol.voiceProducer {
+		fail(w, http.StatusForbidden, "only the configured voice producer may redeem enrolment tickets")
 		return
 	}
 	id, ok := s.enrol.redeem(body.Ticket, s.now())
@@ -388,12 +431,14 @@ func (s *Server) enrolConsent(w http.ResponseWriter, r *http.Request, _ string, 
 				chosen = append(chosen, p)
 			}
 		}
-		live := s.liveDelegations(sess.identityID, offer.agent, now)
-		if slices.Equal(chosen, covered(offer.permissions, live)) {
+		// Choices replace only what the person granted themselves. What an
+		// administrator set up (zones, ceilings, expiry) is not theirs to change.
+		own := s.ownConsent(sess.identityID, offer.agent, now)
+		if slices.Equal(chosen, covered(offer.permissions, own)) {
 			continue
 		}
 		// Replacing is revoke then add.
-		for _, d := range live {
+		for _, d := range own {
 			s.delegations.Revoke(d.ID, now)
 		}
 		if len(chosen) > 0 {
@@ -418,6 +463,10 @@ func (s *Server) enrolRevoke(w http.ResponseWriter, r *http.Request, _ string, s
 	// A person can only withdraw their own, still-live consent.
 	if !ok || d.IdentityID != sess.identityID || d.RevokedAt != nil {
 		http.Error(w, "Not found.", http.StatusNotFound)
+		return
+	}
+	if d.GrantedBy != sess.identityID {
+		http.Error(w, "This was set up by whoever runs this system. Ask them to change it.", http.StatusForbidden)
 		return
 	}
 	s.delegations.Revoke(d.ID, s.now())
@@ -479,6 +528,14 @@ func (s *Server) liveDelegations(identityID, agent string, now time.Time) []deci
 		}
 	}
 	return out
+}
+
+// ownConsent is the live delegations a person granted themselves on the
+// enrolment page, as opposed to those an administrator made for them.
+func (s *Server) ownConsent(identityID, agent string, now time.Time) []decision.Delegation {
+	return slices.DeleteFunc(s.liveDelegations(identityID, agent, now), func(d decision.Delegation) bool {
+		return d.GrantedBy != identityID
+	})
 }
 
 // covered returns the permissions, in order, that some live delegation grants.

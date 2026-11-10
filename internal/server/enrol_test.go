@@ -401,3 +401,149 @@ func jsonEqual(a, b any) bool {
 	y, _ := json.Marshal(b)
 	return string(x) == string(y)
 }
+
+func TestConsentLeavesAdministratorDelegationsAlone(t *testing.T) {
+	e := newEnrolEnv(t, "")
+	b := e.signIn(ana)
+	id := e.identities()[0].ID
+	until := time.Now().Add(30 * 24 * time.Hour)
+	var managed decision.Delegation
+	e.api.call("admin", "POST", "/v1/delegations", decision.Delegation{
+		IdentityID: id, Agent: "concierge", Permissions: []string{"calendar.read"},
+		Zones: []string{"car"}, Ceiling: "confident", ExpiresAt: &until, GrantedBy: "admin",
+	}, http.StatusCreated, &managed)
+
+	b.get("/enrol")
+	if !strings.Contains(b.body, "Set up for you by whoever runs this system (only in: car;") ||
+		!strings.Contains(b.body, "until "+day(until)) {
+		t.Fatalf("administrator delegation not shown with its limits: %s", b.body)
+	}
+	// It is shown, not offered as the person's own choice or revocable.
+	if strings.Contains(b.body, `value="calendar.read" checked`) || strings.Contains(b.body, `value="`+managed.ID+`"`) {
+		t.Fatalf("administrator delegation must be read-only: %s", b.body)
+	}
+
+	stillLive := func() {
+		t.Helper()
+		for _, d := range e.delegations() {
+			if d.ID == managed.ID && d.RevokedAt == nil {
+				return
+			}
+		}
+		t.Fatalf("administrator delegation was touched: %+v", e.delegations())
+	}
+	b.consent(map[string][]string{"concierge": {"music.control"}})
+	stillLive()
+	own := e.srv.ownConsent(id, "concierge", time.Now())
+	if len(own) != 1 || !slices.Equal(own[0].Permissions, []string{"music.control"}) {
+		t.Fatalf("own consent = %+v", own)
+	}
+	// Unticking everything withdraws only the person's own consent.
+	b.consent(map[string][]string{})
+	stillLive()
+	if own := e.srv.ownConsent(id, "concierge", time.Now()); len(own) != 0 {
+		t.Fatalf("own consent should be gone: %+v", own)
+	}
+	if code := b.post("/enrol/revoke", url.Values{"csrf": {b.csrf()}, "id": {managed.ID}}); code != http.StatusForbidden {
+		t.Fatalf("revoking an administrator delegation: %d", code)
+	}
+	stillLive()
+}
+
+func TestPermissionLabels(t *testing.T) {
+	e := newEnrolEnv(t, "")
+	e.cfg.Policy.Labels = map[string]string{"calendar.read": "Read your calendar"}
+	e.restart()
+	b := e.signIn(ana)
+	if !strings.Contains(b.body, `value="calendar.read"> Read your calendar`) || !strings.Contains(b.body, "> Music control") {
+		t.Fatalf("labels: %s", b.body)
+	}
+	b.consent(map[string][]string{"concierge": {"calendar.read", "music.control"}})
+	if !strings.Contains(b.body, "may: Read your calendar, music control.") {
+		t.Fatalf("granted list: %s", b.body)
+	}
+
+	e.cfg.Policy.Labels = map[string]string{"teleport": "Teleport you"}
+	if _, err := New(e.cfg, time.Now); err == nil || !strings.Contains(err.Error(), "teleport") {
+		t.Fatalf("a label for an undefined permission must be rejected, got %v", err)
+	}
+}
+
+func TestOnlyTheVoiceProducerRedeemsTickets(t *testing.T) {
+	e := newEnrolEnv(t, "")
+	e.cfg.Enrol.VoiceProducer = "mic"
+	e.restart()
+	b := e.signIn(ana)
+	ticket := func() map[string]string {
+		t.Helper()
+		if code := b.post("/enrol/ticket", nil, "X-CSRF-Token", b.csrf()); code != http.StatusOK {
+			t.Fatalf("ticket: %d %s", code, b.body)
+		}
+		var issued struct{ Ticket string }
+		_ = json.Unmarshal([]byte(b.body), &issued)
+		b.get("/enrol") // back to a page with the CSRF token
+		return map[string]string{"ticket": issued.Ticket}
+	}
+
+	// Another producer is refused without spending the ticket.
+	first := ticket()
+	e.api.call("face", "POST", "/v1/enrolment-tickets/redeem", first, http.StatusForbidden, nil)
+	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", first, http.StatusOK, nil)
+
+	// A newer ticket voids the identity's unredeemed one.
+	older, newer := ticket(), ticket()
+	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", older, http.StatusNotFound, nil)
+	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", newer, http.StatusOK, nil)
+}
+
+func TestEnrolmentLivesOnThePublicHost(t *testing.T) {
+	e := newEnrolEnv(t, "")
+	serve := func(method, target, host string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, target, nil)
+		req.Host = host
+		rec := httptest.NewRecorder()
+		e.api.h.ServeHTTP(rec, req)
+		return rec
+	}
+	public, _ := url.Parse(e.ts.URL)
+	for _, method := range []string{"GET", "POST"} {
+		path := "/enrol/login?next=1"
+		if method == "POST" {
+			path = "/enrol/consent"
+		}
+		rec := serve(method, path, "attest.lan:8420")
+		if rec.Code != http.StatusTemporaryRedirect || rec.Header().Get("Location") != e.ts.URL+path {
+			t.Fatalf("%s %s on another host: %d %q", method, path, rec.Code, rec.Header().Get("Location"))
+		}
+	}
+	if rec := serve("GET", "/enrol", strings.ToUpper(public.Host)); rec.Code != http.StatusOK {
+		t.Fatalf("the public host, in any case, is served: %d", rec.Code)
+	}
+	// The API is not enrolment and is not redirected.
+	if rec := serve("GET", "/healthz", "attest.lan:8420"); rec.Code != http.StatusNoContent {
+		t.Fatalf("healthz: %d", rec.Code)
+	}
+}
+
+func TestDataDirectoryIsCheckedAtStartup(t *testing.T) {
+	cfg := Config{Fusion: perception.DefaultConfig(), Data: filepath.Join(t.TempDir(), "missing", "attest.json")}
+	if _, err := New(cfg, time.Now); err == nil {
+		t.Fatal("a missing data directory must fail startup")
+	}
+	cfg.Data = filepath.Join(t.TempDir(), "attest.json")
+	if _, err := New(cfg, time.Now); err != nil {
+		t.Fatalf("writable data directory: %v", err)
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root can write anywhere")
+	}
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	cfg.Data = filepath.Join(dir, "attest.json")
+	if _, err := New(cfg, time.Now); err == nil || !strings.Contains(err.Error(), "not writable") {
+		t.Fatalf("a read-only data directory must fail startup, got %v", err)
+	}
+}

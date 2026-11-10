@@ -166,6 +166,28 @@ func TestCloseCandidatesAreNotResolved(t *testing.T) {
 	}
 }
 
+// Candidates that are close to each other but all less likely than "not
+// enrolled" are not a contest: the subject is simply unknown.
+func TestUnlikelyCandidatesAreUnknownNotContested(t *testing.T) {
+	f := NewFusion(DefaultConfig(), population{"ana": true, "cy": true})
+	observe(t, f, evidence("s", "voice", "mic", t0, Candidate{"ana", -4.1}, Candidate{"cy", -3.9}))
+	b := f.Current("s", t0)
+	if b.State != Unknown || b.Leading != nil {
+		t.Fatalf("want unknown, got %+v", b)
+	}
+	if b.Unknown < 0.95 || b.Candidates[0].Probability > 0.05 {
+		t.Fatalf("posterior should sit on not enrolled: %+v", b)
+	}
+
+	// Producers that each lean, weakly, to a different person do not make it
+	// a conflict while neither person outweighs "not enrolled".
+	observe(t, f, evidence("s", "face", "cam", t0, Candidate{"cy", 0.3}))
+	observe(t, f, evidence("s", "voice", "mic", t0, Candidate{"ana", 0.3}))
+	if b := f.Current("s", t0); b.State != Unknown || b.Leading != nil {
+		t.Fatalf("want unknown, got %+v", b)
+	}
+}
+
 func TestUnknownSupersedesAndEvidenceExpires(t *testing.T) {
 	f := NewFusion(DefaultConfig(), enrolled)
 	observe(t, f, evidence("s", "face", "cam", t0, Candidate{"ana", 6}))

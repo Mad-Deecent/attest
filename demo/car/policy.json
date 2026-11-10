@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "calendar.read": "confident",
+    "email.send": "confident"
+  },
+  "floor": ["converse"],
+  "agents": {
+    "concierge": ["calendar.read", "email.send", "converse"]
+  },
+  "roles": {
+    "owner": ["calendar.read", "email.send"]
+  },
+  "labels": {
+    "calendar.read": "Read your calendar",
+    "email.send": "Send email as you",
+    "converse": "Talk with you"
+  }
+}

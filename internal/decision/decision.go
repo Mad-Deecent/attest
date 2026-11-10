@@ -28,7 +28,14 @@ type Policy struct {
 	// Roles and Assignments feed the built-in RBAC authorizer.
 	Roles       map[string][]string `json:"roles,omitempty"`
 	Assignments map[string][]string `json:"assignments,omitempty"`
+	// Labels maps a permission to the words people see for it, e.g.
+	// "email.send" -> "Send email for you". Optional; unlabelled permissions
+	// get a label derived from their name.
+	Labels map[string]string `json:"labels,omitempty"`
 }
+
+// Band returns a band by name and its rank, weakest first; -1 when undefined.
+func (p Policy) Band(name string) (assurance.Band, int) { return p.band(name) }
 
 func (p Policy) band(name string) (assurance.Band, int) {
 	for i, b := range p.Bands {
@@ -44,6 +51,11 @@ func (p Policy) Validate() error {
 	for permission, name := range p.Permissions {
 		if _, i := p.band(name); i < 0 {
 			return fmt.Errorf("permission %q requires undefined band %q", permission, name)
+		}
+	}
+	for permission := range p.Labels {
+		if _, ok := p.Permissions[permission]; !ok && !slices.Contains(p.Floor, permission) {
+			return fmt.Errorf("label for undefined permission %q", permission)
 		}
 	}
 	for id, roles := range p.Assignments {
@@ -269,8 +281,10 @@ func (s *Delegations) live(identityID, agent, permission, zone string, now time.
 
 type Request struct {
 	// Agent comes from the caller's credential, never from the request body.
-	Agent      string `json:"-"`
-	Subject    string `json:"subject"`
+	Agent string `json:"-"`
+	// Subject is the perceived person's subject key. Empty means nobody can
+	// be named, and only floor permissions can be granted.
+	Subject    string `json:"subject,omitempty"`
 	Permission string `json:"permission"`
 	Resource   string `json:"resource,omitempty"`
 }
@@ -321,6 +335,9 @@ func (e *Evaluator) Decide(req Request, now time.Time) Decision {
 	band, rank := e.Policy.band(bandName)
 	if rank < 0 {
 		return deny("undefined band %s", bandName)
+	}
+	if req.Subject == "" {
+		return deny("no subject: only floor permissions apply")
 	}
 
 	belief := e.Fusion.Current(req.Subject, now)

@@ -154,6 +154,30 @@ func TestDecisionLifecycle(t *testing.T) {
 	denied(t, hn.decide("track-1", "door.unlock"), "age 3m0s > max 2m0s")
 }
 
+func TestDecisionWithoutASubject(t *testing.T) {
+	hn := newHarness(t)
+	hn.see("face", "track-1", "face", "ana", 8)
+	hn.delegate(decision.Delegation{IdentityID: "ana", Agent: "concierge", Permissions: []string{"*"}})
+
+	for _, body := range []any{
+		map[string]string{"permission": "music.control"},
+		map[string]string{"subject": "", "permission": "music.control"},
+	} {
+		var d decision.Decision
+		hn.call("agent", "POST", "/v1/decisions", body, http.StatusOK, &d)
+		denied(t, d, "no subject: only floor permissions apply")
+		if d.IdentityID != nil {
+			t.Fatalf("a request without a subject names nobody: %+v", d)
+		}
+	}
+	var d decision.Decision
+	hn.call("agent", "POST", "/v1/decisions", map[string]string{"permission": "emergency.call"}, http.StatusOK, &d)
+	if !d.Granted {
+		t.Fatalf("floor permission must hold without a subject: %+v", d)
+	}
+	hn.call("agent", "POST", "/v1/decisions", map[string]string{"subject": "track-1"}, http.StatusBadRequest, nil)
+}
+
 func TestDelegationLimits(t *testing.T) {
 	hn := newHarness(t)
 	hn.see("face", "t-ana", "face", "ana", 8)

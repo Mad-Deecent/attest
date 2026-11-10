@@ -1,0 +1,4 @@
+{
+  "calendar_today": { "permission": "calendar.read" },
+  "email_send": { "permission": "email.send" }
+}
