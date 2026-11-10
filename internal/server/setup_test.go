@@ -128,9 +128,15 @@ func TestFirstRunSetup(t *testing.T) {
 	c.csrf = sess.CSRF
 	c.do("POST", "/v1/setup/complete", nil, http.StatusConflict, nil)
 	c.do("PUT", "/v1/settings/public-url", map[string]string{"publicUrl": "ftp://attest.home"}, http.StatusBadRequest, nil)
+	// Any OIDC issuer, with a client the operator made by hand. Enrolment
+	// needs somewhere to send people back to, so the public URL comes first.
+	manual := map[string]string{"kind": "oidc", "issuer": is.srv.URL, "clientId": "attest-enrol"}
+	c.do("POST", "/v1/settings/provider", manual, http.StatusBadRequest, nil)
+	if srv.cur().settings.OIDC != nil {
+		t.Fatal("a connection attest could not restart with was stored")
+	}
 	c.do("PUT", "/v1/settings/public-url", map[string]string{"publicUrl": "http://attest.home:8420/"}, http.StatusOK, nil)
-	// Any OIDC issuer, with a client the operator made by hand.
-	c.do("POST", "/v1/settings/provider", map[string]string{"kind": "oidc", "issuer": is.srv.URL, "clientId": "attest-enrol"}, http.StatusOK, nil)
+	c.do("POST", "/v1/settings/provider", manual, http.StatusOK, nil)
 	c.do("POST", "/v1/setup/complete", nil, http.StatusOK, nil)
 
 	// The session and the code are dead.
@@ -237,7 +243,7 @@ func actions(r connectReply) string {
 func TestKeycloakConnectIsIdempotent(t *testing.T) {
 	kc := newKeycloak(t)
 	now := time.Now()
-	srv, _ := unconfigured(t, &now)
+	srv, data := unconfigured(t, &now)
 	c := openSetup(t, srv)
 	ana := map[string]string{"username": "ana", "password": kcPassword}
 	// The redirect URI comes from the public URL.
@@ -275,6 +281,11 @@ func TestKeycloakConnectIsIdempotent(t *testing.T) {
 	}
 	if kc.logouts != 2 {
 		t.Fatalf("admin sessions left open: %d logouts for 2 connects", kc.logouts)
+	}
+	// What was set at runtime starts again.
+	again, err := New(Config{Data: data, Fusion: perception.DefaultConfig()}, time.Now)
+	if err != nil || !again.cur().enrolling() || again.cur().settings.Provider != "keycloak" {
+		t.Fatalf("restart after connecting: %v", err)
 	}
 }
 

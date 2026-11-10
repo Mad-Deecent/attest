@@ -46,6 +46,11 @@ func TestKeycloakForReal(t *testing.T) {
 		t.Fatalf("%s already exists; refusing to touch it", testClient)
 	}
 	before := kc.untouchable()
+	for name, v := range before {
+		if v == nil {
+			t.Fatalf("%s not found: nothing to compare against", name)
+		}
+	}
 	t.Cleanup(func() {
 		kc.login(id, secret)
 		if c := kc.clientByID(testClient); c != nil && c["clientId"] == testClient {

@@ -71,6 +71,11 @@ func (s *Server) build(st Settings) (*live, error) {
 		}
 		l.public = u
 	}
+	// Startup and runtime share this check: whatever apply accepts, New
+	// must accept after a restart.
+	if l.oidc != nil && l.oidc.cfg.ClientID != "" && l.public == nil {
+		return nil, errors.New("publicUrl must be an absolute http(s) URL when oidc.clientId is set")
+	}
 	l.evaluator = &decision.Evaluator{
 		Policy:      st.Policy,
 		Fusion:      s.fusion,
@@ -105,6 +110,12 @@ func (s *Server) apply(st Settings) (*live, error) {
 func preparePolicy(p decision.Policy) (decision.Policy, error) {
 	if len(p.Bands) == 0 {
 		p.Bands = assurance.DefaultLadder()
+	}
+	if p.Permissions == nil {
+		p.Permissions = map[string]string{}
+	}
+	if p.Agents == nil {
+		p.Agents = map[string][]string{}
 	}
 	return p, p.Validate()
 }

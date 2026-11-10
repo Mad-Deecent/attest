@@ -94,11 +94,6 @@ func New(cfg Config, now func() time.Time) (*Server, error) {
 	if st.Policy, err = preparePolicy(st.Policy); err != nil {
 		return nil, err
 	}
-	if st.OIDC != nil && st.OIDC.ClientID != "" {
-		if _, err := parsePublicURL(st.PublicURL); err != nil {
-			return nil, errors.New("publicUrl must be an absolute http(s) URL when oidc.clientId is set")
-		}
-	}
 	registry := identity.NewRegistry()
 	// Config assignments seed role state; saved assignments overlay them.
 	seedRoles := st.Policy
