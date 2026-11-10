@@ -28,14 +28,18 @@ subject key:
     {"method":"tools/call","params":{"name":"unlock_door","arguments":{},
       "_meta":{"attest/subject":"spk-ana"}}}
 
-A missing or empty subject is evaluated as `anonymous`, so only floor
+A missing or empty subject is sent to attest as no subject, so only floor
 permissions pass. The gateway trusts this field: whoever can write it can
 claim any speaker, so it must be set by a component the model cannot
-influence, not by the model itself.
+influence (the speech runtime that attributed the words), never by the model
+itself. Signed subjects, which the gateway could verify, are future work.
 
 ## Behaviour
 
-- Granted: the request is forwarded unmodified.
+- Granted: the request is forwarded unmodified. The response carries the
+  decision as JSON in the `Attest-Decision` header, so the caller can see who
+  the call was granted for and why. The gateway sets or strips this header on
+  every proxied response; an upstream cannot supply it.
 - Denied: upstream is not contacted. The reply is a JSON-RPC result with
   `isError: true`, text `Not permitted: <reasons>`, and the decision under
   `_meta["attest/decision"]`.

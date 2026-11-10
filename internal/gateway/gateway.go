@@ -18,7 +18,6 @@ import (
 
 const (
 	maxBody          = 1 << 20
-	anonymous        = "anonymous"
 	subjectMeta      = "attest/subject"
 	decisionMeta     = "attest/decision"
 	attestCallBudget = 5 * time.Second
@@ -58,7 +57,8 @@ func New(cfg Config, httpc *http.Client) (*Gateway, error) {
 			pr.Out.Host = up.Host
 		},
 		// SSE must not be buffered.
-		FlushInterval: -1,
+		FlushInterval:  -1,
+		ModifyResponse: reportGrant,
 	}
 	return g, nil
 }
@@ -87,14 +87,37 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rpcError(w, http.StatusBadRequest, nil, -32600, "batches containing tools/call are not supported")
 		return
 	case hasCall:
-		if d, ok := g.gate(r.Context(), msg); !ok {
-			g.refuse(w, msg, d)
+		o, ok := g.gate(r.Context(), msg)
+		if !ok {
+			g.refuse(w, msg, o)
 			return
 		}
+		// The caller learns which identity the call was granted for and why.
+		r = r.WithContext(context.WithValue(r.Context(), grantKey{}, o.dec))
 	}
 	r.Body = io.NopCloser(bytes.NewReader(raw))
 	r.ContentLength = int64(len(raw))
 	g.proxy.ServeHTTP(w, r)
+}
+
+type grantKey struct{}
+
+// DecisionHeader carries, on a forwarded tools/call, the decision that let it
+// through. The gateway always sets or removes it, so upstream cannot forge it.
+const DecisionHeader = "Attest-Decision"
+
+func reportGrant(resp *http.Response) error {
+	resp.Header.Del(DecisionHeader)
+	if d, ok := resp.Request.Context().Value(grantKey{}).(*decision.Decision); ok && d != nil {
+		var buf bytes.Buffer
+		enc := json.NewEncoder(&buf)
+		enc.SetEscapeHTML(false)
+		if err := enc.Encode(d); err != nil {
+			return err
+		}
+		resp.Header.Set(DecisionHeader, strings.TrimSpace(buf.String()))
+	}
+	return nil
 }
 
 // outcome is a decision plus the text to show when it is a denial.
@@ -105,29 +128,31 @@ type outcome struct {
 
 // gate reports whether the call may be forwarded.
 func (g *Gateway) gate(ctx context.Context, msg rpcMessage) (outcome, bool) {
+	// No subject is sent as none: attest then grants only floor permissions.
 	subject := msg.Subject
-	if subject == "" {
-		subject = anonymous
+	logged := subject
+	if logged == "" {
+		logged = "-"
 	}
 	tool, mapped := g.tools[msg.Name]
 	if !mapped {
-		log.Printf("gateway: tool=%q subject=%q granted=false identity=- (unmapped)", msg.Name, subject)
+		log.Printf("gateway: tool=%q subject=%q granted=false identity=- (unmapped)", msg.Name, logged)
 		return outcome{reason: fmt.Sprintf("tool %q is not permitted by gateway policy", msg.Name)}, false
 	}
 	ctx, cancel := context.WithTimeout(ctx, attestCallBudget)
 	defer cancel()
 	d, err := g.attest.Decide(ctx, decision.Request{Subject: subject, Permission: tool.Permission, Resource: tool.Resource})
 	if err != nil {
-		log.Printf("gateway: tool=%q subject=%q granted=false identity=- (attest: %v)", msg.Name, subject, err)
+		log.Printf("gateway: tool=%q subject=%q granted=false identity=- (attest: %v)", msg.Name, logged, err)
 		return outcome{reason: "identity service unavailable"}, false
 	}
 	id := "-"
 	if d.IdentityID != nil {
 		id = *d.IdentityID
 	}
-	log.Printf("gateway: tool=%q subject=%q granted=%t identity=%q", msg.Name, subject, d.Granted, id)
+	log.Printf("gateway: tool=%q subject=%q granted=%t identity=%q", msg.Name, logged, d.Granted, id)
 	if d.Granted {
-		return outcome{}, true
+		return outcome{dec: &d}, true
 	}
 	reason := strings.Join(d.Reasons, "; ")
 	if reason == "" {

@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/mad-deecent/attest/internal/assurance"
+	"github.com/mad-deecent/attest/internal/decision"
 )
 
 //go:embed enrol
@@ -70,6 +71,10 @@ type permView struct {
 
 type grantView struct {
 	ID, Agent, What, Since string
+	// Managed marks a delegation an administrator made. The person sees it
+	// but cannot change it here; Limits says where and how far it applies.
+	Managed bool
+	Limits  string
 }
 
 func (s *Server) enrolPage(w http.ResponseWriter, r *http.Request) {
@@ -116,14 +121,14 @@ func (s *Server) signedInView(v *enrolView, identityID string, sess session) {
 	v.NoRoles = len(s.rbac.Roles(identityID)) == 0
 	now := s.now()
 	for _, o := range s.offers(identityID) {
-		live := covered(o.permissions, s.liveDelegations(identityID, o.agent, now))
+		live := covered(o.permissions, s.ownConsent(identityID, o.agent, now))
 		agent := agentView{ID: o.agent, Name: label(o.agent, true)}
 		// Group by band, weakest first.
 		for _, band := range s.policy.Bands {
 			g := groupView{Need: describeBand(band)}
 			for _, p := range o.permissions {
 				if s.policy.Permissions[p] == band.Name {
-					g.Permissions = append(g.Permissions, permView{Name: p, Label: label(p, true), Checked: slices.Contains(live, p)})
+					g.Permissions = append(g.Permissions, permView{Name: p, Label: s.permLabel(p, true), Checked: slices.Contains(live, p)})
 				}
 			}
 			if len(g.Permissions) > 0 {
@@ -135,15 +140,38 @@ func (s *Server) signedInView(v *enrolView, identityID string, sess session) {
 	for _, d := range s.liveDelegations(identityID, "", now) {
 		what := make([]string, len(d.Permissions))
 		for i, p := range d.Permissions {
-			what[i] = label(p, false)
+			what[i] = s.permLabel(p, false)
 			if p == "*" {
 				what[i] = "anything you're allowed to do"
 			}
 		}
-		v.Granted = append(v.Granted, grantView{
-			ID: d.ID, Agent: label(d.Agent, true), What: strings.Join(what, ", "), Since: day(d.GrantedAt),
-		})
+		g := grantView{ID: d.ID, Agent: label(d.Agent, true), What: strings.Join(what, ", "), Since: day(d.GrantedAt)}
+		if d.GrantedBy != identityID {
+			g.Managed = true
+			g.Limits = s.limits(d)
+		}
+		v.Granted = append(v.Granted, g)
 	}
+}
+
+// limits describes, in plain words, the restrictions on an administrator's
+// delegation.
+func (s *Server) limits(d decision.Delegation) string {
+	var parts []string
+	if len(d.Zones) > 0 {
+		zones := make([]string, len(d.Zones))
+		for i, z := range d.Zones {
+			zones[i] = label(z, false)
+		}
+		parts = append(parts, "only in: "+strings.Join(zones, ", "))
+	}
+	if d.Ceiling != "" {
+		parts = append(parts, "only for things that need at most the "+label(d.Ceiling, false)+" level of certainty")
+	}
+	if d.ExpiresAt != nil {
+		parts = append(parts, "until "+day(*d.ExpiresAt))
+	}
+	return strings.Join(parts, "; ")
 }
 
 // describeBand says, in plain words, how sure attest must be that it is you.
@@ -187,6 +215,15 @@ func duration(d time.Duration) string {
 	default:
 		return unit(int(d/time.Second), "second")
 	}
+}
+
+// permLabel is the tenant's label for a permission (policy.labels), else one
+// derived from its name.
+func (s *Server) permLabel(name string, capital bool) string {
+	if l := s.policy.Labels[name]; l != "" {
+		return l
+	}
+	return label(name, capital)
 }
 
 // label turns a policy name such as "door.unlock" into "door unlock".

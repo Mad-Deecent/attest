@@ -91,13 +91,17 @@
     <h3>What your assistants may do now</h3>
     <ul class="granted">
       {{- range .Granted}}
-      <li>
+      <li{{if .Managed}} class="managed"{{end}}>
         <p><strong>{{.Agent}}</strong> may: {{.What}}. <span class="muted">Since {{.Since}}.</span></p>
+        {{- if .Managed}}
+        <p class="note">Set up for you by whoever runs this system{{with .Limits}} ({{.}}){{end}}. You can't change this here; ask them if it should change.</p>
+        {{- else}}
         <form method="post" action="/enrol/revoke">
           <input type="hidden" name="csrf" value="{{$.CSRF}}">
           <input type="hidden" name="id" value="{{.ID}}">
           <button class="secondary">Revoke<span class="visually-hidden"> what {{.Agent}} may do</span></button>
         </form>
+        {{- end}}
       </li>
       {{- end}}
     </ul>
