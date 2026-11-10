@@ -2,1177 +2,1048 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
-<title>attest console — mockup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>attest · Maple House</title>
 <style>
-/* Tokens: the enrolment page's, unchanged, plus --warn, --ok-soft/--problem-soft and --surface. */
 :root {
-  color-scheme: light dark;
-  --bg: #ffffff;
-  --fg: #1b1b1b;
-  --muted: #565656;
-  --line: #c9c9c9;
-  --line-soft: #e3e4e8;
-  --line-strong: #767676;
-  --panel: #f3f4f6;
-  --surface: #ffffff;
-  --accent: #0b57d0;
-  --accent-fg: #ffffff;
-  --accent-soft: #e8f0fe;
-  --ok: #146c2e;
-  --warn: #8a5300;
-  --problem: #b3261e;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 1px 1px rgb(0 0 0 / 0.04);
-  --radius: 0.5rem;
-  --radius-lg: 0.875rem;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #121212; --fg: #ececec; --muted: #b4b4b4; --line: #4a4a4a; --line-strong: #8a8a8a; --line-soft: #2c2d31;
-    --panel: #1f2023; --surface: #18191b; --accent: #8ab4f8; --accent-fg: #0b1a33; --accent-soft: #1c2a42;
-    --ok: #7dd99b; --warn: #f2c46d; --problem: #ffb4ab; --shadow: none;
-  }
+  color-scheme: light;
+  --bg: #fbfbfa; --pane: #ffffff; --sunk: #f3f3f1;
+  --ink: #141415; --ink-2: #505257; --ink-3: #6b6e74;
+  --rule: #e6e6e3; --rule-2: #d3d3cf; --faint: #d0d0cc;
+  --live: #5232e8; --live-soft: rgba(82,50,232,.14);
+  --ok: #17763a; --no: #c0352b; --warn: #8f5c00;
+  --shadow: 0 0 0 1px rgba(0,0,0,.06), 0 12px 32px -8px rgba(0,0,0,.10);
+  --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --rail: 212px; --detail: 452px;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #121212; --fg: #ececec; --muted: #b4b4b4; --line: #4a4a4a; --line-strong: #8a8a8a; --line-soft: #2c2d31;
-  --panel: #1f2023; --surface: #18191b; --accent: #8ab4f8; --accent-fg: #0b1a33; --accent-soft: #1c2a42;
-  --ok: #7dd99b; --warn: #f2c46d; --problem: #ffb4ab; --shadow: none;
+  --bg: #0c0c0d; --pane: #161618; --sunk: #121214;
+  --ink: #ededee; --ink-2: #a8aab0; --ink-3: #8a8d94;
+  --rule: #232326; --rule-2: #313136; --faint: #3a3a40;
+  --live: #a08fff; --live-soft: rgba(160,143,255,.18);
+  --ok: #4fc27c; --no: #ff7d70; --warn: #e3aa45;
+  --shadow: 0 0 0 1px rgba(255,255,255,.06), 0 16px 40px -8px rgba(0,0,0,.6);
 }
-:root[data-theme="light"] { color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 400 14px/1.45 var(--sans); font-feature-settings: "tnum" 1, "cv11" 1; -webkit-font-smoothing: antialiased; }
+.num, time, td.n { font-variant-numeric: tabular-nums; }
+code, .mono { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+a { color: inherit; }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 20px; font-weight: 600; letter-spacing: -.012em; }
+h2 { font-size: 15px; font-weight: 600; letter-spacing: -.005em; }
+h3 { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.lede { color: var(--ink-2); margin-top: 4px; max-width: 62ch; }
+.sub { color: var(--ink-2); }
+.dim { color: var(--ink-3); }
+.small { font-size: 12.5px; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 3px; }
+button { font: inherit; color: inherit; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-*, *::before, *::after { box-sizing: border-box; }
-[hidden] { display: none !important; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0; background: var(--bg); color: var(--fg);
-  font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-}
-h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 0.35rem; }
-h2 { font-size: 1.25rem; line-height: 1.3; margin: 0 0 0.75rem; }
-h3 { font-size: 1.0625rem; line-height: 1.35; margin: 0 0 0.25rem; }
-p { margin: 0 0 0.75rem; }
-a { color: var(--accent); }
-:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-h1:focus { outline: none; }
-code { font-size: 0.9em; }
-.muted { color: var(--muted); }
-.small { font-size: 0.875rem; }
-.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.icon { width: 1.25rem; height: 1.25rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* ---------- Shell ---------- */
+.shell { display: grid; grid-template-columns: var(--rail) 1fr; height: 100vh; }
+.rail { border-right: 1px solid var(--rule); display: flex; flex-direction: column; padding: 14px 10px 12px; gap: 14px; overflow: auto; }
+.brand { display: flex; align-items: baseline; gap: 8px; padding: 4px 8px 0; }
+.brand b { font-weight: 600; font-size: 15px; letter-spacing: -.02em; }
+.brand span { color: var(--ink-3); font-size: 12.5px; }
+.jump { display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 8px; border: 1px solid var(--rule); background: transparent; border-radius: 6px; color: var(--ink-3); cursor: pointer; text-align: left; }
+.jump kbd { margin-left: auto; }
+kbd { font: 500 11px var(--sans); color: var(--ink-3); border: 1px solid var(--rule-2); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; min-width: 18px; text-align: center; display: inline-block; line-height: 16px; }
+.nav { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.nav a { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border-radius: 6px; text-decoration: none; color: var(--ink-2); }
+.nav a:hover { background: var(--sunk); color: var(--ink); }
+.nav a[aria-current="page"] { color: var(--ink); background: var(--sunk); font-weight: 500; }
+.nav a[aria-current="page"]::before { content: ""; width: 2px; height: 14px; background: var(--ink); border-radius: 2px; margin-left: -8px; margin-right: -4px; }
+.nav .tail { margin-left: auto; font-size: 12px; color: var(--ink-3); display: inline-flex; align-items: center; gap: 5px; }
+.nav .tail.live { color: var(--ink-2); }
+.rail-foot { margin-top: auto; display: grid; gap: 2px; border-top: 1px solid var(--rule); padding-top: 10px; }
+.me { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px 0; font-size: 12.5px; color: var(--ink-3); }
+.linkbtn { background: none; border: 0; padding: 0; cursor: pointer; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; }
+.linkbtn:hover, a.x:hover { color: var(--ink); text-decoration-color: currentColor; }
+a.x { color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; }
 
-/* Buttons: as on the enrolment page. */
-.button, button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
-  min-height: 44px; min-width: 44px; padding: 0.5rem 1.1rem;
-  border: 2px solid var(--accent); border-radius: var(--radius);
-  background: var(--accent); color: var(--accent-fg);
-  font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap;
-}
-.button.secondary, button.secondary { background: transparent; color: var(--accent); }
-.button.quiet, button.quiet { background: transparent; color: var(--accent); border-color: transparent; padding-inline: 0.6rem; }
-button.danger { background: transparent; color: var(--problem); border-color: var(--problem); }
-button:disabled { opacity: 0.45; cursor: not-allowed; }
-.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+.main { display: flex; flex-direction: column; min-width: 0; height: 100vh; }
+.ph { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 22px 32px 18px; border-bottom: 1px solid var(--rule); }
+.ph-act { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+.md { flex: 1; display: grid; grid-template-columns: minmax(0,1fr) var(--detail); min-height: 0; }
+.md.solo { grid-template-columns: minmax(0,1fr); }
+.master { overflow: auto; padding: 8px 32px 48px; min-width: 0; }
+.detail { overflow: auto; background: var(--pane); box-shadow: var(--shadow); padding: 22px 28px 48px; position: relative; z-index: 1; }
+.back { display: none; }
+.empty-detail { color: var(--ink-3); padding-top: 40vh; text-align: center; }
 
-/* Notices: the enrolment page's left-border pattern. */
-.status, .problem, .warning, .info {
-  display: flex; gap: 0.75rem; align-items: flex-start;
-  padding: 0.75rem 1rem; border-left: 4px solid var(--ok); border-radius: 0.25rem; background: var(--panel); margin: 0 0 1rem;
-}
-.problem { border-color: var(--problem); }
-.warning { border-color: var(--warn); }
-.info { border-color: var(--accent); }
-.status > .icon { color: var(--ok); margin-top: 0.15rem; }
-.problem > .icon { color: var(--problem); margin-top: 0.15rem; }
-.warning > .icon { color: var(--warn); margin-top: 0.15rem; }
-.info > .icon { color: var(--accent); margin-top: 0.15rem; }
-.status p, .problem p, .warning p, .info p { margin: 0; }
-.notice-body { flex: 1; min-width: 0; }
-.notice-body .actions { margin-top: 0.6rem; }
+/* buttons */
+.btn { height: 32px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--rule-2); background: transparent; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; white-space: nowrap; }
+.btn:hover { border-color: var(--ink-3); }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.primary:hover { opacity: .9; }
+.btn.primary[disabled] { background: transparent; color: var(--ink-3); border-color: var(--rule-2); cursor: default; opacity: 1; }
+.btn.danger { color: var(--no); border-color: currentColor; }
+.btn.quiet { border-color: transparent; color: var(--ink-2); padding: 0 8px; }
 
-/* Shell */
-.skip { position: absolute; left: 0.5rem; top: -4rem; z-index: 10; }
-.skip:focus { top: 0.5rem; }
-.shell { display: grid; grid-template-columns: 15rem 1fr; min-height: 100vh; background: linear-gradient(to right, var(--panel) calc(15rem - 1px), var(--line-soft) calc(15rem - 1px), var(--line-soft) 15rem, transparent 15rem); }
-.sidebar {
-  position: sticky; top: 0; height: 100vh; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 1rem;
-  padding: 1.25rem 0.75rem; border-right: 1px solid var(--line-soft); background: var(--panel);
-}
-.brand { display: flex; align-items: center; gap: 0.6rem; padding: 0 0.5rem; }
-.brand-mark { width: 2rem; height: 2rem; border-radius: 0.55rem; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; }
-.brand-mark .icon { width: 1.15rem; height: 1.15rem; stroke-width: 2.2; }
-.brand strong { display: block; line-height: 1.2; }
-.brand div > span { display: block; font-size: 0.8125rem; color: var(--muted); line-height: 1.2; }
-.nav { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.15rem; }
-.nav a {
-  display: flex; align-items: center; gap: 0.75rem; min-height: 44px; padding: 0.4rem 0.75rem;
-  border-radius: var(--radius); color: var(--fg); text-decoration: none; font-weight: 500;
-}
-.nav a:hover { background: var(--line-soft); }
-.nav a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
-.nav .badge { margin-left: auto; }
-.sidebar-foot { margin-top: auto; display: grid; gap: 0.5rem; padding: 0 0.25rem; }
-.badge {
-  display: inline-grid; place-items: center; min-width: 1.4rem; height: 1.4rem; padding: 0 0.4rem;
-  border-radius: 999px; background: var(--accent); color: var(--accent-fg); font-size: 0.75rem; font-weight: 700;
-}
-.badge.warn { background: var(--warn); color: var(--bg); }
+/* ---------- Glyphs ---------- */
+.lv { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.ladder { flex: none; overflow: visible; }
+.ladder .r { stroke: var(--rule-2); stroke-width: 1; }
+.ladder .g { fill: var(--faint); }
+.ladder .g.on { fill: currentColor; }
+.oc { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--ink-2); }
+.oc svg { flex: none; }
+.oc.ok svg { color: var(--ok); } .oc.no svg { color: var(--no); } .oc.warn svg { color: var(--warn); }
+.att { display: inline-flex; gap: 6px; align-items: baseline; color: var(--ink); }
+.att svg { color: var(--warn); flex: none; position: relative; top: 2px; }
+.dotlive { width: 6px; height: 6px; border-radius: 50%; background: var(--live); display: inline-block; box-shadow: 0 0 0 3px var(--live-soft); }
 
-.main { min-width: 0; }
-.mockbar {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem;
-  padding: 0.5rem 1.5rem; border-bottom: 1px dashed var(--line); font-size: 0.875rem; color: var(--muted);
-}
-.mockbar .label { font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.75rem; }
-.mockbar nav { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-.mockbar a {
-  display: inline-flex; align-items: center; min-height: 32px; padding: 0 0.7rem; border: 1px solid var(--line);
-  border-radius: 999px; color: var(--fg); text-decoration: none;
-}
-.mockbar a[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 650; }
-.mockbar .theme { margin-left: auto; }
-.mockbar .theme button { min-height: 32px; padding: 0 0.7rem; border-width: 1px; font-weight: 500; font-size: 0.875rem; }
+/* ---------- Lists ---------- */
+.group { margin-top: 18px; }
+.ghead { display: flex; align-items: baseline; gap: 10px; padding: 10px 0 6px; border-bottom: 1px solid var(--rule); }
+.ghead h2 { font-size: 13.5px; }
+.ghead .meta { color: var(--ink-3); font-size: 12.5px; }
+.ghead .meta.end { margin-left: auto; }
+.row { display: grid; align-items: center; gap: 16px; min-height: 44px; padding: 6px 10px; margin: 0 -10px; border-bottom: 1px solid var(--rule); text-decoration: none; color: inherit; border-radius: 0; position: relative; }
+a.row:hover { background: var(--sunk); }
+a.row[aria-current="true"] { background: var(--sunk); }
+a.row[aria-current="true"]::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; background: var(--ink); border-radius: 2px; }
+.row .name { font-weight: 500; }
+.row .end { justify-self: end; text-align: right; }
+.colhead { display: grid; gap: 16px; padding: 14px 0 6px; font-size: 11.5px; color: var(--ink-3); border-bottom: 1px solid var(--rule); }
+.r-pres { grid-template-columns: minmax(110px,1fr) 112px 116px minmax(170px,200px) 128px; }
+.r-dec { grid-template-columns: 64px 86px minmax(0,1fr) 104px; }
+.r-id { grid-template-columns: minmax(140px,1fr) 100px 92px 92px 96px 90px; }
+.r-sen { grid-template-columns: minmax(150px,1fr) 64px minmax(110px,150px) 128px 92px; }
+.r-ag { grid-template-columns: minmax(140px,1fr) 160px 100px 190px; }
+.r-gov { grid-template-columns: minmax(0,1fr) auto; }
+.who-not { color: var(--ink-2); font-weight: 400 !important; }
+.fresh { color: var(--ink-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.until { color: var(--ink-3); font-size: 12.5px; white-space: nowrap; }
+.note { color: var(--ink-3); font-size: 12.5px; padding: 12px 0; }
+.mod { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 12.5px; }
+.mod.off { color: var(--ink-3); }
 
-.content { max-width: 72rem; margin: 0 auto; padding: 2rem 2rem 5rem; }
-.page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
-.page-head p { margin: 0; color: var(--muted); }
-.crumb { display: inline-flex; align-items: center; gap: 0.25rem; margin-bottom: 0.5rem; font-size: 0.9375rem; min-height: 44px; }
+/* ---------- Detail anatomy ---------- */
+.dh { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 16px; }
+.dh .kicker { font-size: 12px; color: var(--ink-3); margin-bottom: 4px; }
+.sec { padding: 16px 0; border-top: 1px solid var(--rule); }
+.sec > h3 { margin-bottom: 10px; }
+.kv { display: grid; grid-template-columns: 128px 1fr; gap: 7px 14px; font-size: 13.5px; }
+.kv dt { color: var(--ink-3); }
+.kv dd { margin: 0; }
+.lines { list-style: none; margin: 0; padding: 0; }
+.lines li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--rule); font-size: 13.5px; }
+.lines li:last-child { border-bottom: 0; }
+.lines .rt { margin-left: auto; color: var(--ink-3); font-size: 12.5px; white-space: nowrap; text-align: right; }
+.consequence { margin-top: 10px; padding-left: 12px; border-left: 2px solid var(--warn); font-size: 13.5px; }
+.consequence.plain { border-left-color: var(--rule-2); color: var(--ink-2); }
 
-/* Cards and lists */
-.card { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 1.25rem; }
-.card + .card, .card + section, section + .card, .stack > * + * { margin-top: 1.25rem; }
-.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
-.card-head h2 { margin: 0; }
-.card-head a { font-size: 0.9375rem; white-space: nowrap; }
-.rows { list-style: none; margin: 0; padding: 0; }
-.rows > li { display: flex; align-items: center; gap: 0.9rem; padding: 0.8rem 0; border-top: 1px solid var(--line-soft); }
-.rows > li:first-child { border-top: 0; padding-top: 0.2rem; }
-.rows > li:last-child { padding-bottom: 0; }
-.row-main { flex: 1; min-width: 0; }
-.row-main p { margin: 0; }
-.row-end { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
-.grid-2 { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
-.grid-2 > .card + .card { margin-top: 0; }
-.cols-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
-.cols-2 > .card + .card { margin-top: 0; }
+/* ---------- Belief trace ---------- */
+.trace { display: block; overflow: visible; }
+.trace.big { width: 100%; height: auto; max-width: 560px; }
+h1:focus, .detail:focus { outline: none; }
+.trace .th { stroke: var(--rule-2); stroke-width: 1; }
+.trace .th.d { stroke-dasharray: 2 3; }
+.trace .tl { fill: var(--ink-3); font: 500 10px var(--sans); }
+.trace .ax { fill: var(--ink-3); font: 400 10px var(--sans); }
+.trace .past { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.trace .fut { fill: none; stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 2 4; stroke-linecap: round; }
+.trace .area { fill: var(--ink); opacity: .045; }
+.trace .base { stroke: var(--rule-2); }
+.trace .nowl { stroke: var(--live); stroke-width: 1; opacity: .55; }
+.trace .head { fill: var(--live); }
+.trace .halo { fill: var(--live); opacity: .25; transform-box: fill-box; transform-origin: center; animation: halo 2.4s ease-out infinite; }
+.trace .tk-v { stroke: var(--ink-2); stroke-width: 1.5; stroke-linecap: round; }
+.trace .tk-f { fill: var(--ink-2); }
+.trace .tk-x { fill: none; stroke: var(--ink-3); stroke-width: 1.2; }
+.trace .hov { stroke: var(--ink-3); stroke-width: 1; }
+.mini .th { stroke: var(--rule); }
+.mini .past { stroke-width: 1.5; }
+@keyframes halo { from { transform: scale(1); opacity: .35; } to { transform: scale(3); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .trace .halo { animation: none; display: none; } }
+.still .trace .halo { animation: none; display: none; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--ink-3); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.readout { font-size: 12.5px; color: var(--ink-2); min-height: 18px; margin-top: 2px; }
+.bigstate { display: flex; align-items: baseline; gap: 14px; margin: 2px 0 14px; flex-wrap: wrap; }
+.bigstate .lv { font-size: 17px; font-weight: 500; }
 
-.avatar {
-  width: 2.5rem; height: 2.5rem; flex: none; border-radius: 50%; display: grid; place-items: center;
-  font-weight: 700; font-size: 0.9375rem; color: #fff;
-}
-.avatar.lg { width: 4rem; height: 4rem; font-size: 1.4rem; }
-.a1 { background: #8a4fbd; } .a2 { background: #1f7a6d; } .a3 { background: #b3541e; } .a4 { background: #3b5bab; }
-.a0 { background: transparent; color: var(--muted); border: 2px dashed var(--line); }
-.thing { width: 2.5rem; height: 2.5rem; flex: none; border-radius: 0.65rem; display: grid; place-items: center; background: var(--panel); color: var(--fg); }
+/* ---------- Decision record ---------- */
+.sentence { font-size: 17px; line-height: 1.4; font-weight: 500; letter-spacing: -.008em; margin: 6px 0 4px; }
+.chain { list-style: none; margin: 14px 0 0; padding: 0; counter-reset: c; }
+.chain li { display: grid; grid-template-columns: 22px 78px 1fr; gap: 10px; padding: 9px 0; position: relative; font-size: 13.5px; }
+.chain li::before { content: ""; position: absolute; left: 10.5px; top: 28px; bottom: -9px; width: 1px; background: var(--rule-2); }
+.chain li:last-child::before { display: none; }
+.chain .st { width: 22px; height: 20px; display: grid; place-items: center; background: var(--pane); position: relative; z-index: 1; }
+.chain .k { color: var(--ink-3); font-size: 12.5px; padding-top: 1px; }
+.chain .v b { font-weight: 500; }
+.chain .v .sub { display: block; font-size: 12.5px; margin-top: 1px; }
+.chain li.fail .v b { color: var(--ink); }
+.chain li.skip .v { color: var(--ink-3); }
+details.numbers { margin-top: 14px; border-top: 1px solid var(--rule); }
+details.numbers summary { cursor: pointer; padding: 12px 0 6px; color: var(--ink-2); font-size: 13px; list-style: none; display: flex; gap: 8px; align-items: center; }
+details.numbers summary::-webkit-details-marker { display: none; }
+details.numbers summary::before { content: "›"; display: inline-block; transition: transform .15s; color: var(--ink-3); }
+details.numbers[open] summary::before { transform: rotate(90deg); }
+table.raw { width: 100%; border-collapse: collapse; font: 12px var(--mono); color: var(--ink-2); margin-top: 6px; }
+table.raw th { text-align: left; font: 500 11px var(--sans); color: var(--ink-3); padding: 4px 8px 4px 0; border-bottom: 1px solid var(--rule); }
+table.raw td { white-space: nowrap; padding: 5px 8px 5px 0; border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums; }
+.reasons { margin: 10px 0 0; padding: 0; list-style: none; font: 12px/1.7 var(--mono); color: var(--ink-2); }
+.reasons li::before { content: "· "; color: var(--ink-3); }
+.reasons li.f { color: var(--no); }
 
-/* Status words (always text + icon, never colour alone) */
-.pill { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; font-weight: 600; white-space: nowrap; }
-.pill .icon { width: 1rem; height: 1rem; stroke-width: 2.4; }
-.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--problem); } .pill.info { color: var(--accent); } .pill.off { color: var(--muted); }
-.tag { display: inline-block; padding: 0.05rem 0.5rem; border: 1px solid var(--line); border-radius: 999px; font-size: 0.8125rem; color: var(--muted); white-space: nowrap; }
-.tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.filters { display: flex; align-items: center; gap: 4px 18px; flex-wrap: wrap; padding: 12px 0 4px; font-size: 13px; color: var(--ink-3); }
+.filters label { display: inline-flex; align-items: center; gap: 6px; }
+.filters select, .sel { font: inherit; color: var(--ink); background: transparent; border: 0; border-bottom: 1px solid var(--rule-2); padding: 3px 18px 3px 0; appearance: none; -webkit-appearance: none; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%), linear-gradient(135deg, var(--ink-3) 50%, transparent 50%); background-size: 4px 4px; background-position: calc(100% - 7px) 55%, calc(100% - 3px) 55%; background-repeat: no-repeat; }
+.filters select option, .sel option { background: var(--pane); color: var(--ink); }
+.filters .count { margin-left: auto; }
 
-/* Certainty: the four levels as a stepped meter, always with words. */
-.meter { display: inline-flex; gap: 3px; vertical-align: middle; }
-.meter i { width: 0.9rem; height: 0.4rem; border-radius: 2px; background: var(--line); }
-.meter[data-level="1"] i:nth-child(-n+1), .meter[data-level="2"] i:nth-child(-n+2), .meter[data-level="3"] i:nth-child(-n+3) { background: var(--accent); }
-.sure { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.9375rem; }
+/* ---------- Policy matrix ---------- */
+.impact { padding: 12px 32px; border-bottom: 1px solid var(--rule); display: grid; gap: 6px; font-size: 13.5px; }
+.impact.idle { color: var(--ink-3); }
+.impact .chg { display: flex; gap: 10px; align-items: baseline; }
+.impact .chg .tag { font-size: 11px; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); flex: none; width: 66px; }
+table.mx { width: 100%; border-collapse: collapse; margin-top: 8px; }
+table.mx th { font-size: 11.5px; font-weight: 400; color: var(--ink-3); text-align: left; padding: 12px 8px 7px; border-bottom: 1px solid var(--rule); white-space: nowrap; vertical-align: bottom; }
+table.mx th.role { text-align: center; width: 84px; }
+table.mx th.role span { display: block; font-size: 11px; }
+table.mx th.role b { display: block; color: var(--ink); font-weight: 500; font-size: 12.5px; }
+table.mx td { border-bottom: 1px solid var(--rule); padding: 0 8px; height: 46px; }
+table.mx tr.cur td { background: var(--sunk); }
+table.mx tr.cur td:first-child { box-shadow: inset 2px 0 0 var(--ink); }
+table.mx td.act a { text-decoration: none; display: block; padding: 6px 0; }
+table.mx td.act a b { font-weight: 500; display: block; white-space: nowrap; }
+table.mx th.needh { width: 150px; } table.mx th.wh { width: 168px; }
+table.mx td.act code { font-size: 11px; color: var(--ink-3); }
+table.mx td.cell { text-align: center; padding: 0; }
+table.mx td.floor { color: var(--ink-3); font-size: 12.5px; text-align: center; }
+table.mx tr.sec-row td { height: auto; padding: 18px 8px 6px; border-bottom: 1px solid var(--rule); }
+.hold { width: 100%; height: 45px; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; border-radius: 0; }
+.hold:hover { background: var(--sunk); }
+.hold svg circle { stroke: var(--ink-2); }
+.hold[aria-pressed="true"] svg circle { fill: var(--ink); stroke: var(--ink); }
+.hold.changed { box-shadow: inset 0 -2px 0 var(--ink); }
+.need { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px; margin-left: -8px; border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; }
+.need:hover, .need[aria-expanded="true"] { border-color: var(--rule-2); }
+.need .chev { color: var(--ink-3); margin-left: 2px; }
+.need.changed { box-shadow: inset 0 -2px 0 var(--ink); border-radius: 6px 6px 0 0; }
+.where { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+.menu { position: absolute; z-index: 30; background: var(--pane); box-shadow: var(--shadow); border-radius: 8px; padding: 4px; width: 300px; }
+.menu [role="option"] { display: grid; grid-template-columns: 18px 1fr; gap: 2px 10px; padding: 8px 10px; border-radius: 5px; cursor: pointer; align-items: center; }
+.menu [role="option"] small { grid-column: 2; color: var(--ink-3); font-size: 12px; }
+.menu [role="option"][aria-selected="true"] b::after { content: " · current"; font-weight: 400; color: var(--ink-3); }
+.menu [role="option"].hi, .menu [role="option"]:hover { background: var(--sunk); }
+.levels { display: grid; grid-template-columns: auto 1fr; gap: 10px 14px; font-size: 13.5px; align-items: center; }
+.reach { display: grid; grid-template-columns: repeat(3, auto); gap: 6px 16px; }
 
-/* Home: rooms */
-.summary { display: flex; align-items: center; gap: 1rem; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
-.summary .big { font-size: 1.375rem; font-weight: 700; line-height: 1.3; margin: 0; }
-.summary p { margin: 0; color: var(--muted); }
-.summary p.big { color: var(--fg); }
-.summary-dot { width: 3rem; height: 3rem; border-radius: 50%; flex: none; display: grid; place-items: center; background: var(--panel); color: var(--ok); }
-.summary-dot.warn { color: var(--warn); }
-.summary-dot.bad { color: var(--problem); }
-.summary-dot .icon { width: 1.6rem; height: 1.6rem; }
-.rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(16.5rem, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-.room { padding: 1rem 1.1rem; margin: 0 !important; }
-.room h3 { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; }
-.room h3 .icon { color: var(--muted); }
-.room h3 .count { margin-left: auto; font-weight: 500; font-size: 0.875rem; color: var(--muted); }
-.room .rows > li { padding: 0.6rem 0; gap: 0.75rem; align-items: flex-start; }
-.room .rows > li:first-child { padding-top: 0; }
-.room.empty { background: transparent; box-shadow: none; border-style: dashed; }
-.room .who { font-weight: 650; }
-.room .how { font-size: 0.8125rem; color: var(--muted); }
-.can { font-size: 0.8125rem; color: var(--muted); margin-top: 0.2rem; }
+/* ---------- Coverage map ---------- */
+.cov { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.cov th { font-size: 11.5px; font-weight: 400; color: var(--ink-3); text-align: left; padding: 10px 12px 7px 0; border-bottom: 1px solid var(--rule); }
+.cov td { padding: 0 12px 0 0; border-bottom: 1px solid var(--rule); height: 52px; vertical-align: middle; font-size: 13.5px; }
+.cov td.sp { font-weight: 500; width: 140px; }
+.cov td.m { width: 24%; }
+.seg { display: block; height: 3px; border-radius: 2px; background: var(--ink); margin-bottom: 7px; width: 100%; max-width: 180px; }
+.seg.gap { background: repeating-linear-gradient(90deg, var(--faint) 0 3px, transparent 3px 7px); }
+.seg.off { background: repeating-linear-gradient(90deg, var(--warn) 0 6px, transparent 6px 9px); }
+.cov .cap { color: var(--ink-2); font-size: 12.5px; }
+.cov a { text-decoration: none; }
+.cov a:hover { text-decoration: underline; }
 
-/* Decisions */
-.decision { align-items: flex-start !important; }
-.decision .mark { width: 2rem; height: 2rem; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--panel); }
-.decision .mark.ok { color: var(--ok); } .decision .mark.bad { color: var(--problem); }
-.decision .mark .icon { width: 1.1rem; height: 1.1rem; stroke-width: 2.6; }
-.decision .what { font-weight: 600; }
-.decision .why { color: var(--muted); font-size: 0.9375rem; }
-.decision time { font-size: 0.8125rem; color: var(--muted); white-space: nowrap; }
+/* ---------- Governance ---------- */
+.keeps { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.keeps ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.keeps li { padding: 7px 0; border-bottom: 1px solid var(--rule); font-size: 13.5px; }
+.keeps .dim { font-size: 12.5px; display: block; }
 
-/* Health */
-.health .rows > li { padding: 0.65rem 0; }
+/* ---------- Overlays ---------- */
+.scrim { position: fixed; inset: 0; background: rgba(10,10,12,.28); z-index: 40; display: none; }
+:root[data-theme="dark"] .scrim { background: rgba(0,0,0,.55); }
+.scrim.on { display: block; }
+.palette { position: fixed; z-index: 50; left: 50%; top: 14vh; transform: translateX(-50%); width: min(560px, calc(100vw - 24px)); background: var(--pane); box-shadow: var(--shadow); border-radius: 10px; display: none; overflow: hidden; }
+.palette.on { display: block; }
+.palette input { width: 100%; height: 50px; border: 0; border-bottom: 1px solid var(--rule); background: transparent; padding: 0 18px; font: 15px var(--sans); color: var(--ink); outline: none; }
+.palette ul { list-style: none; margin: 0; padding: 6px; max-height: 360px; overflow: auto; }
+.palette li a { display: flex; gap: 12px; align-items: center; padding: 0 12px; height: 38px; border-radius: 6px; text-decoration: none; }
+.palette li a .dom { margin-left: auto; color: var(--ink-3); font-size: 12px; }
+.palette li a.hi { background: var(--sunk); }
+.palette .foot { border-top: 1px solid var(--rule); padding: 8px 16px; font-size: 12px; color: var(--ink-3); display: flex; gap: 14px; }
 
-/* Empty states */
-.empty-state { text-align: center; padding: 3rem 1.5rem; }
-.empty-state .thing { width: 4rem; height: 4rem; margin: 0 auto 1rem; border-radius: 1rem; }
-.empty-state .thing .icon { width: 2rem; height: 2rem; }
-.empty-state p { max-width: 32rem; margin-inline: auto; color: var(--muted); }
-.empty-state .actions { justify-content: center; margin-top: 1rem; }
+.setup { position: fixed; inset: 0; z-index: 45; background: var(--bg); display: none; overflow: auto; }
+.setup.on { display: block; }
+.setup-in { max-width: 520px; margin: 0 auto; padding: 56px 24px 64px; }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 18px 0 34px; }
+.steps span { height: 2px; background: var(--rule-2); border-radius: 2px; }
+.steps span.on { background: var(--ink); }
+.setup h1 { font-size: 24px; letter-spacing: -.02em; }
+.setup .lede { margin-top: 8px; }
+.choice { list-style: none; margin: 22px 0 0; padding: 0; border-top: 1px solid var(--rule); }
+.choice label { display: flex; align-items: center; gap: 14px; min-height: 52px; border-bottom: 1px solid var(--rule); cursor: pointer; }
+.choice input { accent-color: var(--ink); width: 16px; height: 16px; }
+.choice .sub { margin-left: auto; font-size: 12.5px; }
+.field { display: grid; gap: 6px; margin-top: 20px; font-size: 12.5px; color: var(--ink-3); }
+.field input { height: 40px; font: 15px var(--sans); color: var(--ink); background: transparent; border: 0; border-bottom: 1px solid var(--rule-2); padding: 0; outline: none; }
+.field input:focus { border-bottom-color: var(--ink); }
+.setup-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 34px; }
 
-/* Forms */
-label.field { display: grid; gap: 0.35rem; font-weight: 600; }
-input[type="text"], input[type="url"], input[type="email"], input[type="search"], input[type="number"], select {
-  min-height: 44px; width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--line-strong); border-radius: var(--radius);
-  background: var(--surface); color: var(--fg); font: inherit; font-weight: 400;
-}
-input::placeholder { color: var(--muted); opacity: 0.85; }
-.inline-form { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; }
-.inline-form .field { flex: 1 1 18rem; }
-.hint { font-weight: 400; font-size: 0.875rem; color: var(--muted); }
-
-/* Choice tiles (provider pick, presets) */
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.75rem; margin: 0 0 1.25rem; padding: 0; border: 0; }
-.tile { position: relative; display: grid; gap: 0.25rem; padding: 1rem; border: 2px solid var(--line-soft); border-radius: var(--radius-lg); cursor: pointer; background: var(--surface); }
-.tile:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
-.tile:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 3px; }
-.tile input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
-.tile strong { font-size: 1.0625rem; }
-.tile span { font-size: 0.875rem; color: var(--muted); }
-.tiles.wide { grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }
-.tile .check-mark { position: absolute; top: 0.75rem; right: 0.75rem; color: var(--accent); display: none; }
-.tile:has(input:checked) .check-mark { display: block; }
-
-/* Level picker: segmented radio group */
-.levels { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 3px; gap: 3px; margin: 0; background: var(--panel); }
-.levels legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-.levels label { position: relative; display: inline-flex; align-items: center; min-height: 38px; padding: 0 0.75rem; border-radius: 0.35rem; font-size: 0.875rem; font-weight: 550; cursor: pointer; white-space: nowrap; }
-.levels input { position: absolute; opacity: 0; inset: 0; cursor: pointer; margin: 0; }
-.levels label:has(input:checked) { background: var(--surface); color: var(--accent); box-shadow: 0 0 0 1px var(--accent); font-weight: 700; }
-.levels label:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
-.tool { display: grid !important; grid-template-columns: 2.5rem minmax(0, 1fr) auto; gap: 0.4rem 0.9rem !important; align-items: center; }
-.tool .levels-wrap { grid-column: 3; display: grid; justify-items: end; gap: 0.3rem; }
-.tool .tool-note { grid-column: 2 / -1; }
-.suggest { font-size: 0.8125rem; color: var(--muted); }
-
-/* Toggles (checkbox styled as switch) */
-.switch { display: flex; align-items: center; gap: 0.75rem; min-height: 44px; cursor: pointer; }
-.switch input { appearance: none; -webkit-appearance: none; width: 2.75rem; height: 1.6rem; border-radius: 999px; background: var(--line-strong); position: relative; margin: 0; flex: none; cursor: pointer; }
-.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: calc(1.6rem - 6px); height: calc(1.6rem - 6px); border-radius: 50%; background: #fff; }
-.switch input:checked { background: var(--ok); }
-.switch input:checked::after { left: calc(100% - 1.6rem + 3px); }
-@media (prefers-reduced-motion: no-preference) { .switch input::after { transition: left 0.15s; } }
-
-/* Disclosure */
-details.advanced { margin-top: 1rem; border-top: 1px solid var(--line-soft); padding-top: 0.5rem; }
-details.advanced > summary { display: flex; align-items: center; gap: 0.4rem; min-height: 44px; cursor: pointer; color: var(--accent); font-weight: 600; list-style: none; }
-details.advanced > summary::-webkit-details-marker { display: none; }
-details.advanced > summary::before { content: ""; width: 0.5rem; height: 0.5rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); margin-right: 0.35rem; }
-details.advanced[open] > summary::before { transform: rotate(45deg); }
-
-/* Tables (Advanced only) */
-.table-wrap { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 0.9375rem; }
-th, td { text-align: left; padding: 0.5rem 0.75rem 0.5rem 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
-th { font-size: 0.8125rem; color: var(--muted); font-weight: 600; }
-td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-td input[type="number"] { width: 6rem; min-height: 38px; text-align: right; }
-
-/* Wizard */
-.wizard { max-width: 44rem; margin: 0 auto; }
-.wizard-steps { list-style: none; display: flex; gap: 0.5rem; margin: 0 0 2rem; padding: 0; counter-reset: s; }
-.wizard-steps li { flex: 1; counter-increment: s; font-size: 0.8125rem; color: var(--muted); }
-.wizard-steps li::before { content: ""; display: block; height: 4px; border-radius: 2px; background: var(--line); margin-bottom: 0.4rem; }
-.wizard-steps li.done::before { background: var(--ok); }
-.wizard-steps li[aria-current="step"]::before { background: var(--accent); }
-.wizard-steps li[aria-current="step"] { color: var(--fg); font-weight: 650; }
-.wizard .card { padding: 2rem; }
-.wizard-foot { display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap; }
-.hero { text-align: center; }
-.hero .brand-mark { width: 4rem; height: 4rem; border-radius: 1.1rem; margin: 0 auto 1.25rem; }
-.hero .brand-mark .icon { width: 2rem; height: 2rem; }
-.hero p { max-width: 34rem; margin-inline: auto; }
-.hero ul { text-align: left; max-width: 30rem; margin: 1.25rem auto 0; }
-.checklist { list-style: none; margin: 0.75rem 0 0; padding: 0; display: grid; gap: 0.5rem; }
-.checklist li { display: flex; gap: 0.6rem; align-items: flex-start; }
-.checklist .icon { color: var(--ok); margin-top: 0.15rem; stroke-width: 2.4; }
-.spinner { width: 1.25rem; height: 1.25rem; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; }
-@media (prefers-reduced-motion: no-preference) { .spinner { animation: spin 0.9s linear infinite; } }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Filters */
-.filters { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; margin-bottom: 1.25rem; }
-.filters .field { flex: 1 1 11rem; font-size: 0.875rem; }
-.filters .field.search { flex: 2 1 16rem; }
-.chips { display: inline-flex; flex-wrap: wrap; gap: 0.35rem; border: 0; padding: 0; margin: 0; }
-.chips label { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 0 1rem; border: 1px solid var(--line-strong); border-radius: 999px; cursor: pointer; font-weight: 550; }
-.chips input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
-.chips label:has(input:checked) { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
-.chips label:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
-.day { font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 1.5rem 0 0.5rem; }
-.log { padding: 0.25rem 1.25rem; }
-.log .rows > li { padding: 0.85rem 0; }
-.log .rows > li:first-child { padding-top: 0.85rem; }
-.expanded { background: var(--panel); margin: 0 -1.25rem; padding: 1rem 1.25rem !important; flex-wrap: wrap; }
-.trail { width: 100%; padding-left: 2.9rem; }
-.trail ol { margin: 0.25rem 0 0.75rem; padding-left: 1.25rem; }
-.trail li { margin-bottom: 0.25rem; }
-.reason-ok { color: var(--ok); font-weight: 600; } .reason-bad { color: var(--problem); font-weight: 600; }
-
-/* People */
-.enrol-marks { display: flex; gap: 1.1rem; flex-wrap: wrap; }
-.enrol-marks span { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
-.enrol-marks .yes { color: var(--fg); }
-.enrol-marks .yes .icon { color: var(--ok); stroke-width: 2.6; }
-.enrol-marks .no { color: var(--muted); }
-.person-head { display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
-.person-head h1 { margin: 0; }
-.allow-list { list-style: none; margin: 0; padding: 0; }
-.allow-list li { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; flex-wrap: wrap; padding: 0.7rem 0; border-top: 1px solid var(--line-soft); }
-.allow-list li:first-child { border-top: 0; }
-.allow-list li > span { flex: 1 1 18rem; }
-.allow-list .lvl { font-size: 0.8125rem; color: var(--muted); }
-.managed { border-left: 3px solid var(--line); padding-left: 0.85rem !important; }
-.copybox { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-.copybox code { flex: 1 1 14rem; padding: 0.6rem 0.75rem; min-height: 44px; display: flex; align-items: center; border-radius: var(--radius); background: var(--panel); overflow-wrap: anywhere; }
-
-/* More (phone) */
-.more-list a { display: flex; align-items: center; gap: 0.9rem; min-height: 56px; color: var(--fg); text-decoration: none; font-weight: 600; }
-
-/* Bottom tab bar: phone only */
 .tabbar { display: none; }
+.sheet { display: none; }
 
-@media (max-width: 820px) {
-  .shell { grid-template-columns: 1fr; background: none; }
-  .sidebar { display: none; }
-  .topbar { display: flex !important; }
-  .content { padding: 1.25rem 1rem 6.5rem; }
-  .mockbar { padding: 0.5rem 1rem; }
-  .grid-2, .cols-2 { grid-template-columns: minmax(0, 1fr); }
-  td input[type="number"] { width: 4.25rem; }
-  .rows.wrap-sm .row-main { flex-basis: calc(100% - 3.4rem); }
-  .grid-2 > * + *, .cols-2 > * + * { margin-top: 0 !important; }
-  h1 { font-size: 1.5rem; }
-  .tabbar {
-    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; inset: auto 0 0 0; z-index: 5;
-    background: var(--panel); border-top: 1px solid var(--line-soft); padding: 0.25rem 0.25rem calc(0.25rem + env(safe-area-inset-bottom));
-  }
-  .tabbar a { display: grid; justify-items: center; gap: 0.1rem; min-height: 52px; padding-top: 0.35rem; font-size: 0.75rem; color: var(--muted); text-decoration: none; font-weight: 600; position: relative; }
-  .tabbar a[aria-current="page"] { color: var(--accent); }
-  .tabbar .badge { position: absolute; top: 0.1rem; left: calc(50% + 0.35rem); min-width: 1.1rem; height: 1.1rem; font-size: 0.6875rem; padding: 0 0.3rem; }
-  .tiles { grid-template-columns: 1fr 1fr; }
-  .tiles.wide { grid-template-columns: 1fr; }
-  .summary { padding: 1rem; }
-  .summary .big { font-size: 1.125rem; }
-  .rooms { grid-template-columns: 1fr; }
-  .tool { grid-template-columns: 2.5rem minmax(0, 1fr); }
-  .tool .levels-wrap { grid-column: 1 / -1; justify-items: start; }
-  .tool .tool-note { grid-column: 1 / -1; }
-  .levels { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; }
-  .levels label { justify-content: center; padding: 0 0.2rem; font-size: 0.8125rem; }
-  .wizard .card { padding: 1.25rem; }
-  .card { padding: 1rem; }
-  .log { padding: 0.25rem 1rem; }
-  .expanded { margin: 0 -1rem; padding: 1rem !important; }
-  .trail { padding-left: 0; }
-  .rows.wrap-sm > li { flex-wrap: wrap; }
-  .rows.wrap-sm .row-end { margin-left: 3.4rem; justify-content: flex-start; }
-  .page-head .actions { width: 100%; }
-  .mockbar .theme { margin-left: 0; }
+/* ---------- Phone ---------- */
+@media (max-width: 760px) {
+  body { font-size: 15px; }
+  .shell { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
+  .rail { display: none; }
+  .main { height: auto; min-height: 100vh; padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .ph { padding: 18px 18px 14px; align-items: flex-start; flex-direction: column; gap: 12px; position: relative; }
+  .ph .ph-act { width: 100%; }
+  .ph .ph-act .btn { height: 44px; flex: 1; justify-content: center; }
+  .ph .mtop { position: absolute; right: 12px; top: 12px; display: flex; }
+  .md { display: block; }
+  .master { padding: 0 18px 32px; overflow: visible; }
+  .detail { display: none; box-shadow: none; padding: 0 18px 40px; overflow: visible; background: var(--bg); }
+  .md.has-detail .master, .md.has-detail ~ * { display: none; }
+  .md.has-detail .detail { display: block; }
+  .main.pushed .ph, .main.pushed .impact { display: none; }
+  .back { display: flex; align-items: center; gap: 4px; height: 48px; margin: 0 -6px; color: var(--ink-2); text-decoration: none; position: sticky; top: 0; background: var(--bg); z-index: 2; border-bottom: 1px solid var(--rule); margin-bottom: 16px; }
+  .row { min-height: 56px; padding: 8px 0; margin: 0; gap: 4px 12px; }
+  a.row[aria-current="true"] { background: transparent; }
+  a.row[aria-current="true"]::before { display: none; }
+  .colhead { display: none; }
+  .r-pres { grid-template-columns: 1fr auto; grid-template-areas: "n l" "f u"; }
+  .r-pres { grid-template-areas: "n l" "f t"; } .r-pres .c-n { grid-area: n; } .r-pres .c-l { grid-area: l; justify-self: end; } .r-pres .c-t { grid-area: t; justify-self: end; } .r-pres .c-f { grid-area: f; } .r-pres .c-u { display: none; }
+  .r-dec { grid-template-columns: 1fr auto; grid-template-areas: "s s" "o t"; }
+  .r-dec .c-t { grid-area: t; justify-self: end; color: var(--ink-3); font-size: 12.5px; } .r-dec .c-o { grid-area: o; font-size: 13px; } .r-dec .c-s { grid-area: s; } .r-dec .c-sp { display: none; }
+  .r-id, .r-sen, .r-ag { grid-template-columns: 1fr auto; }
+  .r-id > :nth-child(n+3), .r-sen > :nth-child(n+3), .r-ag > :nth-child(n+3) { display: none; }
+  .r-id > :nth-child(2), .r-ag > :nth-child(2) { justify-self: end; }
+  .r-sen > :nth-child(2) { display: none; } .r-sen > :nth-child(4) { display: block; justify-self: end; font-size: 13px; }
+  .ghead { padding-top: 18px; }
+  .kv { grid-template-columns: 112px 1fr; }
+  .lines li { flex-wrap: wrap; }
+  .kv dd code { word-break: break-all; }
+  .keeps { grid-template-columns: 1fr; gap: 8px; }
+  .impact { padding: 12px 18px; }
+  .chain li { grid-template-columns: 22px 1fr; gap: 2px 10px; }
+  .chain .st { background: var(--bg); }
+  .chain .k { grid-column: 2; padding: 0; }
+  .chain .v { grid-column: 2; }
+  /* matrix becomes stacked action blocks */
+  table.mx, table.mx tbody, table.mx tr, table.mx td { display: block; width: 100%; }
+  table.mx thead { display: none; }
+  table.mx tr { display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--rule); padding: 8px 0 12px; }
+  table.mx tr.cur td { background: transparent; } table.mx tr.cur td:first-child { box-shadow: none; }
+  table.mx td { border: 0; height: auto; padding: 0; }
+  table.mx td.act { grid-column: 1 / -1; }
+  table.mx td.needc { grid-column: 1 / -1; margin: 2px 0 6px; }
+  table.mx td.cell { border: 1px solid var(--rule); margin-left: -1px; }
+  table.mx td.cell:nth-of-type(3) { border-radius: 6px 0 0 6px; margin-left: 0; } table.mx td.cell:nth-of-type(5) { border-radius: 0 6px 6px 0; }
+  .hold { height: 44px; grid-auto-flow: column; gap: 8px; font-size: 13px; color: var(--ink-2); }
+  .hold::after { content: attr(data-role); }
+  table.mx td.floor { grid-column: 1 / -1; text-align: left; }
+  table.mx td.wh { grid-column: 1 / -1; margin-top: 8px; }
+  table.mx tr.sec-row { display: block; padding: 18px 0 4px; }
+  .need { height: 44px; }
+  .cov td.sp { width: 96px; } .cov td.m { width: auto; } .cov th.capc, .cov td.capc { display: none; }
+  .cov tr.gapnote td { height: auto; padding: 0 0 10px; color: var(--ink-3); font-size: 12.5px; border-bottom: 1px solid var(--rule); }
+  .seg { max-width: none; }
+  .tabbar { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--pane); border-top: 1px solid var(--rule); padding-bottom: env(safe-area-inset-bottom); }
+  .tabbar a, .tabbar button { height: 58px; display: grid; place-items: center; align-content: center; gap: 3px; font-size: 11px; color: var(--ink-3); text-decoration: none; background: none; border: 0; cursor: pointer; }
+  .tabbar [aria-current="page"] { color: var(--ink); font-weight: 500; }
+  .tabbar svg { stroke: currentColor; fill: none; stroke-width: 1.6; }
+  .sheet.on { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: var(--pane); border-radius: 14px 14px 0 0; box-shadow: var(--shadow); padding: 8px 12px calc(16px + env(safe-area-inset-bottom)); }
+  .sheet a, .sheet button.sheet-i { display: flex; align-items: center; height: 52px; padding: 0 10px; text-decoration: none; border-bottom: 1px solid var(--rule); width: 100%; background: none; border-left: 0; border-right: 0; border-top: 0; font-size: 15px; text-align: left; cursor: pointer; }
+  .sheet a .tail { margin-left: auto; color: var(--ink-3); font-size: 13px; }
+  .sheet .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--rule-2); margin: 4px auto 8px; }
+  .menu { left: 12px !important; right: 12px; width: auto; }
+  .setup-in { padding-top: 28px; }
+  .btn { height: 44px; }
+  .filters { gap: 10px 16px; } .filters select { height: 36px; }
 }
-.topbar { display: none; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--line-soft); background: var(--panel); }
-
-@media (prefers-reduced-motion: no-preference) {
-  button, .button, .nav a { transition: background-color 0.15s, color 0.15s; }
-}
-@media (hover: hover) {
-  button:not(:disabled):hover, .button:hover { filter: brightness(1.08); }
-}
+@media (min-width: 761px) { .mtop { display: none !important; } .cov tr.gapnote { display: none; } }
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></symbol>
-  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></symbol>
-  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-6 6.5-6s5.9 2.4 6.5 6"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.2c2.6.2 4.5 2.4 5 5.3"/></symbol>
-  <symbol id="i-device" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="3"/><circle cx="12" cy="9" r="2.5"/><path d="M9.5 16h5"/></symbol>
-  <symbol id="i-assistant" viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"/></symbol>
-  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></symbol>
-  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></symbol>
-  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></symbol>
-  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
-  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
-  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.3v.2"/></symbol>
-  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.7v.2"/></symbol>
-  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21"/></symbol>
-  <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 10.5l5-3v9l-5-3"/></symbol>
-  <symbol id="i-room" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 13h7v7"/></symbol>
-  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/></symbol>
-  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 01-12 0zM12 17v4"/></symbol>
-  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
-  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></symbol>
-  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 018 0v3"/></symbol>
-  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
-  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0012 3z"/></symbol>
-  <symbol id="i-temp" viewBox="0 0 24 24"><path d="M14 14.5V5a2 2 0 00-4 0v9.5a4 4 0 104 0z"/></symbol>
-  <symbol id="i-car" viewBox="0 0 24 24"><path d="M5 16V11l2-5h10l2 5v5M3 16h18v3H3zM5 11h14"/></symbol>
-  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></symbol>
-  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
-  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-  <symbol id="i-user-q" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.7 9.5a2.4 2.4 0 114 1.8c-.9.6-1.7 1.1-1.7 2.2M12 16.6v.2"/></symbol>
-  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></symbol>
-</svg>
-
-<a class="button skip" href="#content">Skip to content</a>
 <div class="shell">
-  <aside class="sidebar" aria-label="Main">
-    <div class="brand">
-      <span class="brand-mark"><svg class="icon"><use href="#i-shield"/></svg></span>
-      <div><strong>attest</strong><span>Maple House</span></div>
-    </div>
-    <nav aria-label="Sections">
-      <ul class="nav">
-        <li><a href="#home" data-nav="home"><svg class="icon"><use href="#i-home"/></svg>Home</a></li>
-        <li><a href="#people" data-nav="people"><svg class="icon"><use href="#i-people"/></svg>People</a></li>
-        <li><a href="#devices" data-nav="devices"><svg class="icon"><use href="#i-device"/></svg>Devices <span class="badge" aria-label="1 new">1</span></a></li>
-        <li><a href="#assistants" data-nav="assistants"><svg class="icon"><use href="#i-assistant"/></svg>Assistants</a></li>
-        <li><a href="#activity" data-nav="activity"><svg class="icon"><use href="#i-activity"/></svg>Activity</a></li>
-        <li><a href="#settings" data-nav="settings"><svg class="icon"><use href="#i-settings"/></svg>Settings</a></li>
-      </ul>
-    </nav>
-    <div class="sidebar-foot">
-      <a class="button secondary" href="#setup/1" data-nav="setup">Run first-time setup</a>
-      <p class="small muted" style="margin:0;padding:0 0.25rem">Signed in as Noor Haddad</p>
+  <aside class="rail" aria-label="Domains">
+    <div class="brand"><b>attest</b><span>Maple House</span></div>
+    <button class="jump" type="button" data-palette><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>Jump to…<kbd>⌘K</kbd></button>
+    <nav aria-label="Domains"><ul class="nav" id="nav"></ul></nav>
+    <div class="rail-foot">
+      <ul class="nav" id="nav2"></ul>
+      <div class="me"><span>Noor Haddad</span><button class="linkbtn" type="button" data-theme-toggle>Dark</button></div>
     </div>
   </aside>
-
-  <div class="main">
-    <div class="topbar" aria-label="Header">
-      <div class="brand">
-        <span class="brand-mark"><svg class="icon"><use href="#i-shield"/></svg></span>
-        <div><strong>attest</strong><span>Maple House</span></div>
-      </div>
-      <span class="avatar a1" style="width:2.25rem;height:2.25rem" role="img" aria-label="Noor Haddad, signed in">NH</span>
-    </div>
-    <div class="mockbar" aria-label="Mockup controls">
-      <span class="label">Mockup</span>
-      <span id="states-label">Show:</span>
-      <nav id="states" aria-labelledby="states-label"></nav>
-      <span class="theme"><button type="button" class="secondary" id="theme">Theme: system</button></span>
-    </div>
-
-    <main id="content" class="content">
-
-<!-- ============================ SETUP ============================ -->
-<section data-screen="setup" data-default-view="1" data-states="normal problem" hidden>
-  <div class="wizard">
-    <ol class="wizard-steps" aria-label="Setup progress">
-      <li data-step="1">Welcome</li><li data-step="2">Accounts</li><li data-step="3">Your space</li><li data-step="4">People</li><li data-step="5">Done</li>
-    </ol>
-
-    <div data-view="1">
-      <div class="card hero">
-        <span class="brand-mark"><svg class="icon"><use href="#i-shield"/></svg></span>
-        <h1 tabindex="-1">Let your assistants know who they're talking to</h1>
-        <p>attest listens to the microphones and cameras you already have, works out who is in the room, and only lets an assistant act for someone in the ways that person has allowed.</p>
-        <ul class="checklist">
-          <li><svg class="icon"><use href="#i-check"/></svg><span>Uses the accounts you already have. Nobody gets a new password.</span></li>
-          <li><svg class="icon"><use href="#i-check"/></svg><span>Never stores voices or faces. Your devices keep those; attest only hears who they think it is.</span></li>
-          <li><svg class="icon"><use href="#i-check"/></svg><span>Everyone decides for themselves what an assistant may do for them.</span></li>
-        </ul>
-        <div class="actions" style="justify-content:center;margin-top:1.75rem"><a class="button" href="#setup/2">Get started</a></div>
-        <p class="small muted" style="margin-top:1rem">Takes about five minutes.</p>
-      </div>
-    </div>
-
-    <div data-view="2">
-      <div class="card">
-        <h1 tabindex="-1">Connect your accounts</h1>
-        <p class="muted">attest uses your existing sign-in service for people and their roles. Pick yours and we'll set up what attest needs there.</p>
-        <fieldset class="tiles" style="margin-top:1.25rem">
-          <legend class="visually-hidden">Account service</legend>
-          <label class="tile"><input type="radio" name="idp" checked><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Keycloak</strong><span>Self-hosted</span></label>
-          <label class="tile"><input type="radio" name="idp"><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Auth0</strong><span>Cloud</span></label>
-          <label class="tile"><input type="radio" name="idp"><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Ory</strong><span>Cloud or self-hosted</span></label>
-          <label class="tile"><input type="radio" name="idp"><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Something else</strong><span>Any OpenID provider</span></label>
-        </fieldset>
-
-        <div data-when="normal" id="idp-form">
-          <form class="inline-form" onsubmit="connectIdp(event)">
-            <label class="field">Address of your Keycloak
-              <input type="url" value="https://id.maple.home" autocomplete="url">
-            </label>
-            <button>Connect</button>
-          </form>
-          <p class="hint" style="margin-top:0.5rem">You'll be asked to sign in to Keycloak as an administrator once. attest doesn't keep that password.</p>
-        </div>
-
-        <div data-when="connecting" class="status" role="status" style="border-color:var(--accent);margin-top:0.5rem">
-          <span class="spinner" aria-hidden="true"></span><p>Connecting to id.maple.home…</p>
-        </div>
-
-        <div data-when="connected">
-          <div class="status" role="status">
-            <svg class="icon"><use href="#i-check"/></svg>
-            <div class="notice-body">
-              <p><strong>Connected to Keycloak at id.maple.home</strong></p>
-              <p>Found 4 people in the <em>home</em> realm. Here's what attest added there, so you don't have to:</p>
-              <ul class="checklist">
-                <li><svg class="icon"><use href="#i-check"/></svg><span>A sign-in for the page where people set themselves up</span></li>
-                <li><svg class="icon"><use href="#i-check"/></svg><span>Three roles: <em>attest admin</em>, <em>device</em> and <em>assistant</em></span></li>
-                <li><svg class="icon"><use href="#i-check"/></svg><span>Made you, Noor Haddad, an attest admin</span></li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        <div data-when="problem" class="problem" role="alert">
-          <svg class="icon"><use href="#i-alert"/></svg>
-          <div class="notice-body">
-            <p><strong>We couldn't reach id.maple.home</strong></p>
-            <p>Check the address is right and that Keycloak is running. If it uses a certificate you made yourself, you can trust it here.</p>
-            <div class="actions"><button type="button">Try again</button><button type="button" class="secondary">Trust its certificate</button></div>
-          </div>
-        </div>
-      </div>
-      <div class="wizard-foot"><a class="button quiet" href="#setup/1"><svg class="icon"><use href="#i-back"/></svg>Back</a><a class="button" href="#setup/3" data-when="connected">Continue</a></div>
-    </div>
-
-    <div data-view="3">
-      <div class="card">
-        <h1 tabindex="-1">Name your space</h1>
-        <p class="muted">This is how assistants and people will see it.</p>
-        <label class="field" style="margin:1.25rem 0 1.5rem">Name
-          <input type="text" value="Maple House">
-        </label>
-        <fieldset class="tiles wide" style="margin-bottom:0">
-          <legend style="font-weight:600;margin-bottom:0.5rem;padding:0">What kind of place is it?</legend>
-          <label class="tile"><input type="radio" name="preset" checked><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Household</strong><span>Family and regular guests. Everyday things are easy; unlocking doors and sending messages need more certainty.</span></label>
-          <label class="tile"><input type="radio" name="preset"><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Small office</strong><span>Colleagues and visitors. Assistants are stricter, and anything with company data needs two kinds of recognition.</span></label>
-        </fieldset>
-        <p class="hint" style="margin-top:0.75rem">You can change this later in Settings. Nothing to configure now.</p>
-      </div>
-      <div class="wizard-foot"><a class="button quiet" href="#setup/2/connected"><svg class="icon"><use href="#i-back"/></svg>Back</a><a class="button" href="#setup/4">Continue</a></div>
-    </div>
-
-    <div data-view="4">
-      <div class="card">
-        <h1 tabindex="-1">Invite people</h1>
-        <p class="muted">These people are already in Keycloak. Invite them to set themselves up: sign in, teach it their voice, and choose what assistants may do for them.</p>
-        <ul class="rows" style="margin-top:1rem">
-          <li><span class="avatar a1">NH</span><div class="row-main"><p><strong>Noor Haddad</strong> <span class="muted">(you)</span></p><p class="small muted">noor@maple.home</p></div><span class="row-end pill ok"><svg class="icon"><use href="#i-check"/></svg>Admin</span></li>
-          <li><label class="switch" style="flex:1"><span class="avatar a2">TR</span><span class="row-main"><strong>Tomás Reyes</strong><br><span class="small muted">tomas@maple.home</span></span><input type="checkbox" checked style="margin-left:auto" aria-label="Invite Tomás Reyes"></label></li>
-          <li><label class="switch" style="flex:1"><span class="avatar a3">IR</span><span class="row-main"><strong>Ilse Reyes</strong><br><span class="small muted">ilse@maple.home</span></span><input type="checkbox" checked style="margin-left:auto" aria-label="Invite Ilse Reyes"></label></li>
-          <li><label class="switch" style="flex:1"><span class="avatar a4">RH</span><span class="row-main"><strong>Ruth Haddad</strong><br><span class="small muted">ruth.haddad@example.net</span></span><input type="checkbox" style="margin-left:auto" aria-label="Invite Ruth Haddad"></label></li>
-        </ul>
-        <h2 style="margin-top:1.5rem;font-size:1.0625rem">Or share a link</h2>
-        <div class="copybox"><code>https://attest.maple.home/join</code><button type="button" class="secondary">Copy link</button></div>
-      </div>
-      <div class="wizard-foot"><a class="button quiet" href="#setup/3"><svg class="icon"><use href="#i-back"/></svg>Back</a><a class="button" href="#setup/5">Send 2 invites</a></div>
-    </div>
-
-    <div data-view="5">
-      <div class="card hero">
-        <span class="brand-mark" style="background:var(--ok)"><svg class="icon"><use href="#i-check"/></svg></span>
-        <h1 tabindex="-1">Maple House is ready</h1>
-        <p>Tomás and Ilse will get an email. Next, plug in or turn on a microphone or camera: it will show up under Devices, ready to adopt.</p>
-        <div class="actions" style="justify-content:center;margin-top:1.5rem"><a class="button" href="#home">Go to Home</a><a class="button secondary" href="#devices/empty">Add a device</a></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================ HOME ============================ -->
-<section data-screen="home" data-states="normal problem empty" hidden>
-  <div class="page-head">
-    <div><h1 tabindex="-1">Home</h1><p>Tuesday evening at Maple House</p></div>
-  </div>
-
-  <div data-when="normal" class="card summary">
-    <span class="summary-dot"><svg class="icon"><use href="#i-check"/></svg></span>
-    <div><p class="big">Three people are home, and everything is working.</p><p>Assistants are acting for Noor, Tomás and Ilse in the ways each of them allowed.</p></div>
-  </div>
-  <div data-when="problem" class="card summary">
-    <span class="summary-dot warn"><svg class="icon"><use href="#i-alert"/></svg></span>
-    <div><p class="big">Two things need you.</p><p>The front door camera is offline, and Keycloak can't be reached. Assistants still work, but more carefully.</p></div>
-  </div>
-
-  <div data-when="problem" class="problem" role="alert">
-    <svg class="icon"><use href="#i-alert"/></svg>
-    <div class="notice-body">
-      <p><strong>Can't reach Keycloak at id.maple.home</strong> since 18:52.</p>
-      <p>People can't sign in or change what assistants may do. Decisions keep using the roles attest saw last, for up to 24 hours.</p>
-      <div class="actions"><a class="button secondary" href="#settings/problem">Check connection</a></div>
-    </div>
-  </div>
-  <div data-when="problem" class="warning" role="status">
-    <svg class="icon"><use href="#i-alert"/></svg>
-    <div class="notice-body">
-      <p><strong>Front door camera is offline</strong> since 18:40. Unlocking the front door will be refused until it's back, because only it can confirm a face there.</p>
-      <div class="actions"><a class="button secondary" href="#devices/problem">See device</a></div>
-    </div>
-  </div>
-
-  <div data-when="normal problem">
-    <h2>Who's here</h2>
-    <div class="rooms">
-      <article class="card room">
-        <h3><svg class="icon"><use href="#i-room"/></svg>Kitchen <span class="count">2 people</span></h3>
-        <ul class="rows">
-          <li><span class="avatar a1">NH</span><div class="row-main"><p class="who">Noor</p>
-            <p class="sure"><span class="meter" data-level="3" aria-hidden="true"><i></i><i></i><i></i></span>Certain</p>
-            <p class="how">Voice and face · just now</p></div></li>
-          <li><span class="avatar a3">IR</span><div class="row-main"><p class="who">Ilse</p>
-            <p class="sure"><span class="meter" data-level="2" aria-hidden="true"><i></i><i></i><i></i></span>Sure</p>
-            <p class="how">Voice · 1 min ago</p></div></li>
-        </ul>
-      </article>
-      <article class="card room">
-        <h3><svg class="icon"><use href="#i-room"/></svg>Living room <span class="count">2 people</span></h3>
-        <ul class="rows">
-          <li><span class="avatar a2">TR</span><div class="row-main"><p class="who">Tomás</p>
-            <p class="sure"><span class="meter" data-level="1" aria-hidden="true"><i></i><i></i><i></i></span>Probably</p>
-            <p class="how">Voice · 9 min ago</p></div></li>
-          <li><span class="avatar a0"><svg class="icon"><use href="#i-user-q"/></svg></span><div class="row-main"><p class="who">Someone new</p>
-            <p class="sure"><span class="meter" data-level="0" aria-hidden="true"><i></i><i></i><i></i></span>Not recognised</p>
-            <p class="how">Voice · 2 min ago. Treated as a guest.</p></div></li>
-        </ul>
-      </article>
-      <article class="card room empty">
-        <h3><svg class="icon"><use href="#i-room"/></svg>Hallway <span class="count">Nobody</span></h3>
-        <p class="small muted" style="margin:0">Last: Ilse, 25 min ago</p>
-      </article>
-      <article class="card room empty">
-        <h3><svg class="icon"><use href="#i-room"/></svg>Front door <span class="count">Nobody</span></h3>
-        <p class="small muted" style="margin:0" data-when="normal">Last: Tomás, 1 hr ago</p>
-        <p class="pill warn" style="margin:0" data-when="problem"><svg class="icon"><use href="#i-alert"/></svg>Camera offline, can't tell</p>
-      </article>
-    </div>
-    <p class="small muted" style="margin:-0.75rem 0 1.5rem"><span class="meter" data-level="1" aria-hidden="true"><i></i><i></i><i></i></span> Probably · <span class="meter" data-level="2" aria-hidden="true"><i></i><i></i><i></i></span> Sure · <span class="meter" data-level="3" aria-hidden="true"><i></i><i></i><i></i></span> Certain (recognised two ways). <a href="#settings">What these mean</a></p>
-
-    <div class="grid-2">
-      <section class="card" aria-labelledby="recent-h">
-        <div class="card-head"><h2 id="recent-h">Recent decisions</h2><a href="#activity">See all</a></div>
-        <ul class="rows">
-          <li class="decision"><span class="mark ok"><svg class="icon"><use href="#i-check"/></svg></span>
-            <div class="row-main"><p class="what">Played music for Noor</p><p class="why">Allowed: Home assistant, in the Kitchen.</p></div><time>19:42</time></li>
-          <li class="decision"><span class="mark bad"><svg class="icon"><use href="#i-x"/></svg></span>
-            <div class="row-main"><p class="what">Didn't unlock the front door for Tomás</p><p class="why">Refused: only his voice was recognised. Unlocking needs his voice and his face.</p></div><time>19:38</time></li>
-          <li class="decision"><span class="mark ok"><svg class="icon"><use href="#i-check"/></svg></span>
-            <div class="row-main"><p class="what">Read Ilse's calendar to her</p><p class="why">Allowed: Home assistant, in the Kitchen.</p></div><time>19:31</time></li>
-          <li class="decision"><span class="mark bad"><svg class="icon"><use href="#i-x"/></svg></span>
-            <div class="row-main"><p class="what">Didn't send an email for someone new</p><p class="why">Refused: we didn't recognise who asked. Guests can only use things anyone may.</p></div><time>19:24</time></li>
-        </ul>
-      </section>
-
-      <section class="card health" aria-labelledby="health-h">
-        <div class="card-head"><h2 id="health-h">System</h2><a href="#devices">Devices</a></div>
-        <ul class="rows">
-          <li><span class="thing"><svg class="icon"><use href="#i-device"/></svg></span><div class="row-main"><p>Devices</p>
-            <p class="small muted" data-when="normal">4 working · 1 new to adopt</p><p class="small muted" data-when="problem">3 working · 1 offline · 1 new</p></div>
-            <span class="row-end" data-when="normal"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Good</span></span>
-            <span class="row-end" data-when="problem"><span class="pill warn"><svg class="icon"><use href="#i-alert"/></svg>1 offline</span></span></li>
-          <li><span class="thing"><svg class="icon"><use href="#i-key"/></svg></span><div class="row-main"><p>Keycloak</p><p class="small muted">Accounts and roles</p></div>
-            <span class="row-end" data-when="normal"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Connected</span></span>
-            <span class="row-end" data-when="problem"><span class="pill bad"><svg class="icon"><use href="#i-x"/></svg>Unreachable</span></span></li>
-          <li><span class="thing"><svg class="icon"><use href="#i-assistant"/></svg></span><div class="row-main"><p>Assistants</p><p class="small muted">2 assistants · 3 tool connections</p></div>
-            <span class="row-end"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Good</span></span></li>
-          <li><span class="thing"><svg class="icon"><use href="#i-people"/></svg></span><div class="row-main"><p>People</p><p class="small muted">4 people · Ruth hasn't been invited</p></div>
-            <span class="row-end"><a href="#people">Invite</a></span></li>
-        </ul>
-      </section>
-    </div>
-  </div>
-
-  <div data-when="empty" class="card empty-state">
-    <span class="thing"><svg class="icon"><use href="#i-home"/></svg></span>
-    <h2>Nobody to show yet</h2>
-    <p>Once a microphone or camera is adopted and people have taught it their voice or face, you'll see who's in each room here.</p>
-    <div class="actions"><a class="button" href="#devices/empty">Add a device</a><a class="button secondary" href="#people">Invite people</a></div>
-  </div>
-</section>
-
-<!-- ============================ DEVICES ============================ -->
-<section data-screen="devices" data-states="normal problem empty" hidden>
-  <div class="page-head">
-    <div><h1 tabindex="-1">Devices</h1><p>Microphones and cameras that tell attest who they think is there.</p></div>
-  </div>
-
-  <div data-when="normal problem">
-    <section class="card" aria-labelledby="new-h" style="border-color:var(--accent)">
-      <h2 id="new-h" style="display:flex;align-items:center;gap:0.5rem">New device found <span class="badge">1</span></h2>
-      <ul class="rows wrap-sm">
-        <li><span class="thing"><svg class="icon"><use href="#i-mic"/></svg></span>
-          <div class="row-main"><p><strong>Kitchen mic</strong></p><p class="small muted">Recognises voices · found on your network 3 min ago</p></div>
-          <span class="row-end"><button type="button" class="quiet">Ignore</button><button type="button">Adopt</button></span></li>
-      </ul>
-    </section>
-
-    <div data-when="problem" class="warning" role="status" style="margin-top:1.25rem">
-      <svg class="icon"><use href="#i-alert"/></svg>
-      <div class="notice-body"><p><strong>Front door camera stopped reporting at 18:40.</strong> It may be unplugged or off the network. Until it's back, nobody's face can be recognised at the front door, so only voices count there.</p></div>
-    </div>
-
-    <section class="card" aria-labelledby="adopted-h" style="margin-top:1.25rem">
-      <div class="card-head"><h2 id="adopted-h">Your devices</h2></div>
-      <ul class="rows wrap-sm">
-        <li><span class="thing"><svg class="icon"><use href="#i-mic"/></svg></span>
-          <div class="row-main"><p><strong>Living room speaker</strong></p><p class="small muted">Living room · recognises voices · knows 3 of 4 people</p></div>
-          <span class="row-end"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Working</span></span></li>
-        <li><span class="thing"><svg class="icon"><use href="#i-camera"/></svg></span>
-          <div class="row-main"><p><strong>Kitchen camera</strong></p><p class="small muted">Kitchen · recognises faces · knows 2 of 4 people</p></div>
-          <span class="row-end"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Working</span></span></li>
-        <li><span class="thing"><svg class="icon"><use href="#i-mic"/></svg></span>
-          <div class="row-main"><p><strong>Hallway panel</strong></p><p class="small muted">Hallway, Front door · recognises voices · knows 3 of 4 people</p></div>
-          <span class="row-end"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Working</span></span></li>
-        <li><span class="thing"><svg class="icon"><use href="#i-camera"/></svg></span>
-          <div class="row-main"><p><strong>Front door camera</strong></p><p class="small muted">Front door · recognises faces · knows 2 of 4 people</p></div>
-          <span class="row-end" data-when="normal"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Working</span></span>
-          <span class="row-end" data-when="problem"><span class="pill bad"><svg class="icon"><use href="#i-x"/></svg>Offline since 18:40</span></span></li>
-        <li><span class="thing"><svg class="icon"><use href="#i-car"/></svg></span>
-          <div class="row-main"><p><strong>Car cabin mic</strong></p><p class="small muted">Car · recognises voices · knows 2 of 4 people</p></div>
-          <span class="row-end"><span class="pill off"><svg class="icon"><use href="#i-info"/></svg>Asleep · car parked</span></span></li>
-      </ul>
-      <details class="advanced">
-        <summary>Advanced</summary>
-        <p class="small muted">Each device reports how strongly a voice or face matches each person, as a likelihood ratio. attest caps any one device so it can never be certain on its own.</p>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Device</th><th>Kind</th><th class="num">Strongest single report</th><th>Calibration</th><th>Last report</th></tr></thead>
-          <tbody>
-            <tr><td>Living room speaker</td><td>Voice</td><td class="num">LLR 6.0</td><td>voice-v1</td><td>19:42:10</td></tr>
-            <tr><td>Kitchen camera</td><td>Face</td><td class="num">LLR 8.0</td><td>face-v1</td><td>19:42:31</td></tr>
-            <tr><td>Hallway panel</td><td>Voice</td><td class="num">LLR 6.0</td><td>voice-v1</td><td>19:17:04</td></tr>
-            <tr><td>Front door camera</td><td>Face</td><td class="num">LLR 8.0</td><td>face-v1</td><td>18:40:12</td></tr>
-          </tbody>
-        </table></div>
-      </details>
-    </section>
-  </div>
-
-  <div data-when="empty" class="card empty-state">
-    <span class="thing"><svg class="icon"><use href="#i-device"/></svg></span>
-    <h2>No devices yet</h2>
-    <p>Turn on a microphone or camera that works with attest. When it's on the same network, it shows up here and you can adopt it with one click.</p>
-    <div class="actions"><span class="status" role="status" style="margin:0;display:inline-flex;align-items:center;border-color:var(--accent)"><span class="spinner" aria-hidden="true"></span>Looking for devices…</span></div>
-    <p class="small" style="margin-top:1.25rem"><a href="#devices">Add one by address instead</a></p>
-  </div>
-</section>
-
-<!-- ============================ ASSISTANTS ============================ -->
-<section data-screen="assistants" data-states="normal pending empty" hidden>
-  <div class="page-head">
-    <div><h1 tabindex="-1">Assistants &amp; tools</h1><p>What assistants can do, and how sure attest must be before it lets them.</p></div>
-  </div>
-
-  <div data-when="normal pending">
-    <div class="cols-2" style="margin-bottom:1.25rem">
-      <a class="card" href="#assistants" style="text-decoration:none;color:inherit;display:flex;gap:0.9rem;align-items:center;border-color:var(--accent)">
-        <span class="thing"><svg class="icon"><use href="#i-assistant"/></svg></span>
-        <span class="row-main"><strong>Home assistant</strong><br><span class="small muted">Speakers in every room · 3 people let it act for them</span></span>
-        <span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Online</span></a>
-      <a class="card" href="#assistants" title="Mockup: only the Home assistant view is drawn" style="text-decoration:none;color:inherit;display:flex;gap:0.9rem;align-items:center">
-        <span class="thing"><svg class="icon"><use href="#i-car"/></svg></span>
-        <span class="row-main"><strong>Car assistant</strong><br><span class="small muted">In the car · 2 people let it act for them</span></span>
-        <span class="pill off"><svg class="icon"><use href="#i-info"/></svg>Asleep</span></a>
-    </div>
-
-    <section class="card" aria-labelledby="add-h">
-      <h2 id="add-h">Add tools</h2>
-      <form class="inline-form" onsubmit="event.preventDefault();location.hash='#assistants/pending'">
-        <label class="field">Address of a tool server
-          <input type="url" placeholder="https://tools.example.com/mcp" value="https://ha.maple.home/mcp">
-        </label>
-        <button>Connect</button>
-      </form>
-      <p class="hint" style="margin-top:0.5rem">Assistants reach tools through attest, so every request is checked first.</p>
-
-      <div data-when="pending" style="margin-top:1.5rem">
-        <div class="info" role="status"><svg class="icon"><use href="#i-info"/></svg>
-          <div class="notice-body"><p><strong>Found 3 tools at Home control (ha.maple.home).</strong> We've suggested how careful to be with each. Change any, then add them.</p></div></div>
-        <ul class="rows">
-          <li class="tool"><span class="thing"><svg class="icon"><use href="#i-bulb"/></svg></span><div class="row-main"><p><strong>Turn lights on or off</strong></p><p class="small muted">Home control</p></div>
-            <div class="levels-wrap"><fieldset class="levels"><legend>Who can use Turn lights on or off</legend>
-              <label><input type="radio" name="t1" checked>Anyone</label><label><input type="radio" name="t1">Probably</label><label><input type="radio" name="t1">Sure</label><label><input type="radio" name="t1">Certain</label></fieldset><span class="suggest">Suggested: Anyone</span></div></li>
-          <li class="tool"><span class="thing"><svg class="icon"><use href="#i-temp"/></svg></span><div class="row-main"><p><strong>Change the heating</strong></p><p class="small muted">Home control</p></div>
-            <div class="levels-wrap"><fieldset class="levels"><legend>Who can use Change the heating</legend>
-              <label><input type="radio" name="t2">Anyone</label><label><input type="radio" name="t2" checked>Probably</label><label><input type="radio" name="t2">Sure</label><label><input type="radio" name="t2">Certain</label></fieldset><span class="suggest">Suggested: Probably</span></div></li>
-          <li class="tool"><span class="thing"><svg class="icon"><use href="#i-lock"/></svg></span><div class="row-main"><p><strong>Unlock the front door</strong></p><p class="small muted">Home control</p></div>
-            <div class="levels-wrap"><fieldset class="levels"><legend>Who can use Unlock the front door</legend>
-              <label><input type="radio" name="t3">Anyone</label><label><input type="radio" name="t3">Probably</label><label><input type="radio" name="t3">Sure</label><label><input type="radio" name="t3" checked>Certain</label></fieldset><span class="suggest">Suggested: Certain</span></div>
-            <p class="tool-note small warning" style="margin:0.25rem 0 0"><svg class="icon"><use href="#i-alert"/></svg><span>Certain means recognised two ways, such as voice and face. The front door has a camera and the Hallway panel's mic, so this works. In rooms with only a mic, it will always be refused.</span></p></li>
-        </ul>
-        <div class="actions" style="margin-top:1rem"><button type="button">Add 3 tools</button><button type="button" class="secondary">Cancel</button></div>
-      </div>
-    </section>
-
-    <section class="card" aria-labelledby="tools-h">
-      <div class="card-head"><h2 id="tools-h">Home assistant can use</h2></div>
-      <h3 style="display:flex;gap:0.5rem;align-items:center;margin-top:0.25rem"><svg class="icon"><use href="#i-plug"/></svg>Google Workspace <span class="pill ok" style="margin-left:auto"><svg class="icon"><use href="#i-check"/></svg>Connected</span></h3>
-      <ul class="rows" style="margin-bottom:1.25rem">
-        <li class="tool"><span class="thing"><svg class="icon"><use href="#i-cal"/></svg></span><div class="row-main"><p><strong>Read your calendar</strong></p><p class="small muted">Used 14 times today</p></div>
-          <div class="levels-wrap"><fieldset class="levels"><legend>Who can use Read your calendar</legend>
-            <label><input type="radio" name="g1">Anyone</label><label><input type="radio" name="g1">Probably</label><label><input type="radio" name="g1" checked>Sure</label><label><input type="radio" name="g1">Certain</label></fieldset></div></li>
-        <li class="tool"><span class="thing"><svg class="icon"><use href="#i-mail"/></svg></span><div class="row-main"><p><strong>Send email as you</strong></p><p class="small muted">Used twice today</p></div>
-          <div class="levels-wrap"><fieldset class="levels"><legend>Who can use Send email as you</legend>
-            <label><input type="radio" name="g2">Anyone</label><label><input type="radio" name="g2">Probably</label><label><input type="radio" name="g2" checked>Sure</label><label><input type="radio" name="g2">Certain</label></fieldset></div></li>
-      </ul>
-      <h3 style="display:flex;gap:0.5rem;align-items:center"><svg class="icon"><use href="#i-plug"/></svg>Music <span class="pill ok" style="margin-left:auto"><svg class="icon"><use href="#i-check"/></svg>Connected</span></h3>
-      <ul class="rows">
-        <li class="tool"><span class="thing"><svg class="icon"><use href="#i-music"/></svg></span><div class="row-main"><p><strong>Play and pause music</strong></p><p class="small muted">Used 31 times today</p></div>
-          <div class="levels-wrap"><fieldset class="levels"><legend>Who can use Play and pause music</legend>
-            <label><input type="radio" name="m1">Anyone</label><label><input type="radio" name="m1" checked>Probably</label><label><input type="radio" name="m1">Sure</label><label><input type="radio" name="m1">Certain</label></fieldset></div></li>
-        <li class="tool"><span class="thing"><svg class="icon"><use href="#i-phone"/></svg></span><div class="row-main"><p><strong>Call emergency services</strong></p><p class="small muted">Always allowed, for anyone</p></div>
-          <div class="levels-wrap"><span class="tag">Anyone · can't be changed</span></div></li>
-      </ul>
-      <details class="advanced">
-        <summary>Advanced</summary>
-        <p class="small muted">Levels map to permissions by name. These are the names your tool server and Keycloak roles use.</p>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Tool</th><th>Permission</th><th>Level</th></tr></thead>
-          <tbody>
-            <tr><td>Read your calendar</td><td><code>calendar.read</code></td><td><code>confident</code></td></tr>
-            <tr><td>Send email as you</td><td><code>email.send</code></td><td><code>confident</code></td></tr>
-            <tr><td>Play and pause music</td><td><code>music.control</code></td><td><code>presumed</code></td></tr>
-            <tr><td>Call emergency services</td><td><code>emergency.call</code></td><td>floor</td></tr>
-          </tbody>
-        </table></div>
-      </details>
-    </section>
-  </div>
-
-  <div data-when="empty" class="card empty-state">
-    <span class="thing"><svg class="icon"><use href="#i-assistant"/></svg></span>
-    <h2>No assistants yet</h2>
-    <p>Point your assistant at attest instead of straight at its tools. It shows up here the first time it asks for something.</p>
-    <div class="copybox" style="max-width:30rem;margin:1rem auto 0"><code>https://attest.maple.home/tools</code><button type="button" class="secondary">Copy</button></div>
-  </div>
-</section>
-
-<!-- ============================ PEOPLE ============================ -->
-<section data-screen="people" data-states="normal problem" hidden>
-  <div data-view="main">
-    <div class="page-head">
-      <div><h1 tabindex="-1">People</h1><p>From Keycloak. Roles are managed there.</p></div>
-      <div class="actions"><button type="button"><svg class="icon"><use href="#i-link"/></svg>Copy invite link</button></div>
-    </div>
-    <div data-when="problem" class="problem" role="alert"><svg class="icon"><use href="#i-alert"/></svg>
-      <div class="notice-body"><p><strong>Can't reach Keycloak.</strong> Showing people and roles as of 18:52. New people can't sign in until it's back.</p></div></div>
-    <section class="card">
-      <ul class="rows wrap-sm">
-        <li><span class="avatar a1">NH</span><div class="row-main"><p><strong>Noor Haddad</strong> <span class="tags" style="display:inline-flex"><span class="tag">Admin</span><span class="tag">Resident</span></span></p>
-          <div class="enrol-marks"><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Signed in</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Voice</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Face</span></div></div>
-          <span class="row-end small muted">2 assistants</span></li>
-        <li><span class="avatar a2">TR</span><div class="row-main"><p><a href="#people/tomas"><strong>Tomás Reyes</strong></a> <span class="tags" style="display:inline-flex"><span class="tag">Resident</span></span></p>
-          <div class="enrol-marks"><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Signed in</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Voice</span><span class="no">— No face</span></div></div>
-          <span class="row-end small muted">2 assistants</span></li>
-        <li><span class="avatar a3">IR</span><div class="row-main"><p><strong>Ilse Reyes</strong> <span class="tags" style="display:inline-flex"><span class="tag">Child</span></span></p>
-          <div class="enrol-marks"><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Signed in</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Voice</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Face</span></div></div>
-          <span class="row-end small muted">1 assistant</span></li>
-        <li><span class="avatar a4">RH</span><div class="row-main"><p><strong>Ruth Haddad</strong> <span class="tags" style="display:inline-flex"><span class="tag">Guest</span></span></p>
-          <div class="enrol-marks"><span class="no">Not invited yet</span></div></div>
-          <span class="row-end"><button type="button" class="secondary">Invite</button></span></li>
-      </ul>
-    </section>
-    <p class="small muted" style="margin-top:1rem">Mockup: only Tomás has a detail page. To add someone, add them in Keycloak. They appear here within a minute.</p>
-  </div>
-
-  <div data-view="tomas">
-    <a class="crumb" href="#people"><svg class="icon"><use href="#i-back"/></svg>People</a>
-    <div class="person-head">
-      <span class="avatar a2 lg">TR</span>
-      <div><h1 tabindex="-1">Tomás Reyes</h1><p class="muted" style="margin:0">tomas@maple.home · Resident</p></div>
-    </div>
-    <div class="grid-2">
-      <div>
-        <section class="card" aria-labelledby="tchose-h">
-          <h2 id="tchose-h">What Tomás has allowed</h2>
-          <p class="small muted">He chose these himself when he set up. He can change them any time on his own page.</p>
-          <h3 style="margin-top:1rem">Home assistant may:</h3>
-          <ul class="allow-list">
-            <li><span>Play and pause music <span class="lvl">· Probably him</span></span></li>
-            <li><span>Read his calendar <span class="lvl">· Sure it's him</span></span></li>
-            <li><span>Change the heating <span class="lvl">· Probably him</span></span></li>
-          </ul>
-          <h3 style="margin-top:1.25rem">Car assistant may:</h3>
-          <ul class="allow-list">
-            <li><span>Play and pause music <span class="lvl">· Probably him</span></span></li>
-            <li><span>Read his calendar <span class="lvl">· Sure it's him</span></span></li>
-          </ul>
-          <h3 style="margin-top:1.25rem">Not allowed:</h3>
-          <p class="small muted" style="margin:0">Send email as him</p>
-        </section>
-        <section class="card" aria-labelledby="tset-h">
-          <h2 id="tset-h">Set up by you</h2>
-          <ul class="allow-list">
-            <li class="managed"><span><strong>Home assistant</strong> may unlock the front door <span class="lvl">· Certain it's him · only at the front door · until 31 Dec</span></span>
-              <button type="button" class="secondary">Change</button></li>
-          </ul>
-          <p class="small muted" style="margin-top:0.75rem">Tomás sees this on his page but can't change it.</p>
-        </section>
-      </div>
-      <div>
-        <section class="card" aria-labelledby="trec-h">
-          <h2 id="trec-h">Recognised by</h2>
-          <ul class="rows">
-            <li><span class="thing"><svg class="icon"><use href="#i-mic"/></svg></span><div class="row-main"><p>Voice</p><p class="small muted">Taught on 3 Nov</p></div><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Set up</span></li>
-            <li><span class="thing"><svg class="icon"><use href="#i-camera"/></svg></span><div class="row-main"><p>Face</p><p class="small muted">Not taught yet</p></div><span class="pill off">Not set up</span></li>
-          </ul>
-          <div class="warning" style="margin:1rem 0 0"><svg class="icon"><use href="#i-info"/></svg><p class="small">Without his face, Tomás can't reach <strong>Certain</strong>, so the front door won't unlock for him. <a href="#people/tomas">Send him a reminder</a></p></div>
-        </section>
-        <section class="card" aria-labelledby="troles-h">
-          <h2 id="troles-h">Roles</h2>
-          <div class="tags"><span class="tag">Resident</span></div>
-          <p class="small muted" style="margin-top:0.75rem">From Keycloak. <a href="#people/tomas">Open in Keycloak</a></p>
-        </section>
-        <section class="card">
-          <h2>Remove Tomás</h2>
-          <p class="small muted">Removes everything attest knows about him and asks your devices to forget his voice and face. His Keycloak account stays.</p>
-          <button type="button" class="danger">Remove from attest</button>
-        </section>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================ ACTIVITY ============================ -->
-<section data-screen="activity" data-states="normal empty" hidden>
-  <div class="page-head">
-    <div><h1 tabindex="-1">Activity</h1><p>Every time an assistant asked to do something, and what attest said.</p></div>
-    <div class="actions"><button type="button" class="secondary"><svg class="icon"><use href="#i-down"/></svg>Export</button></div>
-  </div>
-  <form class="filters" onsubmit="event.preventDefault()">
-    <fieldset class="chips"><legend class="visually-hidden">Show</legend>
-      <label><input type="radio" name="af" checked>All</label><label><input type="radio" name="af">Allowed</label><label><input type="radio" name="af">Refused</label></fieldset>
-    <label class="field">Person<select><option>Everyone</option><option>Noor</option><option>Tomás</option><option>Ilse</option><option>Not recognised</option></select></label>
-    <label class="field">Assistant<select><option>All assistants</option><option>Home assistant</option><option>Car assistant</option></select></label>
-    <label class="field search">Search<input type="search" placeholder="e.g. door, email"></label>
-  </form>
-
-  <div data-when="normal">
-    <p class="day">Today</p>
-    <section class="card log">
-      <ul class="rows">
-        <li class="decision"><span class="mark ok"><svg class="icon"><use href="#i-check"/></svg></span>
-          <div class="row-main"><p class="what">Played music for Noor</p><p class="why">Allowed. Home assistant, Kitchen. Noor allowed it, and we were certain it was her.</p></div><time>19:42</time></li>
-        <li class="decision expanded"><span class="mark bad"><svg class="icon"><use href="#i-x"/></svg></span>
-          <div class="row-main"><p class="what">Didn't unlock the front door for Tomás</p><p class="why">Refused. Home assistant, Front door. We were sure it was Tomás from his voice, but unlocking needs two ways, such as voice and face, and the camera didn't see him.</p></div><time>19:38</time>
-          <div class="trail">
-            <p class="small" style="margin:0.75rem 0 0.25rem"><strong>What we checked</strong></p>
-            <ol class="small">
-              <li><span class="reason-ok">Yes</span> Home assistant is allowed to ask to unlock doors.</li>
-              <li><span class="reason-ok">Yes</span> We believe the person asking is Tomás.</li>
-              <li><span class="reason-ok">Yes</span> You let Home assistant unlock the front door for Tomás.</li>
-              <li><span class="reason-ok">Yes</span> His Keycloak role, Resident, may unlock doors.</li>
-              <li><span class="reason-bad">No</span> Certain it's him: recognised only one way (voice).</li>
-            </ol>
-            <details class="advanced" open>
-              <summary>Advanced</summary>
-              <div class="table-wrap"><table>
-                <thead><tr><th>Time</th><th>Device</th><th>Kind</th><th>Best match</th><th class="num">LLR</th><th class="num">Runner-up</th></tr></thead>
-                <tbody>
-                  <tr><td>19:38:02</td><td>Hallway panel</td><td>voice</td><td>tomas</td><td class="num">5.4</td><td class="num">noor −2.1</td></tr>
-                  <tr><td>19:37:55</td><td>Hallway panel</td><td>voice</td><td>tomas</td><td class="num">4.8</td><td class="num">noor −1.6</td></tr>
-                  <tr><td>19:37:40</td><td>Front door camera</td><td>face</td><td>no match</td><td class="num">—</td><td class="num">—</td></tr>
-                </tbody>
-              </table></div>
-              <p class="small" style="margin-top:0.75rem">Belief: <code>tomas</code> 0.982 · fresh 6 s · modalities 1. Required band <code>corroborated</code>: posterior ≥ 0.99, age ≤ 2 min, modalities ≥ 2.<br>
-              Reasons: <code>agent may request door.unlock</code> · <code>leading identity tomas</code> · <code>delegation d-71 covers door.unlock</code> · <code>engine: resident holds door.unlock</code> · <code>band corroborated: confidence 0.982 &lt; 0.99; modalities 1 &lt; min 2</code></p>
-            </details>
-          </div></li>
-        <li class="decision"><span class="mark ok"><svg class="icon"><use href="#i-check"/></svg></span>
-          <div class="row-main"><p class="what">Read Ilse's calendar to her</p><p class="why">Allowed. Home assistant, Kitchen. Ilse allowed it, and we were sure it was her.</p></div><time>19:31</time></li>
-        <li class="decision"><span class="mark bad"><svg class="icon"><use href="#i-x"/></svg></span>
-          <div class="row-main"><p class="what">Didn't send an email for someone new</p><p class="why">Refused. Home assistant, Living room. We didn't recognise who asked; guests can only use things anyone may.</p></div><time>19:24</time></li>
-        <li class="decision"><span class="mark ok"><svg class="icon"><use href="#i-check"/></svg></span>
-          <div class="row-main"><p class="what">Turned on the living room lights</p><p class="why">Allowed. Anyone may.</p></div><time>19:20</time></li>
-        <li class="decision"><span class="mark bad"><svg class="icon"><use href="#i-x"/></svg></span>
-          <div class="row-main"><p class="what">Didn't send an email for Ilse</p><p class="why">Refused. Car assistant. Ilse hasn't allowed it to send email for her.</p></div><time>17:05</time></li>
-      </ul>
-    </section>
-    <p class="day">Yesterday</p>
-    <section class="card log">
-      <ul class="rows">
-        <li class="decision"><span class="mark ok"><svg class="icon"><use href="#i-check"/></svg></span>
-          <div class="row-main"><p class="what">Unlocked the front door for Noor</p><p class="why">Allowed. Home assistant, Front door. Certain: voice and face.</p></div><time>18:12</time></li>
-      </ul>
-    </section>
-  </div>
-  <div data-when="empty" class="card empty-state">
-    <span class="thing"><svg class="icon"><use href="#i-activity"/></svg></span>
-    <h2>Nothing yet</h2>
-    <p>When an assistant asks to do something for someone, you'll see what it asked and why it was allowed or refused.</p>
-  </div>
-</section>
-
-<!-- ============================ SETTINGS ============================ -->
-<section data-screen="settings" data-states="normal problem" hidden>
-  <div class="page-head"><div><h1 tabindex="-1">Settings</h1><p>Maple House</p></div></div>
-  <div class="grid-2">
-    <div>
-      <section class="card" aria-labelledby="conn-h">
-        <h2 id="conn-h">Accounts</h2>
-        <ul class="rows wrap-sm">
-          <li><span class="thing"><svg class="icon"><use href="#i-key"/></svg></span><div class="row-main"><p><strong>Keycloak</strong></p><p class="small muted">id.maple.home · realm “home” · 4 people</p></div>
-            <span class="row-end" data-when="normal"><span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Connected</span></span>
-            <span class="row-end" data-when="problem"><span class="pill bad"><svg class="icon"><use href="#i-x"/></svg>Unreachable</span></span></li>
-        </ul>
-        <div data-when="problem" class="problem" role="alert" style="margin:1rem 0 0"><svg class="icon"><use href="#i-alert"/></svg>
-          <div class="notice-body"><p><strong>No answer from id.maple.home since 18:52.</strong> Last tried 19:44. Assistants keep using the roles seen last, for up to 24 hours.</p>
-          <div class="actions"><button type="button">Try now</button><button type="button" class="secondary">Change address</button></div></div></div>
-        <div class="actions" data-when="normal" style="margin-top:1rem"><button type="button" class="secondary">Check connection</button><button type="button" class="quiet">Switch provider</button></div>
-      </section>
-
-      <section class="card" aria-labelledby="preset-h">
-        <h2 id="preset-h">How careful to be</h2>
-        <fieldset class="tiles wide" style="margin:0">
-          <legend class="visually-hidden">Preset</legend>
-          <label class="tile"><input type="radio" name="sp" checked><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Household</strong><span>Everyday things are easy; doors and messages need more certainty.</span></label>
-          <label class="tile"><input type="radio" name="sp"><svg class="icon check-mark"><use href="#i-check"/></svg><strong>Small office</strong><span>Stricter. Company data needs two kinds of recognition.</span></label>
-        </fieldset>
-        <h3 style="margin-top:1.25rem">The four levels</h3>
-        <ul class="allow-list">
-          <li><span><strong>Anyone</strong> <span class="lvl">· no need to know who's asking</span></span></li>
-          <li><span><strong>Probably</strong> <span class="lvl">· recognised fairly recently</span></span></li>
-          <li><span><strong>Sure</strong> <span class="lvl">· recognised clearly in the last few minutes</span></span></li>
-          <li><span><strong>Certain</strong> <span class="lvl">· recognised two ways, such as voice and face, just now</span></span></li>
-        </ul>
-        <details class="advanced">
-          <summary>Advanced</summary>
-          <p class="small muted">Changing a number switches the preset to “Custom”. It takes effect on the next decision; nothing to restart.</p>
-          <div class="table-wrap"><table>
-            <thead><tr><th>Level</th><th>Band</th><th class="num">At least</th><th class="num">Within</th><th class="num">Kinds</th></tr></thead>
-            <tbody>
-              <tr><td>Probably</td><td><code>presumed</code></td><td class="num"><input type="number" value="0.80" step="0.01" aria-label="Probably: minimum posterior"></td><td class="num"><input type="number" value="900" aria-label="Probably: max age in seconds"> s</td><td class="num"><input type="number" value="1" aria-label="Probably: kinds"></td></tr>
-              <tr><td>Sure</td><td><code>confident</code></td><td class="num"><input type="number" value="0.95" step="0.01" aria-label="Sure: minimum posterior"></td><td class="num"><input type="number" value="300" aria-label="Sure: max age in seconds"> s</td><td class="num"><input type="number" value="1" aria-label="Sure: kinds"></td></tr>
-              <tr><td>Certain</td><td><code>corroborated</code></td><td class="num"><input type="number" value="0.99" step="0.01" aria-label="Certain: minimum posterior"></td><td class="num"><input type="number" value="120" aria-label="Certain: max age in seconds"> s</td><td class="num"><input type="number" value="2" aria-label="Certain: kinds"></td></tr>
-            </tbody>
-          </table></div>
-          <label class="field" style="margin-top:1rem;max-width:20rem">Chance it's someone we don't know <span class="hint">prior for unknown people</span>
-            <input type="number" value="0.10" step="0.01"></label>
-        </details>
-      </section>
-    </div>
-    <div>
-      <section class="card" aria-labelledby="backup-h">
-        <h2 id="backup-h">Backup</h2>
-        <p class="small muted">Saves people, roles you set here, permissions and settings. No voices or faces: attest never has them.</p>
-        <p class="small">Last automatic backup: today at 03:00</p>
-        <div class="actions"><button type="button"><svg class="icon"><use href="#i-down"/></svg>Download backup</button><button type="button" class="secondary">Restore…</button></div>
-      </section>
-      <section class="card" aria-labelledby="priv-h">
-        <h2 id="priv-h">Privacy</h2>
-        <label class="switch"><input type="checkbox" checked> Keep activity for 30 days</label>
-        <label class="switch"><input type="checkbox"> Show who was in a room in the activity log</label>
-        <p class="small muted" style="margin-top:0.5rem">attest stores who it believed was present and why it decided, never recordings.</p>
-      </section>
-      <section class="card" aria-labelledby="about-h">
-        <h2 id="about-h">This system</h2>
-        <p class="small muted" style="margin:0">Up 12 days · <a href="#settings">Check for updates</a></p>
-      </section>
-    </div>
-  </div>
-</section>
-
-<!-- ============================ MORE (phone) ============================ -->
-<section data-screen="more" data-states="normal" hidden>
-  <div class="page-head"><div><h1 tabindex="-1">More</h1></div></div>
-  <section class="card more-list">
-    <ul class="rows">
-      <li><a href="#activity"><span class="thing"><svg class="icon"><use href="#i-activity"/></svg></span>Activity</a></li>
-      <li><a href="#settings"><span class="thing"><svg class="icon"><use href="#i-settings"/></svg></span>Settings</a></li>
-      <li><a href="#setup/1"><span class="thing"><svg class="icon"><use href="#i-shield"/></svg></span>First-time setup</a></li>
-    </ul>
-  </section>
-</section>
-
-    </main>
-  </div>
+  <main class="main" id="main"></main>
 </div>
-
-<nav class="tabbar" aria-label="Sections">
-  <a href="#home" data-nav="home"><svg class="icon"><use href="#i-home"/></svg>Home</a>
-  <a href="#people" data-nav="people"><svg class="icon"><use href="#i-people"/></svg>People</a>
-  <a href="#devices" data-nav="devices"><svg class="icon"><use href="#i-device"/></svg>Devices<span class="badge" aria-label="1 new">1</span></a>
-  <a href="#assistants" data-nav="assistants"><svg class="icon"><use href="#i-assistant"/></svg>Assistants</a>
-  <a href="#more" data-nav="more activity settings setup"><svg class="icon"><use href="#i-more"/></svg>More</a>
-</nav>
+<nav class="tabbar" aria-label="Domains" id="tabbar"></nav>
+<div class="sheet" id="sheet" role="dialog" aria-label="More domains"></div>
+<div class="scrim" id="scrim"></div>
+<div class="palette" id="palette" role="dialog" aria-label="Jump to">
+  <input id="pq" type="text" placeholder="Jump to a person, sensor, action or domain…" aria-label="Jump to" autocomplete="off">
+  <ul id="pl" role="listbox"></ul>
+  <div class="foot"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>↵</kbd> open</span><span><kbd>esc</kbd> close</span><span style="margin-left:auto"><kbd>g</kbd> then <kbd>p</kbd> <kbd>i</kbd> <kbd>s</kbd> <kbd>a</kbd> <kbd>o</kbd> <kbd>d</kbd> <kbd>v</kbd></span></div>
+</div>
+<section class="setup" id="setup" aria-label="Set up attest"></section>
 
 <script>
-(function () {
-  var stateNames = { normal: "Normal", empty: "Empty", problem: "Problem", pending: "Adding tools", connected: "Connected" };
+(() => {
+const Q = new URLSearchParams(location.search);
+const STILL = Q.has('still') || matchMedia('(prefers-reduced-motion: reduce)').matches;
+const root = document.documentElement;
+root.dataset.theme = Q.get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+if (STILL) document.body.classList.add('still');
 
-  function route() {
-    var parts = (location.hash.slice(1) || "home").split("/");
-    var screen = parts[0];
-    var sec = document.querySelector('[data-screen="' + screen + '"]');
-    if (!sec) { screen = "home"; sec = document.querySelector('[data-screen="home"]'); parts = ["home"]; }
-    var view = sec.dataset.defaultView || "main", state = "normal";
-    parts.slice(1).forEach(function (p) {
-      if (sec.querySelector('[data-view="' + p + '"]')) view = p; else if (p) state = p;
-    });
+/* ---------- Clock: "now" is 19:44:00, advancing live ---------- */
+const BASE = 19*3600 + 44*60;
+let tick = 0;
+const clock = s => { s = Math.round(BASE + s); const h = Math.floor(s/3600)%24, m = Math.floor(s/60)%60, x = s%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`; };
+const hm = s => clock(s).slice(0,5);
+const short = s => { s = Math.round(s); return s < 60 ? `${s} s` : `${Math.floor(s/60)} min`; };
+const ago = s => { s = Math.round(s); return s < 60 ? `${s} s ago` : s < 3600 ? `${Math.floor(s/60)} min ago` : `${Math.floor(s/3600)} h ago`; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-    document.querySelectorAll("[data-screen]").forEach(function (s) { s.hidden = s !== sec; });
-    sec.querySelectorAll("[data-view]").forEach(function (v) { v.hidden = v.dataset.view !== view; });
-    sec.querySelectorAll("[data-when]").forEach(function (el) { el.hidden = el.dataset.when.split(" ").indexOf(state) < 0; });
+/* ---------- Levels ---------- */
+const LV = ['Anyone','Likely','Sure','Confirmed'];
+const LVD = ['Anyone, recognised or not', 'At least 80% sure, seen in the last 15 minutes', 'At least 95% sure, in the last 5 minutes', '99% sure and recognised two ways, in the last 2 minutes'];
+const ENG = ['floor','presumed','confident','corroborated'];
 
-    document.querySelectorAll("[data-nav]").forEach(function (a) {
-      if (a.dataset.nav.split(" ").indexOf(screen) >= 0) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
-    });
+/* ---------- Data ---------- */
+const ROLES = [
+  { id: 'resident', name: 'Resident' },
+  { id: 'teen', name: 'Teen' },
+  { id: 'guest', name: 'Guest' },
+];
+const SPACES = [
+  { id: 'kitchen', name: 'Kitchen' },
+  { id: 'living', name: 'Living room' },
+  { id: 'hallway', name: 'Hallway' },
+  { id: 'door', name: 'Front door' },
+  { id: 'car', name: 'Car' },
+];
+const SENSORS = [
+  { id: 'kitchen-display', name: 'Kitchen display', mod: 'voice', spaces: ['kitchen'], health: 'ok', last: 8, cal: 'voice-v1', calq: 'Good', calnote: 'Fitted on clean read speech. Good for adults in a quiet room; not yet checked for children.', knows: 4, adopted: '2 Oct', key: 'prd_kd_2f81' },
+  { id: 'kitchen-camera', name: 'Kitchen camera', mod: 'face', spaces: ['kitchen'], health: 'ok', last: 3, cal: 'face-v2', calq: 'Good', calnote: 'Fitted on indoor light across 1,200 genuine and impostor pairs.', knows: 2, adopted: '2 Oct', key: 'prd_kc_a03e' },
+  { id: 'living-speaker', name: 'Living room speaker', mod: 'voice', spaces: ['living'], health: 'ok', last: 50, cal: 'voice-v1', calq: 'Good', calnote: 'Fitted on clean read speech. Music playback lowers scores; attest cannot tell when that happens.', knows: 4, adopted: '2 Oct', key: 'prd_ls_77c0' },
+  { id: 'hallway-panel', name: 'Hallway panel', mod: 'voice', spaces: ['hallway','door'], health: 'ok', last: 170, cal: 'voice-v1', calq: 'Good', calnote: 'Fitted on clean read speech. Covers the front door through the open hallway.', knows: 4, adopted: '4 Oct', key: 'prd_hp_19bd' },
+  { id: 'door-camera', name: 'Front door camera', mod: 'face', spaces: ['door'], health: 'ok', last: 362, cal: 'face-v2', calq: 'Good', calnote: 'Fitted on indoor light. After dark it relies on the porch light.', knows: 2, adopted: '4 Oct', key: 'prd_dc_5e12' },
+  { id: 'cabin-mic', name: 'Cabin microphone', mod: 'voice', spaces: ['car'], health: 'off', since: '17:10', last: 9240, cal: 'voice-v1', calq: 'Unverified', calnote: 'Fitted on clean read speech; road noise is outside the conditions it was fitted on.', knows: 3, adopted: '9 Oct', key: 'prd_cm_c4a9' },
+  { id: 'study-speaker', name: 'Study speaker', mod: 'voice', spaces: [], health: 'new', found: 180, cal: 'voice-v1', calq: '—', calnote: 'Will use voice-v1 once adopted.', knows: 0, key: '—' },
+];
+const PEOPLE = [
+  { id: 'noor', name: 'Noor Haddad', short: 'Noor', email: 'noor@maple.home', roles: ['resident'], admin: true, uuid: '7f3c1a9e-2b44-4d0e-9a51-c8e2f0b6d913', voice: { on: '2 Oct', via: 'enrolment page' }, face: { on: '2 Oct', via: 'Kitchen camera' }, space: 'kitchen',
+    ev: [{t:-700,m:'voice',p:2.3},{t:-560,m:'voice',p:2.25},{t:-430,m:'face',p:3.3},{t:-250,m:'voice',p:3.4},{t:-95,m:'face',p:3.5},{t:-8,m:'voice',p:3.58},{t:-3,m:'face',p:3.66}] },
+  { id: 'tomas', name: 'Tomás Reyes', short: 'Tomás', email: 'tomas@maple.home', roles: ['resident'], uuid: '1d9b6e20-77fa-4b1c-8f03-5a2e94c1d07b', voice: { on: '3 Oct', via: 'enrolment page' }, face: null, space: 'living',
+    ev: [{t:-820,m:'voice',p:2.5},{t:-590,m:'voice',p:2.45},{t:-362,m:'voice',p:2.62,where:'Hallway panel'},{t:-362,m:'face',p:null,where:'Front door camera'},{t:-205,m:'voice',p:2.55},{t:-50,m:'voice',p:2.6}] },
+  { id: 'ilse', name: 'Ilse Reyes', short: 'Ilse', email: 'ilse@maple.home', roles: ['teen'], uuid: 'b52e0c7d-9a13-4f66-b2d8-03c7e1f4a588', voice: { on: '3 Oct', via: 'enrolment page' }, face: { on: '5 Oct', via: 'Kitchen camera' }, space: 'kitchen',
+    ev: [{t:-760,m:'face',p:3.1},{t:-600,m:'voice',p:2.4},{t:-520,m:'face',p:3.2},{t:-380,m:'face',p:2.5}] },
+  { id: 'ruth', name: 'Ruth Haddad', short: 'Ruth', email: 'ruth.haddad@example.net', roles: ['guest'], uuid: 'e08a4f31-6c2d-4b97-a1e5-7d3f9b20c6e4', voice: { on: '8 Nov', via: 'enrolment page' }, face: null, space: 'living',
+    ev: [{t:-800,m:'voice',p:2.4},{t:-640,m:'voice',p:2.3},{t:-560,m:'voice',p:2.2}] },
+];
+const OTHERS = [
+  { id: 'u-31', space: 'living', kind: 'unknown', text: 'Someone not recognised', ev: 'voice', t: -70, why: 'A voice that matches nobody enrolled. Only things anyone may do are possible for them.' },
+  { id: 'u-32', space: 'hallway', kind: 'contested', text: 'Ilse or Ruth, too close to call', ev: 'voice', t: -170, why: 'The voice is about as close to Ilse as to Ruth, so attest names nobody and treats them as anyone.' },
+];
+const AGENTS = [
+  { id: 'home', name: 'Home assistant', client: 'home-assistant', servers: [
+      { name: 'Home control', url: 'https://ha.maple.home/mcp', tools: [ ['lock.unlock','door.unlock'], ['lights.set','lights.control'], ['media.play','music.control'], ['media.pause','music.control'], ['garage.open', null] ] },
+      { name: 'Mail and calendar', url: 'https://pim.maple.home/mcp', tools: [ ['mail.send','email.send'], ['calendar.list','calendar.read'], ['groceries.order','groceries.order'] ] } ],
+    people: 4, last: '19:43 · music for Noor' },
+  { id: 'car', name: 'Car assistant', client: 'car-assistant', servers: [
+      { name: 'Car', url: 'https://car.maple.home/mcp', tools: [ ['messages.read','messages.read'], ['nav.route','navigate'], ['sos.call','emergency.call'] ] } ],
+    people: 3, last: '17:01 · messages for Tomás' },
+];
+const ACTIONS = [
+  { id: 'door.unlock', label: 'Unlock the front door', need: 3, roles: ['resident'] },
+  { id: 'email.send', label: 'Send email as you', need: 2, roles: ['resident'] },
+  { id: 'groceries.order', label: 'Order groceries', need: 2, roles: ['resident'] },
+  { id: 'calendar.read', label: 'Read your calendar', need: 2, roles: ['resident','teen'] },
+  { id: 'messages.read', label: 'Read your messages aloud', need: 2, roles: ['resident','teen'] },
+  { id: 'music.control', label: 'Play and pause music', need: 1, roles: ['resident','teen','guest'] },
+  { id: 'lights.control', label: 'Control the lights', need: 0, floor: true },
+  { id: 'navigate', label: 'Navigate somewhere', need: 0, floor: true },
+  { id: 'emergency.call', label: 'Call emergency services', need: 0, floor: true, locked: true },
+];
+// What each person has allowed, per agent (self-granted). Admin-made limits are in LIMITS.
+const CONSENT = {
+  noor:  { home: ['door.unlock','email.send','groceries.order','calendar.read','music.control'], car: ['messages.read'] },
+  tomas: { home: ['email.send','music.control'], car: ['messages.read'] },
+  ilse:  { home: ['calendar.read','music.control'], car: ['messages.read'] },
+  ruth:  { home: ['music.control'], car: [] },
+};
+const LIMITS = [
+  { person: 'tomas', agent: 'home', action: 'door.unlock', spaces: ['door'], until: '31 Dec', by: 'Noor' },
+];
+const DECISIONS = [
+  { id: 'd-1943', t: -48, ok: true, agent: 'home', action: 'music.control', who: 'noor', space: 'kitchen', had: 3,
+    s: 'Home assistant played music for Noor.',
+    chain: [ ['ok','Subject','Words spoken in the Kitchen','track k-207, attributed by the Kitchen display'], ['ok','Evidence','Voice and face, both Noor','voice 8 s ago · face 3 s ago'], ['ok','Belief','Noor, Confirmed','needs Likely'], ['ok','Consent','Noor allowed Home assistant to play music',''], ['ok','Rule','Residents may play music when Likely','Policy · Play and pause music'] ],
+    ev: [['19:43:04','Kitchen display','voice','noor','7.9','ilse −2.4','voice-v1'],['19:43:09','Kitchen camera','face','noor','8.6','ilse −3.1','face-v2']],
+    reasons: ['agent home-assistant may request music.control','leading identity noor (0.9994), modalities 2','delegation self:noor/home covers music.control','role resident holds music.control','band presumed holds (0.9994 ≥ 0.80, age 3s ≤ 900s)'], valid: '19:58:09' },
+  { id: 'd-1941', t: -175, ok: false, agent: 'home', action: 'email.send', who: null, space: 'hallway', had: 0, fail: 2,
+    s: 'Home assistant did not send an email for someone in the Hallway.',
+    chain: [ ['ok','Subject','Words spoken in the Hallway','track h-31, attributed by the Hallway panel'], ['ok','Evidence','Voice, close to Ilse and to Ruth',''], ['no','Belief','Too close to call, so treated as anyone','Ilse 46% · Ruth 41%'], ['skip','Consent','Not checked',''], ['skip','Rule','Send email needs Sure',''] ],
+    ev: [['19:41:01','Hallway panel','voice','ilse','2.9','ruth 2.6','voice-v1']],
+    reasons: ['agent home-assistant may request email.send','belief ambiguous: leader ilse 0.46, runner-up ruth 0.41, margin 0.05 < 0.20','no leading identity: only floor permissions apply'] },
+  { id: 'd-1938', t: -358, ok: false, agent: 'home', action: 'door.unlock', who: 'tomas', space: 'door', had: 2, fail: 4,
+    s: 'Home assistant did not unlock the front door for Tomás.',
+    chain: [ ['ok','Subject','Words spoken at the Front door','track h-29, attributed by the Hallway panel'], ['ok','Evidence','Voice: Tomás. Face: no match','the Front door camera saw a face but knows no face for Tomás'], ['ok','Belief','Tomás, Sure, from voice alone',''], ['ok','Consent','Allowed, within Noor’s limit','Front door only, until 31 Dec'], ['no','Rule','Unlocking needs Confirmed: recognised two ways','Tomás has not enrolled his face, so this will keep being refused'] ],
+    ev: [['19:37:55','Hallway panel','voice','tomas','4.8','noor −1.6','voice-v1'],['19:38:00','Hallway panel','voice','tomas','5.4','noor −2.1','voice-v1'],['19:37:58','Front door camera','face','—','no match','—','face-v2']],
+    reasons: ['agent home-assistant may request door.unlock','leading identity tomas (0.9781), modalities 1','delegation admin:noor/d-19 covers door.unlock (zone front-door, until 2026-12-31)','role resident holds door.unlock','band corroborated: confidence 0.9781 < 0.99','band corroborated: modalities 1 < min 2'] },
+  { id: 'd-1931', t: -778, ok: true, agent: 'home', action: 'calendar.read', who: 'ilse', space: 'kitchen', had: 2,
+    s: 'Home assistant read Ilse’s calendar to her.',
+    chain: [ ['ok','Subject','Words spoken in the Kitchen',''], ['ok','Evidence','Voice: Ilse',''], ['ok','Belief','Ilse, Sure','needs Sure'], ['ok','Consent','Ilse allowed Home assistant to read her calendar',''], ['ok','Rule','Residents and teens may read calendars when Sure',''] ],
+    ev: [['19:30:51','Kitchen display','voice','ilse','6.1','ruth −0.8','voice-v1']],
+    reasons: ['agent home-assistant may request calendar.read','leading identity ilse (0.9772), modalities 1','delegation self:ilse/home covers calendar.read','role teen holds calendar.read','band confident holds (0.9772 ≥ 0.95, age 9s ≤ 300s)'] },
+  { id: 'd-1926', t: -1090, ok: false, agent: 'home', action: 'calendar.read', who: 'tomas', space: 'living', had: 2, fail: 3,
+    s: 'Home assistant did not read Tomás’s calendar to him.',
+    chain: [ ['ok','Subject','Words spoken in the Living room',''], ['ok','Evidence','Voice: Tomás',''], ['ok','Belief','Tomás, Sure',''], ['no','Consent','Tomás hasn’t allowed Home assistant to read his calendar','only he can change this, on his enrolment page'], ['skip','Rule','Not checked',''] ],
+    ev: [['19:25:47','Living room speaker','voice','tomas','6.4','ruth −1.2','voice-v1']],
+    reasons: ['agent home-assistant may request calendar.read','leading identity tomas (0.9828), modalities 1','no delegation covers (tomas, home-assistant, calendar.read)'] },
+  { id: 'd-1924', t: -1210, ok: false, agent: 'home', action: 'email.send', who: null, space: 'living', had: 0, fail: 2,
+    s: 'Home assistant did not send an email for someone not recognised.',
+    chain: [ ['ok','Subject','Words spoken in the Living room',''], ['ok','Evidence','Voice, matching nobody enrolled',''], ['no','Belief','Not recognised, so treated as anyone',''], ['skip','Consent','Not checked',''], ['skip','Rule','Send email needs Sure',''] ],
+    ev: [['19:23:48','Living room speaker','voice','—','no match','—','voice-v1']],
+    reasons: ['agent home-assistant may request email.send','belief unknown: no candidate outweighs unknown mass (0.71)','no leading identity: only floor permissions apply'] },
+  { id: 'd-1920', t: -1440, ok: true, agent: 'home', action: 'lights.control', who: null, space: 'living', had: 0,
+    s: 'Home assistant turned on the living room lights.',
+    chain: [ ['ok','Subject','Words spoken in the Living room',''], ['skip','Evidence','Not needed',''], ['skip','Belief','Not needed',''], ['skip','Consent','Not needed',''], ['ok','Rule','Anyone may control the lights',''] ],
+    ev: [], reasons: ['agent home-assistant may request lights.control','lights.control is a floor permission'] },
+  { id: 'd-1812', t: -5520, ok: true, agent: 'home', action: 'door.unlock', who: 'noor', space: 'door', had: 3,
+    s: 'Home assistant unlocked the front door for Noor.',
+    chain: [ ['ok','Subject','Words spoken at the Front door',''], ['ok','Evidence','Voice and face, both Noor','associated by the Front door camera'], ['ok','Belief','Noor, Confirmed','needs Confirmed'], ['ok','Consent','Noor allowed Home assistant to unlock the door',''], ['ok','Rule','Residents may unlock when Confirmed',''] ],
+    ev: [['18:11:58','Hallway panel','voice','noor','6.7','ilse −1.9','voice-v1'],['18:12:01','Front door camera','face','noor','8.2','tomas −4.0','face-v2']],
+    reasons: ['leading identity noor (0.9996), modalities 2','delegation self:noor/home covers door.unlock','role resident holds door.unlock','band corroborated holds (0.9996 ≥ 0.99, age 1s ≤ 120s, modalities 2 ≥ 2)'] },
+  { id: 'd-1702', t: -9780, ok: true, agent: 'car', action: 'messages.read', who: 'tomas', space: 'car', had: 2,
+    s: 'Car assistant read Tomás’s messages aloud to him.',
+    chain: [ ['ok','Subject','Words spoken in the Car',''], ['ok','Evidence','Voice: Tomás',''], ['ok','Belief','Tomás, Sure',''], ['ok','Consent','Tomás allowed Car assistant to read messages',''], ['ok','Rule','Residents and teens may, when Sure',''] ],
+    ev: [['17:01:40','Cabin microphone','voice','tomas','5.9','—','voice-v1']], reasons: ['band confident holds (0.9731 ≥ 0.95)'] },
+  { id: 'd-1640', t: -11040, ok: false, agent: 'home', action: 'door.unlock', who: 'ruth', space: 'door', had: 2, fail: 4,
+    s: 'Home assistant did not unlock the front door for Ruth.',
+    chain: [ ['ok','Subject','Words spoken at the Front door',''], ['ok','Evidence','Voice: Ruth',''], ['ok','Belief','Ruth, Sure',''], ['ok','Consent','Not needed: refused by role first',''], ['no','Rule','Guests may not unlock the front door','Ruth’s role in Keycloak is Guest'] ],
+    ev: [['16:39:55','Hallway panel','voice','ruth','5.2','ilse −0.9','voice-v1']], reasons: ['leading identity ruth (0.9702)','role guest does not hold door.unlock'] },
+];
+const AUDIT = [
+  ['3 Nov 21:14','Noor','Send email as you now needs Sure (was Likely)'],
+  ['2 Nov 18:30','Noor','Forgot Sam Okafor'],
+  ['24 Oct 09:02','Noor','Limited Tomás’s door unlock to the Front door, until 31 Dec'],
+  ['9 Oct 12:40','Noor','Adopted Cabin microphone in Car'],
+  ['4 Oct 17:11','Noor','Adopted Hallway panel and Front door camera'],
+  ['2 Oct 20:05','Noor','Connected Keycloak at id.maple.home'],
+];
+const CONSENT_LOG = [
+  ['8 Nov 15:20','Ruth','allowed Home assistant to play and pause music'],
+  ['19 Oct 08:41','Ilse','allowed Car assistant to read her messages aloud'],
+  ['12 Oct 22:03','Tomás','stopped allowing Home assistant to read his calendar'],
+  ['3 Oct 19:12','Tomás','allowed Home assistant to send email and play music'],
+  ['2 Oct 20:20','Noor','allowed Home assistant to do five things'],
+];
 
-    if (screen === "setup") {
-      document.querySelectorAll(".wizard-steps li").forEach(function (li) {
-        var n = +li.dataset.step;
-        li.classList.toggle("done", n < +view);
-        if (n === +view) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current");
-      });
-    }
+const P = id => PEOPLE.find(p => p.id === id);
+const S = id => SPACES.find(s => s.id === id);
+const A = id => ACTIONS.find(a => a.id === id);
+const AG = id => AGENTS.find(a => a.id === id);
 
-    var states = (sec.dataset.states || "normal").split(" ");
-    if (screen === "setup" && view === "2") states = ["normal", "connected", "problem"];
-    if (screen === "setup" && view !== "2") states = [];
-    var base = "#" + screen + (view !== (sec.dataset.defaultView || "main") || screen === "setup" ? "/" + view : "");
-    var nav = document.getElementById("states");
-    nav.innerHTML = "";
-    states.forEach(function (s) {
-      var a = document.createElement("a");
-      a.href = base + (s === "normal" ? "" : "/" + s);
-      a.textContent = stateNames[s] || s;
-      if (s === state) a.setAttribute("aria-current", "true");
-      nav.appendChild(a);
-    });
-    document.getElementById("states-label").hidden = states.length < 2;
-    if (states.length < 2) nav.innerHTML = "";
+/* ---------- Shared logic: belief, reach ---------- */
+// age -> highest position the evidence can still support. Crosses 3 at 120 s, 2 at 300 s, 1 at 900 s; gone at 1200 s.
+function agePos(a) { const k = [[0,3.75],[120,3],[300,2],[900,1],[1200,0]]; if (a <= 0) return 3.75; for (let i=1;i<k.length;i++) if (a <= k[i][0]) { const [a0,p0]=k[i-1],[a1,p1]=k[i]; return p0 + (p1-p0)*(a-a0)/(a1-a0); } return 0; }
+function vAt(ev, t) { let last = null; for (const e of ev) if (e.p != null && e.t <= t) last = e; if (!last) return 0; return Math.max(0, Math.min(last.p, agePos(t - last.t))); }
+const lvOf = v => v >= 3 ? 3 : v >= 2 ? 2 : v >= 1 ? 1 : 0;
+function untilOf(ev, now) { const l = lvOf(vAt(ev, now)); if (!l) return null; for (let s = 1; s < 1500; s++) if (lvOf(vAt(ev, now + s)) < l) return now + s; return null; }
+function lastOf(ev, m, now) { let r = null; for (const e of ev) if (e.m === m && e.t <= now) r = e; return r; }
+// Highest level a space can reach, from adopted, reporting sensors.
+function spaceReach(sp, live = true) { const mods = new Set(SENSORS.filter(s => s.spaces.includes(sp) && (!live || s.health === 'ok')).map(s => s.mod)); return mods.size >= 2 ? 3 : mods.size === 1 ? 2 : 0; }
+function personReach(p) { return p.voice && p.face ? 3 : (p.voice || p.face) ? 2 : 0; }
+function hasRole(p, a) { return a.floor || (a.roles || []).some(r => p.roles.includes(r)); }
+function allowed(p, a) { return a.floor || Object.values(CONSENT[p.id] || {}).some(l => l.includes(a.id)) || LIMITS.some(x => x.person === p.id && x.action === a.id); }
+function spacesFor(a) { return SPACES.filter(s => spaceReach(s.id, false) >= a.need); }
+function whoCan(a) { return PEOPLE.filter(p => hasRole(p, a) && allowed(p, a) && personReach(p) >= a.need); }
 
-    var visibleView = sec.querySelector('[data-view="' + view + '"]') || sec;
-    var h1 = visibleView.querySelector("h1");
-    document.title = (h1 ? h1.textContent : "attest") + " · attest";
-    if (h1 && route.ready) { h1.focus({ preventScroll: true }); window.scrollTo(0, 0); }
-    route.ready = true;
+/* ---------- Components ---------- */
+function ladder(l, size = 14) {
+  const b = (x, y, w, on) => `<rect class="g${on ? ' on' : ''}" x="${x}" y="${y}" width="${w}" height="${13 - y}" rx="0.8"/>`;
+  return `<svg class="ladder" width="${Math.round(size * 16 / 14)}" height="${size}" viewBox="0 0 16 14" aria-hidden="true">${b(0.5, 9, 3.4, l >= 1)}${b(5.3, 5.5, 3.4, l >= 2)}${b(10.1, 1.5, 2.1, l >= 3)}${b(13.3, 1.5, 2.1, l >= 3)}<path class="r" d="M0 13.5h16"/></svg>`;
+}
+const lvTag = (l, extra = '') => `<span class="lv" title="${LVD[l]}">${ladder(l)}<span>${LV[l]}${extra}</span></span>`;
+const mark = k => k === 'ok'
+  ? `<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="currentColor"/><path d="M4.3 7.2 6.1 9l3.6-3.8" fill="none" stroke="var(--pane)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+  : k === 'no'
+  ? `<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4.6 7h4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`
+  : k === 'warn'
+  ? `<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1.6 13 12.2H1z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M7 5.6v3M7 10.2v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`
+  : `<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--faint)" stroke-width="1.4" stroke-dasharray="2 2"/></svg>`;
+const outcome = ok => `<span class="oc ${ok?'ok':'no'}">${mark(ok?'ok':'no')}${ok?'Allowed':'Refused'}</span>`;
+const attn = text => `<span class="att">${mark('warn')}<span>${text}</span></span>`;
+const modGlyph = (m, on = true) => m === 'voice'
+  ? `<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="${on?1:.4}"/></svg>`
+  : `<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="2.6" ${on?'fill="currentColor"':'fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"'}/></svg>`;
+
+// Belief trace: x from -600 s to +240 s, y in level-position space.
+function trace(ev, { w = 520, h = 150, mini = false, now = 0, id = '' } = {}) {
+  const padL = mini ? 0 : 0, padR = mini ? 0 : 64, padT = mini ? 2 : 10, padB = mini ? 6 : 46;
+  const x0 = -600, x1 = 240, pw = w - padL - padR, ph = h - padT - padB, ymax = 3.75;
+  const X = t => padL + (t - (now + x0)) / (x1 - x0) * pw;
+  const Y = v => padT + ph - (v / ymax) * ph;
+  let past = '', fut = '';
+  for (let t = now + x0; t <= now; t += 5) past += `${past ? 'L' : 'M'}${X(t).toFixed(1)} ${Y(vAt(ev, t)).toFixed(1)}`;
+  // vertical step at each arrival
+  past = ''; let prev = null;
+  const pts = [];
+  for (let t = now + x0; t <= now; t += 4) pts.push(t);
+  for (const e of ev) if (e.p != null && e.t > now + x0 && e.t <= now) { pts.push(e.t - 0.01, e.t); }
+  pts.push(now); pts.sort((a, b) => a - b);
+  for (const t of pts) { const v = vAt(ev, t); past += `${past ? 'L' : 'M'}${X(t).toFixed(1)} ${Y(v).toFixed(1)}`; prev = v; }
+  for (let t = now; t <= now + x1; t += 4) fut += `${fut ? 'L' : 'M'}${X(t).toFixed(1)} ${Y(vAt(ev, t)).toFixed(1)}`;
+  const area = past + `L${X(now).toFixed(1)} ${Y(0)}L${X(now + x0).toFixed(1)} ${Y(0)}Z`;
+  const vn = vAt(ev, now);
+  let g = `<svg class="trace${mini ? ' mini' : ' big'}" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${mini ? '' : 'How sure attest is over the last ten minutes'}"${id ? ` id="${id}"` : ''}>`;
+  [1, 2, 3].forEach(l => {
+    g += `<line class="th${l === 3 ? ' d' : ''}" x1="${padL}" x2="${padL + pw}" y1="${Y(l)}" y2="${Y(l)}"/>`;
+    if (!mini) g += `<text class="tl" x="${padL + pw + 8}" y="${Y(l) + 3.5}">${LV[l]}</text>`;
+  });
+  g += `<line class="base" x1="${padL}" x2="${padL + pw}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  if (!mini) g += `<path class="area" d="${area}"/>`;
+  g += `<path class="past" d="${past}"/><path class="fut" d="${fut}"/>`;
+  g += `<line class="nowl" x1="${X(now)}" x2="${X(now)}" y1="${padT - 4}" y2="${Y(0)}"/>`;
+  // modality ticks on the baseline
+  for (const e of ev) { if (e.t < now + x0 || e.t > now) continue; const x = X(e.t), y = Y(0);
+    if (mini) continue;
+    if (e.m === 'voice') g += `<line class="tk-v" x1="${x}" x2="${x}" y1="${y + 5}" y2="${y + 12}"/>`;
+    else g += e.p == null ? `<circle class="tk-x" cx="${x}" cy="${y + 21}" r="2.6"/>` : `<circle class="tk-f" cx="${x}" cy="${y + 21}" r="2.6"/>`;
   }
-  document.querySelector(".skip").addEventListener("click", function (e) {
-    e.preventDefault();
-    var h = [].filter.call(document.querySelectorAll("main h1"), function (x) { return x.offsetParent; })[0];
-    if (h) h.focus();
-  });
-  window.addEventListener("hashchange", route);
-  route();
+  if (!mini) {
+    g += `<text class="tl" x="${padL + pw + 8}" y="${Y(0) + 12}">voice</text><text class="tl" x="${padL + pw + 8}" y="${Y(0) + 24.5}">face</text>`;
+    g += `<text class="ax" x="${padL}" y="${h - 1}">${hm(now + x0)}</text><text class="ax" x="${X(now - 300)}" y="${h - 1}" text-anchor="middle">${hm(now - 300)}</text><text class="ax" x="${X(now)}" y="${h - 1}" text-anchor="middle" style="fill:var(--live)">now</text><text class="ax" x="${padL + pw}" y="${h - 1}" text-anchor="end">${hm(now + x1)}</text>`;
+  }
+  g += `<circle class="halo" cx="${X(now)}" cy="${Y(vn)}" r="${mini ? 2.5 : 3.5}"/><circle class="head" cx="${X(now)}" cy="${Y(vn)}" r="${mini ? 2.5 : 3.5}"/>`;
+  if (!mini) g += `<line class="hov" x1="0" x2="0" y1="${padT}" y2="${Y(0)}" style="display:none"/>`;
+  g += `</svg>`;
+  return g;
+}
+function traceLegend() { return `<div class="legend"><span><svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 2v8" stroke="var(--ink-2)" stroke-width="1.6" stroke-linecap="round"/></svg>Voice heard</span><span><svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="2.8" fill="var(--ink-2)"/></svg>Face seen</span><span><svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="2.8" fill="none" stroke="var(--ink-3)" stroke-width="1.2"/></svg>Face, no match</span><span><svg width="22" height="12" viewBox="0 0 22 12"><path d="M1 6h20" stroke="var(--ink-3)" stroke-width="1.5" stroke-dasharray="2 4" stroke-linecap="round"/></svg>If nothing new arrives</span></div>`; }
 
-  window.connectIdp = function (e) {
-    e.preventDefault();
-    location.hash = "#setup/2/connecting";
-    setTimeout(function () { location.hash = "#setup/2/connected"; }, 1200);
+/* ---------- Routing ---------- */
+const DOMAINS = [
+  { id: 'presence', name: 'Presence', key: 'p' },
+  { id: 'identities', name: 'Identities', key: 'i' },
+  { id: 'sensors', name: 'Sensors', key: 's' },
+  { id: 'agents', name: 'Agents', key: 'a' },
+  { id: 'policy', name: 'Policy', key: 'o' },
+  { id: 'decisions', name: 'Decisions', key: 'd' },
+  { id: 'governance', name: 'Governance', key: 'v' },
+];
+const SECONDARY = [{ id: 'connections', name: 'Connections', key: 'c' }];
+let route = { d: 'presence', id: null };
+function parse() { const [d, id, x] = location.hash.slice(1).split('/'); return { d: d || 'presence', id: id || null, x: x || null }; }
+
+function navHTML() {
+  const presentN = PEOPLE.filter(p => lvOf(vAt(p.ev, tick)) > 0).length;
+  const tails = {
+    presence: `<span class="tail live"><span class="dotlive" aria-hidden="true"></span>${presentN}<span class="sr"> people present</span></span>`,
+    sensors: `<span class="tail" title="1 sensor not reporting">${mark('warn').replace('<svg','<svg style="color:var(--warn)"')}1<span class="sr"> needs attention</span></span>`,
+    agents: `<span class="tail" title="1 tool not mapped">${mark('warn').replace('<svg','<svg style="color:var(--warn)"')}1<span class="sr"> needs attention</span></span>`,
   };
+  const li = d => `<li><a href="#${d.id}" ${route.d === d.id ? 'aria-current="page"' : ''}>${d.name}${tails[d.id] || ''}</a></li>`;
+  document.getElementById('nav').innerHTML = DOMAINS.map(li).join('');
+  document.getElementById('nav2').innerHTML = SECONDARY.map(li).join('');
+  const ic = {
+    presence: '<circle cx="10" cy="10" r="2.2"/><circle cx="10" cy="10" r="6.5"/>',
+    identities: '<circle cx="10" cy="7.5" r="3"/><path d="M4 16.5c1.2-3 3.4-4.3 6-4.3s4.8 1.3 6 4.3"/>',
+    decisions: '<path d="M4 5.5h12M4 10h12M4 14.5h7"/>',
+    policy: '<path d="M4 4h12v12H4zM4 10h12M10 4v12"/>',
+    more: '<circle cx="5" cy="10" r="1"/><circle cx="10" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>',
+  };
+  const tb = ['presence','identities','decisions','policy'].map(id => `<a href="#${id}" ${route.d === id ? 'aria-current="page"' : ''}><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">${ic[id]}</svg>${DOMAINS.find(d => d.id === id).name}</a>`).join('');
+  const inMore = ['sensors','agents','governance','connections'].includes(route.d);
+  document.getElementById('tabbar').innerHTML = tb + `<button type="button" data-sheet ${inMore ? 'aria-current="page"' : ''} aria-haspopup="dialog"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">${ic.more}</svg>${inMore ? DOMAINS.concat(SECONDARY).find(d => d.id === route.d).name : 'More'}</button>`;
+  document.getElementById('sheet').innerHTML = `<div class="grab"></div>` + ['sensors','agents','governance','connections'].map(id => { const d = DOMAINS.concat(SECONDARY).find(x => x.id === id); return `<a href="#${id}">${d.name}<span class="tail">${id==='sensors'?'1 not reporting':id==='agents'?'1 tool to map':''}</span></a>`; }).join('') + `<button type="button" class="sheet-i" data-theme-toggle>${root.dataset.theme === 'dark' ? 'Light appearance' : 'Dark appearance'}</button>`;
+  document.querySelectorAll('[data-theme-toggle]').forEach(b => { if (!b.classList.contains('sheet-i')) b.textContent = root.dataset.theme === 'dark' ? 'Light' : 'Dark'; });
+}
 
-  var modes = ["system", "light", "dark"], themeBtn = document.getElementById("theme");
-  var mode = 0;
-  themeBtn.addEventListener("click", function () {
-    mode = (mode + 1) % 3;
-    if (modes[mode] === "system") document.documentElement.removeAttribute("data-theme");
-    else document.documentElement.setAttribute("data-theme", modes[mode]);
-    themeBtn.textContent = "Theme: " + modes[mode];
-  });
+function page({ title, lede, action = '', master, detail, solo = false, extra = '' }) {
+  const hasDetail = !!route.id && !route.auto;
+  return `<header class="ph"><div><h1 tabindex="-1" id="h1">${title}</h1><p class="lede">${lede}</p></div><div class="mtop"><button class="btn quiet" type="button" data-palette aria-label="Jump to">Jump</button></div>${action ? `<div class="ph-act">${action}</div>` : ''}</header>${extra}
+  <div class="md${solo ? ' solo' : ''}${hasDetail ? ' has-detail' : ''}"><section class="master" aria-labelledby="h1">${master}</section>${solo ? '' : `<aside class="detail" aria-label="Detail" tabindex="-1">${route.id && !route.auto ? `<a class="back" href="#${route.d}"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M11 4 6 9l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>${DOMAINS.concat(SECONDARY).find(d => d.id === route.d).name}</a>` : ''}${detail}</aside>`}</div>`;
+}
+
+/* ---------- Presence ---------- */
+function presenceRow(p) {
+  const v = vAt(p.ev, tick), l = lvOf(v), u = untilOf(p.ev, tick);
+  const lv = lastOf(p.ev, 'voice', tick), lf = lastOf(p.ev, 'face', tick);
+  const fr = [lv && `voice ${short(tick - lv.t)}`, lf && lf.p != null && tick - lf.t < 900 && `face ${short(tick - lf.t)}`].filter(Boolean).join(' · ');
+  return `<a class="row r-pres" href="#presence/${p.id}" ${route.id === p.id ? 'aria-current="true"' : ''} data-live="${p.id}">
+    <span class="c-n name">${p.short}</span><span class="c-l">${lvTag(l)}</span><span class="c-t">${trace(p.ev, { w: 116, h: 28, mini: true, now: tick })}</span>
+    <span class="c-f fresh">${fr}</span><span class="c-u until end">${u ? `${LV[l]} until ${hm(u)}` : ''}</span></a>`;
+}
+function vPresence() {
+  const here = PEOPLE.filter(p => lvOf(vAt(p.ev, tick)) > 0);
+  const groups = SPACES.map(sp => {
+    const ppl = here.filter(p => p.space === sp.id), oth = OTHERS.filter(o => o.space === sp.id);
+    const reach = spaceReach(sp.id), sensors = SENSORS.filter(s => s.spaces.includes(sp.id));
+    const off = sensors.find(s => s.health === 'off');
+    const meta = off ? attn(`${off.name} not reporting since ${off.since}`) : `<span class="lv">${[...new Set(sensors.map(s => s.mod))].map(m => m === 'voice' ? 'Voice' : 'face').join(' and ')} · up to&nbsp;${lvTag(reach)}</span>`;
+    let rows = ppl.map(presenceRow).join('');
+    rows += oth.map(o => `<a class="row r-pres" href="#presence/${o.id}" ${route.id === o.id ? 'aria-current="true"' : ''}><span class="c-n name who-not">${o.text}</span><span class="c-l">${lvTag(0)}</span><span class="c-t"></span><span class="c-f fresh">${o.ev} ${short(tick - o.t)}</span><span class="c-u until end"></span></a>`).join('');
+    if (!ppl.length && !oth.length) {
+      const lastD = DECISIONS.find(d => d.space === sp.id && d.who);
+      rows = `<p class="note">${off ? 'Nobody can be recognised here until it reports again.' : `Nobody here${lastD ? ` · last, ${P(lastD.who).short} at ${hm(lastD.t)}` : ''}`}</p>`;
+    }
+    return `<div class="group"><div class="ghead"><h2>${sp.name}</h2><span class="meta">${ppl.length ? `${ppl.length} ${ppl.length > 1 ? 'people' : 'person'}` : ''}</span><span class="meta end">${meta}</span></div>${rows}</div>`;
+  }).join('');
+  const master = `<div class="colhead r-pres" aria-hidden="true"><span>Who</span><span>How sure</span><span>Last ten minutes</span><span>Last heard · seen</span><span style="text-align:right">Holds until</span></div>${groups}`;
+  let detail = `<p class="empty-detail">Select someone to see how sure attest is and why.</p>`;
+  const p = P(route.id), o = OTHERS.find(x => x.id === route.id);
+  if (p) detail = presenceDetail(p);
+  if (o) detail = `<div class="dh"><div><div class="kicker">${S(o.space).name} · ${o.ev} ${ago(tick - o.t)}</div><h2 style="font-size:18px">${o.text}</h2></div></div><div class="bigstate">${lvTag(0)}</div><p class="sub">${o.why}</p><div class="sec" style="margin-top:16px"><h3>What an assistant may do for them</h3><ul class="lines">${ACTIONS.filter(a => a.floor).map(a => `<li>${a.label}<span class="rt">Anyone</span></li>`).join('')}</ul></div><div class="sec"><a class="x" href="#decisions/${o.kind === 'contested' ? 'd-1941' : 'd-1924'}">See the decision this caused</a></div>`;
+  return page({ title: 'Presence', lede: `${here.length} people recognised in ${new Set(here.map(p => p.space)).size} spaces, and 2 voices nobody can name. Everything is reporting except the car.`, master, detail });
+}
+function presenceDetail(p) {
+  const v = vAt(p.ev, tick), l = lvOf(v), u = untilOf(p.ev, tick), reach = Math.min(personReach(p), spaceReach(p.space));
+  const can = ACTIONS.filter(a => hasRole(p, a) && allowed(p, a));
+  const now = can.filter(a => a.need <= l), later = can.filter(a => a.need > l);
+  return `<div class="dh"><div><div class="kicker">${S(p.space).name}</div><h2 style="font-size:18px">${p.name}</h2></div><a class="btn" href="#identities/${p.id}">Open identity</a></div>
+  <div class="bigstate">${lvTag(l)}<span class="until" id="dt-until">${u ? `until ${clock(u)} unless heard or seen again` : ''}</span></div>
+  <div id="bigtrace" data-person="${p.id}">${trace(p.ev, { w: 392, h: 160, now: tick, id: 'tr-big' })}</div>
+  <div class="readout" id="readout" aria-live="polite"></div>
+  ${traceLegend()}
+  <div class="sec" style="margin-top:14px"><h3>An assistant may do this for ${p.short} now</h3>
+  <ul class="lines">${now.map(a => `<li>${a.label}<span class="rt">${lvTag(a.need)}</span></li>`).join('') || '<li class="dim">Only what anyone may do</li>'}</ul></div>
+  ${later.length ? `<div class="sec"><h3>Not until attest is surer</h3><ul class="lines">${later.map(a => `<li>${a.label}<span class="rt">${lvTag(a.need)}</span></li>`).join('')}</ul>
+  ${reach < 3 && later.some(a => a.need === 3) ? `<p class="consequence">${!p.face ? `${p.short} has no face enrolled, so Confirmed can’t be reached anywhere. <a class="x" href="#identities/${p.id}">Enrolment</a>` : `The ${S(p.space).name.toLowerCase()} only hears voices, so Confirmed can’t be reached here. <a class="x" href="#sensors">Coverage</a>`}</p>` : ''}</div>` : ''}
+  <p class="small dim" style="margin-top:14px">Rules come from <a class="x" href="#policy">Policy</a>; what ${p.short} has allowed is in <a class="x" href="#identities/${p.id}">Identities</a>.</p>`;
+}
+
+/* ---------- Decisions ---------- */
+let decFilter = { outcome: 'any', person: 'any', agent: 'any' };
+function vDecisions() {
+  const list = DECISIONS.filter(d => (decFilter.outcome === 'any' || (decFilter.outcome === 'ok') === d.ok) && (decFilter.person === 'any' || d.who === decFilter.person || (decFilter.person === 'none' && !d.who)) && (decFilter.agent === 'any' || d.agent === decFilter.agent));
+  const opt = (v, l, cur) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${l}</option>`;
+  const filters = `<div class="filters" role="group" aria-label="Filter decisions">
+    <label>Outcome <select data-f="outcome">${opt('any','Any',decFilter.outcome)}${opt('ok','Allowed',decFilter.outcome)}${opt('no','Refused',decFilter.outcome)}</select></label>
+    <label>Person <select data-f="person">${opt('any','Anyone',decFilter.person)}${PEOPLE.map(p => opt(p.id, p.short, decFilter.person)).join('')}${opt('none','Not named',decFilter.person)}</select></label>
+    <label>Agent <select data-f="agent">${opt('any','Any',decFilter.agent)}${AGENTS.map(a => opt(a.id, a.name, decFilter.agent)).join('')}</select></label>
+    <span class="count">${list.length} of ${DECISIONS.length} today</span></div>`;
+  const recent = list.filter(d => d.t > -1800), earlier = list.filter(d => d.t <= -1800);
+  const row = d => `<a class="row r-dec" href="#decisions/${d.id}" ${route.id === d.id ? 'aria-current="true"' : ''}><time class="c-t dim">${hm(d.t)}</time><span class="c-o">${outcome(d.ok)}</span><span class="c-s">${d.s}</span><span class="c-sp dim end small">${S(d.space).name}</span></a>`;
+  const master = filters + (recent.length ? `<div class="group"><div class="ghead"><h2>Last half hour</h2></div>${recent.map(row).join('')}</div>` : '') + (earlier.length ? `<div class="group"><div class="ghead"><h2>Earlier today</h2></div>${earlier.map(row).join('')}</div>` : '') + (list.length ? '' : '<p class="note">Nothing matches.</p>');
+  const d = DECISIONS.find(x => x.id === route.id);
+  const detail = d ? record(d) : `<p class="empty-detail">Select a decision to see why it went that way.</p>`;
+  const refused = DECISIONS.filter(x => !x.ok).length;
+  return page({ title: 'Decisions', lede: `Every time an agent asked to act for someone today: ${DECISIONS.length - refused} allowed, ${refused} refused. Select one to see the chain that decided it.`, master, detail });
+}
+function record(d) {
+  const a = A(d.action), ag = AG(d.agent);
+  const chain = d.chain.map(([st, k, v, sub]) => `<li class="${st === 'no' ? 'fail' : st === 'skip' ? 'skip' : ''}"><span class="st" style="color:${st === 'ok' ? 'var(--ink-2)' : st === 'no' ? 'var(--no)' : 'var(--ink-3)'}">${st === 'ok' ? `<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.3 5 8.6l4.5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>` : st === 'no' ? mark('no') : mark('skip')}<span class="sr">${st === 'ok' ? 'passed' : st === 'no' ? 'failed' : 'not checked'}</span></span><span class="k">${k}</span><span class="v"><b>${v}</b>${sub ? `<span class="sub">${sub}</span>` : ''}</span></li>`).join('');
+  return `<div class="dh"><div><div class="kicker"><time>${clock(d.t)}</time> · ${ag.name} · ${S(d.space).name}</div></div>${outcome(d.ok)}</div>
+  <p class="sentence">${d.s}</p>
+  <div class="bigstate small" style="margin-top:10px;gap:20px"><span class="dim">Needed</span>${lvTag(a.need)}<span class="dim">Had</span>${lvTag(d.had)}</div>
+  <ol class="chain" aria-label="How this was decided">${chain}</ol>
+  ${d.id === 'd-1938' ? `<p class="consequence">Tomás will keep being refused at the door until he enrols his face. <a class="x" href="#identities/tomas">Tomás’s enrolment</a></p>` : ''}
+  <details class="numbers"><summary>Show the numbers</summary>
+   ${d.ev.length ? `<table class="raw"><thead><tr><th>Time</th><th>Sensor</th><th>Kind</th><th>Best</th><th>LLR</th><th>Next</th></tr></thead><tbody>${d.ev.map(r => `<tr>${r.slice(0, 6).map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>` : ''}
+   <ul class="reasons">${d.reasons.map(r => `<li class="${/<|does not|no delegation|ambiguous|unknown|no leading/.test(r) ? 'f' : ''}">${esc(r)}</li>`).join('')}</ul>
+   <p class="mono" style="margin-top:10px">${d.id} · permission ${a.id} · band ${ENG[a.need]}${d.ev.length ? ` · calibration ${[...new Set(d.ev.map(r => r[6]))].join(', ')}` : ''}${d.valid ? ` · validUntil ${d.valid}` : ''}</p>
+  </details>
+  <div class="sec" style="margin-top:14px"><h3>Go to</h3><ul class="lines"><li><a class="x" href="#policy/${a.id}">The rule for “${a.label}”</a></li>${d.who ? `<li><a class="x" href="#identities/${d.who}">${P(d.who).name}</a></li>` : ''}<li><a class="x" href="#agents/${d.agent}">${ag.name}</a></li></ul></div>`;
+}
+
+/* ---------- Policy ---------- */
+let draft = null; // working copy of ACTIONS
+const cloneActs = () => ACTIONS.map(a => ({ ...a, roles: [...(a.roles || [])] }));
+function cur() { return draft || ACTIONS; }
+function changes() { if (!draft) return []; const out = []; draft.forEach(d => { const o = A(d.id); if (o.need !== d.need || (o.roles || []).join() !== d.roles.join()) out.push([o, d]); }); return out; }
+function canWith(a) { return PEOPLE.filter(p => hasRole(p, a) && allowed(p, a) && personReach(p) >= a.need); }
+function names(list) { if (!list.length) return 'nobody'; const n = list.map(p => p.short); return n.length === 1 ? n[0] : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1]; }
+function impactLine(o, d) {
+  const before = canWith(o), after = canWith(d);
+  const gained = after.filter(p => !before.includes(p)), lost = before.filter(p => !after.includes(p));
+  const holdersNot = PEOPLE.filter(p => hasRole(p, d) && !allowed(p, d) && !hasRole(p, o));
+  const sp = spacesFor(d).map(s => s.name);
+  let s = `<b>${d.label}</b>: `;
+  if (gained.length) s += `${names(gained)} can now have this done for them. `;
+  if (lost.length) s += `${names(lost)} no longer can${lost.every(p => personReach(p) < d.need) ? ' (no face enrolled)' : ''}. `;
+  if (!gained.length && !lost.length) s += `nobody gains or loses it yet${holdersNot.length ? `: ${names(holdersNot)} would hold it but hasn’t allowed any assistant to` : ''}. `;
+  else if (holdersNot.length) s += `${names(holdersNot)} would hold it but hasn’t allowed it. `;
+  if (o.need !== d.need) s += `Needs ${LV[d.need]} (was ${LV[o.need]}); possible in ${sp.length === SPACES.length ? 'every space' : sp.join(', ') || 'no space'}.`;
+  return s;
+}
+function vPolicy() {
+  const acts = cur(), ch = changes();
+  const roleCount = r => PEOPLE.filter(p => p.roles.includes(r)).length;
+  const head = `<thead><tr><th>Action</th><th class="needh">Needs</th>${ROLES.map(r => `<th class="role" title="${names(PEOPLE.filter(p => p.roles.includes(r.id)))}"><b>${r.name}</b><span>${PEOPLE.filter(p => p.roles.includes(r.id)).map(p => p.short).join(', ')}</span></th>`).join('')}<th class="wh">Possible in</th></tr></thead>`;
+  const rowOf = a => {
+    const o = A(a.id), sel = (route.id || 'door.unlock') === a.id;
+    const sp = spacesFor(a);
+    const spTxt = a.need === 0 ? 'Everywhere' : sp.length === SPACES.length ? 'Every space' : `${sp.map(s => s.name).join(', ')}`;
+    if (a.floor) return `<tr class="${sel ? 'cur' : ''}"><td class="act"><a href="#policy/${a.id}"><b>${a.label}</b><code>${a.id}</code></a></td><td class="needc">${lvTag(0)}</td><td class="floor" colspan="3">${a.locked ? 'Always allowed, for anyone. This can’t be turned off.' : 'Anyone, recognised or not'}</td><td class="where wh">Everywhere</td></tr>`;
+    return `<tr class="${sel ? 'cur' : ''}"><td class="act"><a href="#policy/${a.id}"><b>${a.label}</b><code>${a.id}</code></a></td>
+      <td class="needc"><button type="button" class="need${o.need !== a.need ? ' changed' : ''}" data-need="${a.id}" aria-haspopup="listbox" aria-expanded="false" aria-label="${a.label} needs ${LV[a.need]}. Change">${ladder(a.need)}<span>${LV[a.need]}</span><svg class="chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 4 5 6.5 7.5 4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button></td>
+      ${ROLES.map(r => { const on = a.roles.includes(r.id), was = (o.roles || []).includes(r.id); return `<td class="cell"><button type="button" class="hold${on !== was ? ' changed' : ''}" data-hold="${a.id}:${r.id}" data-role="${r.name}" aria-pressed="${on}" aria-label="${r.name} ${on ? 'holds' : 'does not hold'}: ${a.label}"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke-width="1.3"/></svg></button></td>`; }).join('')}
+      <td class="where wh">${a.need === 3 && sp.length < SPACES.length ? `${spTxt} <span class="dim">only</span>` : spTxt}</td></tr>`;
+  };
+  const body = acts.filter(a => !a.floor).map(rowOf).join(''), floorBody = acts.filter(a => a.floor).map(rowOf).join('');
+  const master = `<table class="mx" aria-label="Who may have each action done for them">${head}<tbody>
+    <tr class="sec-row"><td colspan="6"><h3>Needs someone recognised</h3></td></tr>${body}
+    <tr class="sec-row"><td colspan="6"><h3>Anyone may</h3></td></tr>${floorBody}
+  </tbody></table>
+  <div class="group" style="margin-top:28px"><div class="ghead"><h2>Limits set by an administrator</h2><span class="meta">On top of what a person allowed</span></div>
+  ${LIMITS.map(l => `<div class="row" style="grid-template-columns:1fr auto"><span><b style="font-weight:500">${P(l.person).short}</b> · ${AG(l.agent).name} may ${A(l.action).label.toLowerCase()} only at the ${l.spaces.map(s => S(s).name.toLowerCase()).join(', ')}, until ${l.until}</span><span class="dim small">Set by ${l.by}</span></div>`).join('')}</div>
+  <div class="group"><div class="ghead"><h2>Levels</h2><span class="meta">The same four everywhere in attest</span></div>
+  <div class="levels" style="margin-top:12px">${LV.map((n, i) => `${lvTag(i)}<span class="sub">${LVD[i]}</span>`).join('')}</div></div>`;
+  const a = acts.find(x => x.id === (route.id || 'door.unlock'));
+  const extra = `<div class="impact${ch.length ? '' : ' idle'}" aria-live="polite">${ch.length ? ch.map(([o, d]) => `<div class="chg"><span class="tag">Unapplied</span><span>${impactLine(o, d)}</span></div>`).join('') : `<span>Click a level or a dot to change who may have something done for them. Nothing applies until you apply it, and every change is logged in <a class="x" href="#governance/audit">Governance</a>.</span>`}</div>`;
+  const action = `${ch.length ? `<button type="button" class="btn quiet" data-discard>Discard</button>` : ''}<button type="button" class="btn primary" data-apply ${ch.length ? '' : 'disabled'}>${ch.length ? `Apply ${ch.length} change${ch.length > 1 ? 's' : ''}` : 'Apply changes'}</button>`;
+  return page({ title: 'Policy', lede: 'What agents may do for whom, and how sure attest must be first. Roles come from Keycloak; this is the only place rules change.', action, master, detail: actionDetail(a), extra });
+}
+function actionDetail(a) {
+  const o = A(a.id);
+  const tools = AGENTS.flatMap(ag => ag.servers.flatMap(s => s.tools.filter(t => t[1] === a.id).map(t => ({ ag, t: t[0] }))));
+  const sp = SPACES.map(s => ({ s, r: spaceReach(s.id, false) }));
+  const ppl = PEOPLE.map(p => { const role = hasRole(p, a), ok = allowed(p, a), reach = personReach(p) >= a.need; return { p, role, ok, reach, can: role && ok && reach }; });
+  const why = x => !x.role ? 'Role doesn’t hold it' : !x.ok ? 'Hasn’t allowed it' : !x.reach ? `Can’t reach ${LV[a.need]}: no face enrolled` : 'Can';
+  return `<div class="dh"><div><div class="kicker"><code>${a.id}</code></div><h2 style="font-size:18px">${a.label}</h2></div>${lvTag(a.need)}</div>
+  <p class="sub">${a.floor ? 'Anyone may have this done, even when attest recognises nobody.' : `Needs ${LV[a.need]}: ${LVD[a.need].toLowerCase()}.`}</p>
+  ${a.floor ? '' : `<div class="sec" style="margin-top:16px"><h3>Who can have this done</h3><ul class="lines">${ppl.map(x => `<li>${x.can ? mark('ok').replace('<svg', '<svg style="color:var(--ok)"') : mark('skip')}<span>${x.p.short}</span><span class="rt">${why(x)}</span></li>`).join('')}</ul>
+  <p class="small dim" style="margin-top:8px">A person needs the role <em>and</em> to have allowed it themselves. <a class="x" href="#identities">Identities</a></p></div>
+  <div class="sec"><h3>Where it can be granted</h3><ul class="lines">${sp.map(({ s, r }) => `<li>${r >= a.need ? mark('ok').replace('<svg', '<svg style="color:var(--ok)"') : mark('skip')}<span>${s.name}</span><span class="rt">${r >= a.need ? `up to ${LV[r]}` : `${r === 2 ? 'Voice only' : 'No sensors'}: never here`}</span></li>`).join('')}</ul><p class="small dim" style="margin-top:8px">From sensor coverage. <a class="x" href="#sensors">Sensors</a></p></div>`}
+  <div class="sec"><h3>Tools that do this</h3><ul class="lines">${tools.map(x => `<li><code>${x.t}</code><span class="rt"><a class="x" href="#agents/${x.ag.id}">${x.ag.name}</a></span></li>`).join('') || '<li class="dim">No tool is mapped to this yet</li>'}</ul></div>
+  <div class="sec"><h3>Today</h3><ul class="lines">${DECISIONS.filter(d => d.action === a.id).map(d => `<li><a class="x" href="#decisions/${d.id}">${hm(d.t)}</a>${outcome(d.ok)}<span class="rt">${d.who ? P(d.who).short : 'Not named'}</span></li>`).join('') || '<li class="dim">Not asked for today</li>'}</ul></div>`;
+}
+
+/* ---------- Identities ---------- */
+function vIdentities() {
+  const row = p => { const n = Object.values(CONSENT[p.id]).flat().length; return `<a class="row r-id" href="#identities/${p.id}" ${route.id === p.id ? 'aria-current="true"' : ''}><span><span class="name">${p.name}</span>${p.admin ? ' <span class="dim small">· admin</span>' : ''}</span><span class="sub">${p.roles.map(r => ROLES.find(x => x.id === r).name).join(', ')}</span><span class="mod ${p.voice ? '' : 'off'}">${modGlyph('voice', !!p.voice)}${p.voice ? 'Voice' : 'No voice'}</span><span class="mod ${p.face ? '' : 'off'}">${modGlyph('face', !!p.face)}${p.face ? 'Face' : 'No face'}</span><span class="sub">${n} allowed</span><span class="end">${lvTag(personReach(p))}</span></a>`; };
+  const master = `<div class="colhead r-id" aria-hidden="true"><span>Person</span><span>Role</span><span>Voice</span><span>Face</span><span>Has allowed</span><span style="text-align:right">Can reach</span></div>${PEOPLE.map(row).join('')}
+  <p class="note">People and roles come from Keycloak at id.maple.home. To add someone, add them there; they appear here within a minute. <a class="x" href="#connections/idp">Connection</a></p>`;
+  const p = P(route.id);
+  return page({ title: 'Identities', lede: 'The people attest can recognise. Accounts and roles live in Keycloak; each person enrols and chooses what agents may do for them.', action: `<button class="btn primary" type="button">Invite to enrol</button>`, master, detail: p ? idDetail(p) : `<p class="empty-detail">Select someone to see their enrolment and what they have allowed.</p>` });
+}
+function idDetail(p) {
+  const l = lvOf(vAt(p.ev, tick));
+  const lim = LIMITS.filter(x => x.person === p.id);
+  const consent = AGENTS.map(ag => { const list = (CONSENT[p.id][ag.id] || []).map(A); return `<li style="display:block"><b style="font-weight:500">${ag.name}</b> may<ul class="lines" style="margin-top:4px">${list.length ? list.map(a => { const lm = lim.find(x => x.action === a.id && x.agent === ag.id); return `<li>${a.label}${lm ? `<span class="small dim">, at the ${lm.spaces.map(s => S(s).name.toLowerCase())} until ${lm.until}: <a class="x" href="#policy">limit set by ${lm.by}</a></span>` : ''}<span class="rt">${lvTag(a.need)}</span></li>`; }).join('') : '<li class="dim">Nothing yet</li>'}</ul></li>`; }).join('');
+  return `<div class="dh"><div><div class="kicker">${p.email}</div><h2 style="font-size:18px">${p.name}</h2></div><a class="btn" href="#presence/${p.id}">${l ? `In ${S(p.space).name}` : 'Not present'}</a></div>
+  <dl class="kv"><dt>Role</dt><dd>${p.roles.map(r => ROLES.find(x => x.id === r).name).join(', ')} <span class="dim small">· from Keycloak</span></dd><dt>Identity</dt><dd><code>${p.uuid}</code></dd><dt>Linked to</dt><dd>id.maple.home · realm home</dd></dl>
+  <div class="sec" style="margin-top:16px"><h3>Last ten minutes</h3>${trace(p.ev, { w: 392, h: 130, now: tick })}</div>
+  <div class="sec"><h3>Enrolment</h3><ul class="lines">
+   <li>${modGlyph('voice', !!p.voice)}Voice<span class="rt">${p.voice ? `Since ${p.voice.on} · ${p.voice.via}` : 'Not enrolled'}</span></li>
+   <li>${modGlyph('face', !!p.face)}Face<span class="rt">${p.face ? `Since ${p.face.on} · ${p.face.via}` : 'Not enrolled'}</span></li></ul>
+   ${!p.face ? `<p class="consequence">Without a face, ${p.short} can only reach Sure, so anything that needs Confirmed, like unlocking the front door, will always be refused. <button class="linkbtn" type="button">Send ${p.short} a link to enrol</button></p>` : ''}
+   <p class="small dim" style="margin-top:8px">attest keeps when each was enrolled, never the voice or face itself.</p></div>
+  <div class="sec"><h3>What ${p.short} has allowed</h3><ul class="lines">${consent}</ul><p class="small dim" style="margin-top:8px">${p.short} owns these choices and changes them at attest.maple.home/enrol. <a class="x" href="#governance/consent">History</a></p></div>
+  <div class="sec"><h3>Recent decisions</h3><ul class="lines">${DECISIONS.filter(d => d.who === p.id).slice(0, 4).map(d => `<li><a class="x" href="#decisions/${d.id}">${hm(d.t)}</a>${outcome(d.ok)}<span class="rt">${A(d.action).label}</span></li>`).join('') || '<li class="dim">None today</li>'}</ul></div>
+  <p class="small dim" style="margin-top:8px">To forget ${p.short}, go to <a class="x" href="#governance/forget">Governance</a>.</p>`;
+}
+
+/* ---------- Sensors ---------- */
+function coverage() {
+  const cell = (sp, m) => { const ss = SENSORS.filter(s => s.spaces.includes(sp.id) && s.mod === m);
+    if (!ss.length) return `<td class="m"><span class="seg gap"></span><span class="dim">None</span></td>`;
+    return `<td class="m">${ss.map(s => `<span class="seg${s.health === 'off' ? ' off' : ''}"></span><a href="#sensors/${s.id}">${s.name}</a>${s.health === 'off' ? ` <span class="small" style="color:var(--warn)">· not reporting</span>` : ''}`).join('')}</td>`; };
+  const gapTxt = sp => { const r = spaceReach(sp.id, false), live = spaceReach(sp.id); if (live < r) return 'Not reporting: nobody can be recognised here.'; if (r === 2) return 'Voice only, so Confirmed actions can never be granted here.'; return ''; };
+  return `<table class="cov" aria-label="Which sensors cover each space"><thead><tr><th>Space</th><th>Voice</th><th>Face</th><th class="capc">Highest level here</th></tr></thead><tbody>${SPACES.map(sp => { const g = gapTxt(sp), r = spaceReach(sp.id, false); return `<tr><td class="sp">${sp.name}</td>${cell(sp, 'voice')}${cell(sp, 'face')}<td class="capc">${lvTag(r)}${g ? `<div class="cap">${g}</div>` : ''}</td></tr>${g ? `<tr class="gapnote"><td colspan="3">${g}</td></tr>` : ''}`; }).join('')}</tbody></table>`;
+}
+function vSensors() {
+  const pending = SENSORS.filter(s => s.health === 'new');
+  const row = s => `<a class="row r-sen" href="#sensors/${s.id}" ${route.id === s.id ? 'aria-current="true"' : ''}><span class="name">${s.name}</span><span class="mod">${modGlyph(s.mod)}${s.mod === 'voice' ? 'Voice' : 'Face'}</span><span class="sub">${s.spaces.map(x => S(x).name).join(', ') || '<span class="dim">Not placed</span>'}</span><span>${s.health === 'ok' ? `<span class="sub">Reported ${ago(s.last)}</span>` : s.health === 'off' ? attn(`Not since ${s.since}`) : `<span class="sub">Found ${ago(s.found)}</span>`}</span><span class="end sub">${s.health === 'new' ? '' : `Knows ${s.knows} of 4`}</span></a>`;
+  const master = `<div class="group"><div class="ghead"><h2>Coverage</h2><span class="meta">Spaces are defined by the sensors that cover them</span></div>${coverage()}</div>
+  <div class="group" style="margin-top:28px"><div class="ghead"><h2>Waiting to be adopted</h2></div>${pending.map(row).join('')}</div>
+  <div class="group"><div class="ghead"><h2>Adopted</h2><span class="meta">${SENSORS.length - pending.length}</span></div>${SENSORS.filter(s => s.health !== 'new').map(row).join('')}</div>`;
+  const s = SENSORS.find(x => x.id === route.id);
+  return page({ title: 'Sensors', lede: 'Microphones and cameras that tell attest who they think is there. They send match scores, never recordings.', action: `<a class="btn primary" href="#sensors/study-speaker">Adopt Study speaker</a>`, master, detail: s ? sensorDetail(s) : `<p class="empty-detail">Select a sensor to see its health and calibration.</p>` });
+}
+function sensorDetail(s) {
+  if (s.health === 'new') return `<div class="dh"><div><div class="kicker">Found on your network ${ago(s.found)}</div><h2 style="font-size:18px">${s.name}</h2></div></div>
+   <p class="sub">A voice sensor offering to join Maple House. Adopting it gives it its own credential, so it can send match scores and nothing else.</p>
+   <label class="field">Space it covers<select class="sel" style="height:36px"><option>Study (new space)</option>${SPACES.map(x => `<option>${x.name}</option>`).join('')}</select></label>
+   <p class="consequence plain">A new Study would hear voices only: up to Sure. Confirmed actions would never be granted there.</p>
+   <div style="margin-top:20px;display:flex;gap:10px"><button class="btn primary" type="button">Adopt</button><button class="btn quiet" type="button">Ignore</button></div>`;
+  return `<div class="dh"><div><div class="kicker">${s.mod === 'voice' ? 'Voice' : 'Face'} · ${s.spaces.map(x => S(x).name).join(', ')}</div><h2 style="font-size:18px">${s.name}</h2></div>${s.health === 'off' ? attn('Not reporting') : `<span class="oc">${mark('ok').replace('<svg', '<svg style="color:var(--ok)"')}Reporting</span>`}</div>
+  ${s.health === 'off' ? `<p class="consequence">No reports since ${s.since}. The car is probably away or off. Nobody can be recognised in the Car until it reports, so the Car assistant can only do what anyone may.</p>` : ''}
+  <dl class="kv" style="margin-top:14px"><dt>Last report</dt><dd>${s.health === 'off' ? `${s.since} today` : ago(s.last)}</dd><dt>Covers</dt><dd>${s.spaces.map(x => S(x).name).join(', ')} <button class="linkbtn small" type="button">Change</button></dd><dt>Recognises</dt><dd>${s.knows} of 4 people</dd><dt>Adopted</dt><dd>${s.adopted}</dd><dt>Credential</dt><dd><code>${s.key}</code></dd></dl>
+  <div class="sec" style="margin-top:16px"><h3>Calibration</h3><div class="bigstate small" style="margin:0 0 6px"><span>${s.calq === 'Good' ? `<span class="oc">${mark('ok').replace('<svg', '<svg style="color:var(--ok)"')}Good</span>` : attn('Unverified')}</span><code>${s.cal}</code></div><p class="sub small">${s.calnote}</p></div>
+  <div class="sec"><h3>Who it can recognise</h3><ul class="lines">${PEOPLE.map(p => { const k = s.mod === 'voice' ? p.voice : p.face; return `<li>${modGlyph(s.mod, !!k)}${p.short}<span class="rt">${k ? 'Enrolled' : `<a class="x" href="#identities/${p.id}">Not enrolled</a>`}</span></li>`; }).join('')}</ul></div>
+  <div class="sec"><button class="btn danger" type="button">Retire ${s.name}</button><p class="small dim" style="margin-top:8px">Its credential stops working and its evidence is dropped at once.</p></div>`;
+}
+
+/* ---------- Agents ---------- */
+function vAgents() {
+  const tools = ag => ag.servers.flatMap(s => s.tools);
+  const row = ag => { const un = tools(ag).filter(t => !t[1]).length; return `<a class="row r-ag" href="#agents/${ag.id}" ${route.id === ag.id ? 'aria-current="true"' : ''}><span class="name">${ag.name}</span><span class="sub">${ag.servers.length} tool server${ag.servers.length > 1 ? 's' : ''} · ${tools(ag).length} tools</span><span>${un ? attn(`${un} to map`) : '<span class="sub">All mapped</span>'}</span><span class="sub end small">${ag.last}</span></a>`; };
+  const master = `<div class="colhead r-ag" aria-hidden="true"><span>Agent</span><span>Behind the gateway</span><span>Tools</span><span style="text-align:right">Last asked</span></div>${AGENTS.map(row).join('')}<p class="note">Each agent signs in to Keycloak as its own client, and every tool call reaches its tool server only through attest’s gateway.</p>`;
+  const ag = AG(route.id);
+  return page({ title: 'Agents', lede: 'The assistants that ask attest before they act, and the tool servers behind them. Each discovered tool is mapped to an action that Policy governs.', action: `<button class="btn primary" type="button">Connect a tool server</button>`, master, detail: ag ? agentDetail(ag) : `<p class="empty-detail">Select an agent to see its tools.</p>` });
+}
+function agentDetail(ag) {
+  return `<div class="dh"><div><div class="kicker">Keycloak client <code>${ag.client}</code></div><h2 style="font-size:18px">${ag.name}</h2></div></div>
+  <p class="sub">${ag.people} people have allowed it to do something for them.</p>
+  ${ag.servers.map(s => `<div class="sec" style="margin-top:16px"><h3>${s.name}</h3><p class="small dim" style="margin:-4px 0 8px"><code>${s.url}</code></p><ul class="lines">${s.tools.map(([t, a]) => `<li><code style="min-width:120px">${t}</code>${a ? `<span>→ <a class="x" href="#policy/${a}">${A(a).label}</a></span><span class="rt">${lvTag(A(a).need)}</span>` : `<select class="sel" style="margin-left:auto" aria-label="Map ${t} to an action"><option>Map to an action…</option>${ACTIONS.map(x => `<option>${x.label}</option>`).join('')}<option>A new action</option></select><span style="flex-basis:100%;font-size:12.5px">${attn('Found 10 min ago. Refused until it is mapped to an action.')}</span>`}</li>`).join('')}</ul></div>`).join('')}
+  <p class="small dim" style="margin-top:8px">Mapping says what a tool <em>is</em>; who may use it is set in <a class="x" href="#policy">Policy</a>.</p>`;
+}
+
+/* ---------- Governance ---------- */
+const GOV = [
+  { id: 'stores', name: 'What attest keeps', sum: 'Never voices, faces or recordings' },
+  { id: 'consent', name: 'Consent history', sum: `${CONSENT_LOG.length} changes, by the people themselves` },
+  { id: 'admins', name: 'Administrators', sum: 'Noor · from Keycloak' },
+  { id: 'audit', name: 'Configuration changes', sum: `${AUDIT.length} since setup` },
+  { id: 'retention', name: 'Retention', sum: 'Decisions 30 days · changes 1 year' },
+  { id: 'export', name: 'Export', sum: 'Everything attest holds, as one file' },
+  { id: 'forget', name: 'Forget a person', sum: 'One forget is incomplete', attn: true },
+];
+function vGovernance() {
+  const sel = route.id || 'stores';
+  const master = GOV.map(g => `<a class="row r-gov" href="#governance/${g.id}" ${sel === g.id ? 'aria-current="true"' : ''}><span class="name">${g.name}</span><span class="end">${g.attn ? attn(g.sum) : `<span class="sub small">${g.sum}</span>`}</span></a>`).join('');
+  const d = {
+    stores: `<h2 style="font-size:18px">What attest keeps</h2><p class="sub" style="margin-top:6px">attest decides who is present from match scores. The voices and faces stay in the sensors that measured them.</p>
+      <div class="keeps" style="margin-top:18px"><div><h3>Keeps</h3><ul><li>Names, and the link to each Keycloak account</li><li>Roles copied from Keycloak<span class="dim">refreshed at every sign-in</span></li><li>What each person has allowed</li><li>When each person enrolled, per kind</li><li>Decisions and their reasons<span class="dim">30 days</span></li><li>Configuration changes<span class="dim">1 year</span></li></ul></div>
+      <div><h3>Never keeps</h3><ul><li>Recordings, images or video</li><li>Voiceprints or face templates</li><li>Match scores<span class="dim">held in memory for minutes, then gone</span></li><li>Where anyone was, once evidence expires</li></ul></div></div>`,
+    consent: `<h2 style="font-size:18px">Consent history</h2><p class="sub" style="margin-top:6px">Changes people made to what agents may do for them. Current choices are shown on each <a class="x" href="#identities">identity</a>.</p><ul class="lines" style="margin-top:14px">${CONSENT_LOG.map(([t, w, x]) => `<li><span><b style="font-weight:500">${w}</b> ${x}</span><span class="rt">${t}</span></li>`).join('')}</ul>`,
+    admins: `<h2 style="font-size:18px">Administrators</h2><p class="sub" style="margin-top:6px">Anyone with the <code>attest-admin</code> role in Keycloak can use this console. Grant or remove it there.</p><ul class="lines" style="margin-top:14px"><li>Noor Haddad<span class="rt">Signed in now</span></li></ul>`,
+    audit: `<h2 style="font-size:18px">Configuration changes</h2><ul class="lines" style="margin-top:14px">${AUDIT.map(([t, w, x]) => `<li><span>${x}</span><span class="rt">${w} · ${t}</span></li>`).join('')}</ul>`,
+    retention: `<h2 style="font-size:18px">Retention</h2><dl class="kv" style="margin-top:14px"><dt>Decisions</dt><dd><select class="sel"><option>7 days</option><option selected>30 days</option><option>90 days</option></select></dd><dt>Name people in decisions</dt><dd><select class="sel"><option selected>Yes</option><option>No, keep them anonymous</option></select></dd><dt>Configuration changes</dt><dd>1 year</dd><dt>Evidence</dt><dd>Never written to disk</dd></dl>`,
+    export: `<h2 style="font-size:18px">Export</h2><p class="sub" style="margin-top:6px">One JSON file with every identity, role copy, consent choice, limit, rule and decision attest holds. Nothing in it is biometric.</p><button class="btn primary" type="button" style="margin-top:16px">Download export</button>`,
+    forget: `<h2 style="font-size:18px">Forget a person</h2><p class="sub" style="margin-top:6px">Removes their identity, choices and role copy, and tells every sensor to delete their voice or face. Their Keycloak account stays.</p>
+      <div class="sec" style="margin-top:16px"><h3>Sam Okafor · forgotten 2 Nov</h3><ul class="lines">${SENSORS.filter(s => s.health !== 'new').map(s => `<li>${s.name}<span class="rt">${s.health === 'off' ? attn('Waiting. It has been offline') : 'Deleted · 2 Nov'}</span></li>`).join('')}</ul><p class="consequence">Not complete until the Cabin microphone confirms. It will be asked again as soon as it reports.</p></div>
+      <div class="sec"><label class="field" style="margin-top:0">Forget someone<select class="sel" style="height:36px"><option>Choose a person…</option>${PEOPLE.map(p => `<option>${p.name}</option>`).join('')}</select></label><button class="btn danger" type="button" style="margin-top:14px">Forget…</button></div>`,
+  }[sel];
+  return page({ title: 'Governance', lede: 'What attest holds about people, who changed what, and how to take it back out.', action: `<a class="btn primary" href="#governance/export">Export everything</a>`, master, detail: d });
+}
+
+/* ---------- Connections ---------- */
+function vConnections() {
+  const sel = route.id || 'idp';
+  const items = [['idp', 'Identity provider', 'Keycloak · connected'], ['address', 'Public address', 'attest.maple.home'], ['backup', 'Backup', 'Last night at 03:00']];
+  const master = items.map(([id, n, s]) => `<a class="row r-gov" href="#connections/${id}" ${sel === id ? 'aria-current="true"' : ''}><span class="name">${n}</span><span class="end sub small">${s}</span></a>`).join('') + `<p class="note">Setting up a new place? <a class="x" href="#setup/1">Run setup again</a></p>`;
+  const d = {
+    idp: `<div class="dh"><div><div class="kicker">Identity provider</div><h2 style="font-size:18px">Keycloak</h2></div><span class="oc">${mark('ok').replace('<svg', '<svg style="color:var(--ok)"')}Connected</span></div><dl class="kv"><dt>Address</dt><dd>id.maple.home · realm home</dd><dt>Last checked</dt><dd>19:40</dd><dt>People</dt><dd>4</dd><dt>Roles used</dt><dd>resident, teen, guest</dd><dt>Created there</dt><dd><code>attest</code>, <code>attest-enrol</code> clients · <code>attest-admin</code> role</dd><dt>If unreachable</dt><dd><select class="sel"><option selected>Use roles from the last hour</option><option>Refuse everything but Anyone</option></select></dd></dl>`,
+    address: `<div class="dh"><div><div class="kicker">Public address</div><h2 style="font-size:18px">attest.maple.home</h2></div></div><p class="sub">Where people enrol and where Keycloak sends them back after signing in.</p><dl class="kv" style="margin-top:14px"><dt>Certificate</dt><dd>Valid until 2 Feb</dd><dt>Enrolment page</dt><dd><code>https://attest.maple.home/enrol</code></dd></dl>`,
+    backup: `<div class="dh"><div><div class="kicker">Backup</div><h2 style="font-size:18px">Every night at 03:00</h2></div><button class="btn" type="button">Back up now</button></div><dl class="kv"><dt>To</dt><dd>nas.maple.home/backups/attest</dd><dt>Last</dt><dd>Today 03:00 · 41 KB</dd><dt>Contains</dt><dd>What <a class="x" href="#governance/stores">attest keeps</a>, nothing more</dd></dl>`,
+  }[sel];
+  return page({ title: 'Connections', lede: 'What attest leans on: your identity provider, its own address, and where it backs up.', action: `<a class="btn primary" href="#setup/1">Run setup</a>`, master, detail: d });
+}
+
+/* ---------- First-run ---------- */
+function setupHTML(n) {
+  const steps = `<div class="steps" aria-label="Step ${n} of 4">${[1,2,3,4].map(i => `<span class="${i <= n ? 'on' : ''}"></span>`).join('')}</div>`;
+  const foot = (back, next, label) => `<div class="setup-foot">${back ? `<a class="btn quiet" href="${back}">Back</a>` : `<a class="btn quiet" href="#connections">Cancel</a>`}<a class="btn primary" href="${next}">${label}</a></div>`;
+  const body = {
+    1: `<h1>Where do your people sign in?</h1><p class="lede">attest uses your identity provider for people and roles. You sign in once as an administrator, and attest creates the clients and roles it needs there.</p>
+      <ul class="choice">${[['Keycloak', 'Found at id.maple.home', true], ['Authentik', ''], ['Ory', ''], ['Auth0', 'Hosted']].map(([n, s, c]) => `<li><label><input type="radio" name="idp" ${c ? 'checked' : ''}>${n}<span class="sub">${s}</span></label></li>`).join('')}</ul>
+      <label class="field">Address<input value="https://id.maple.home/realms/home"></label>${foot(null, '#setup/2', 'Sign in to Keycloak')}`,
+    2: `<h1>Name this place</h1><p class="lede">People see it when they enrol. You can split it into spaces later; spaces come from where sensors are.</p><label class="field">Name<input value="Maple House"></label>
+      <ul class="choice"><li><label><input type="radio" name="k" checked>A household<span class="sub">Residents, teens, guests</span></label></li><li><label><input type="radio" name="k">A small office<span class="sub">Staff, visitors</span></label></li></ul>${foot('#setup/1', '#setup/3', 'Continue')}`,
+    3: `<h1>Adopt a first sensor</h1><p class="lede">These are on your network and offering to join. Adopting one gives it its own credential.</p>
+      <ul class="choice">${[['Kitchen display', 'Voice'], ['Kitchen camera', 'Face'], ['Hallway panel', 'Voice']].map(([n, m], i) => `<li><label><input type="checkbox" ${i < 2 ? 'checked' : ''}>${n}<span class="sub">${m}</span></label></li>`).join('')}</ul>
+      <p class="consequence plain">Kitchen display and Kitchen camera together let the Kitchen reach Confirmed.</p>${foot('#setup/2', '#setup/4', 'Adopt 2 sensors')}`,
+    4: `<h1>Invite people to enrol</h1><p class="lede">They’re already in Keycloak. Each one signs in, records their voice, and chooses what agents may do for them.</p>
+      <ul class="choice">${PEOPLE.map((p, i) => `<li><label><input type="checkbox" ${i === 0 ? 'checked disabled' : i < 3 ? 'checked' : ''}>${p.name}<span class="sub">${i === 0 ? 'You' : p.email}</span></label></li>`).join('')}</ul>${foot('#setup/3', '#presence', 'Send 2 invites and finish')}`,
+  }[n];
+  return `<div class="setup-in"><div class="brand" style="padding:0"><b>attest</b><span>Set up · ${n} of 4</span></div>${steps}${body}</div>`;
+}
+
+/* ---------- Render ---------- */
+const VIEWS = { presence: vPresence, identities: vIdentities, sensors: vSensors, agents: vAgents, policy: vPolicy, decisions: vDecisions, governance: vGovernance, connections: vConnections };
+function render(focus) {
+  const r = parse();
+  const setup = document.getElementById('setup');
+  if (r.d === 'setup') { setup.innerHTML = setupHTML(Math.min(4, +r.id || 1)); setup.classList.add('on'); setup.querySelector('h1').setAttribute('tabindex', '-1'); setup.querySelector('h1').focus(); return; }
+  setup.classList.remove('on');
+  const changedDomain = r.d !== route.d;
+  route = VIEWS[r.d] ? r : { d: 'presence', id: null };
+  if (!route.id && innerWidth > 760) route.id = { presence: 'tomas', identities: 'tomas', sensors: 'cabin-mic', agents: 'home', decisions: 'd-1938' }[route.d] || null, route.auto = !!route.id;
+  const main = document.getElementById('main');
+  const sx = main.querySelector('.master')?.scrollTop || 0;
+  main.innerHTML = VIEWS[route.d]();
+  main.classList.toggle('pushed', !!route.id && !route.auto);
+  navHTML();
+  if (!changedDomain) { const m = main.querySelector('.master'); if (m) m.scrollTop = sx; }
+  if (focus) { const t = (route.id && !route.auto && innerWidth <= 760) ? main.querySelector('.detail') : main.querySelector('#h1'); t?.focus({ preventScroll: true }); if (innerWidth <= 760) scrollTo(0, 0); }
+  wireTrace();
+}
+addEventListener('hashchange', () => { closeMenu(); render(true); });
+
+/* live clock: only the trace moves */
+function liveTick() {
+  if (route.d === 'presence' || route.d === 'identities') {
+    tick += 1;
+    document.querySelectorAll('[data-live]').forEach(a => { const p = P(a.dataset.live); const t = a.querySelector('.c-t'); if (t) t.innerHTML = trace(p.ev, { w: 116, h: 28, mini: true, now: tick }); });
+    const bt = document.getElementById('bigtrace'); if (bt) { const p = P(bt.dataset.person); bt.innerHTML = trace(p.ev, { w: 392, h: 160, now: tick, id: 'tr-big' }); wireTrace(); }
+  }
+}
+if (!STILL) setInterval(liveTick, 1000);
+
+function wireTrace() {
+  const svg = document.getElementById('tr-big'), out = document.getElementById('readout'); if (!svg || !out) return;
+  const p = P(document.getElementById('bigtrace').dataset.person), hov = svg.querySelector('.hov');
+  const pw = 392 - 64;
+  svg.onmousemove = e => { const r = svg.getBoundingClientRect(), x = (e.clientX - r.left) * 392 / r.width; if (x < 0 || x > pw) return; const t = tick - 600 + x / pw * 840; const l = lvOf(vAt(p.ev, t)); hov.setAttribute('x1', x); hov.setAttribute('x2', x); hov.style.display = ''; out.textContent = `${clock(t)} · ${LV[l]}${t > tick ? ' (if nothing new arrives)' : ''}`; };
+  svg.onmouseleave = () => { hov.style.display = 'none'; out.textContent = ''; };
+}
+
+/* ---------- Interaction ---------- */
+let menu = null;
+function closeMenu() { if (menu) { menu.btn.setAttribute('aria-expanded', 'false'); menu.el.remove(); const b = menu.btn; menu = null; return b; } }
+function openMenu(btn) {
+  const id = btn.dataset.need, a = cur().find(x => x.id === id);
+  const el = document.createElement('div'); el.className = 'menu'; el.setAttribute('role', 'listbox'); el.setAttribute('aria-label', `${a.label} needs`);
+  el.innerHTML = [1, 2, 3].map(l => `<div role="option" tabindex="-1" data-l="${l}" aria-selected="${a.need === l}">${ladder(l)}<b style="font-weight:500">${LV[l]}</b><small>${LVD[l]}${l === 3 ? `. Possible in ${SPACES.filter(s => spaceReach(s.id, false) >= 3).map(s => s.name).join(' and ')}` : ''}</small></div>`).join('');
+  document.body.appendChild(el);
+  const r = btn.getBoundingClientRect(); el.style.left = `${r.left + scrollX}px`; el.style.top = `${r.bottom + scrollY + 4}px`;
+  btn.setAttribute('aria-expanded', 'true');
+  menu = { el, btn, id }; const opts = [...el.querySelectorAll('[role=option]')]; let i = Math.max(0, a.need - 1);
+  const hi = () => { opts.forEach((o, k) => o.classList.toggle('hi', k === i)); opts[i].focus(); }; hi();
+  el.onkeydown = e => { if (e.key === 'ArrowDown') { i = Math.min(2, i + 1); hi(); e.preventDefault(); } else if (e.key === 'ArrowUp') { i = Math.max(0, i - 1); hi(); e.preventDefault(); } else if (e.key === 'Enter' || e.key === ' ') { pick(+opts[i].dataset.l); e.preventDefault(); } else if (e.key === 'Escape' || e.key === 'Tab') { closeMenu()?.focus(); e.preventDefault(); } };
+  el.onclick = e => { const o = e.target.closest('[role=option]'); if (o) pick(+o.dataset.l); };
+}
+function pick(l) { if (!draft) draft = cloneActs(); draft.find(x => x.id === menu.id).need = l; const id = menu.id; closeMenu(); render(); document.querySelector(`[data-need="${id}"]`)?.focus(); }
+
+document.addEventListener('click', e => {
+  const t = e.target;
+  if (t.closest('[data-theme-toggle]')) { root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark'; closeSheet(); navHTML(); return; }
+  if (t.closest('[data-palette]')) { openPalette(); return; }
+  if (t.closest('[data-sheet]')) { document.getElementById('sheet').classList.add('on'); document.getElementById('scrim').classList.add('on'); document.querySelector('#sheet a')?.focus(); return; }
+  if (t.closest('#scrim')) { closePalette(); closeSheet(); return; }
+  if (t.closest('#sheet a')) { closeSheet(); }
+  const nb = t.closest('[data-need]'); if (nb) { if (menu && menu.btn === nb) { closeMenu(); return; } closeMenu(); openMenu(nb); return; }
+  if (menu && !t.closest('.menu')) closeMenu();
+  const h = t.closest('[data-hold]'); if (h) { const [aid, rid] = h.dataset.hold.split(':'); if (!draft) draft = cloneActs(); const a = draft.find(x => x.id === aid); a.roles = a.roles.includes(rid) ? a.roles.filter(x => x !== rid) : ROLES.map(r => r.id).filter(r => r === rid || a.roles.includes(r)); render(); document.querySelector(`[data-hold="${aid}:${rid}"]`)?.focus(); return; }
+  if (t.closest('[data-discard]')) { draft = null; render(); return; }
+  if (t.closest('[data-apply]') && draft) { const ch = changes(); draft.forEach(d => { const o = A(d.id); o.need = d.need; o.roles = [...d.roles]; }); ch.forEach(([o]) => AUDIT.unshift(['10 Nov ' + hm(tick), 'Noor', `Changed who may ${o.label.toLowerCase()}`])); draft = null; render(); return; }
+});
+document.addEventListener('change', e => { const f = e.target.dataset.f; if (f) { decFilter[f] = e.target.value; render(); document.querySelector(`[data-f="${f}"]`)?.focus(); } });
+function closeSheet() { document.getElementById('sheet').classList.remove('on'); if (!document.getElementById('palette').classList.contains('on')) document.getElementById('scrim').classList.remove('on'); }
+
+/* command palette */
+const pal = document.getElementById('palette'), pq = document.getElementById('pq'), pl = document.getElementById('pl');
+const ITEMS = [
+  ...DOMAINS.concat(SECONDARY).map(d => [d.name, '#' + d.id, 'Domain']),
+  ...PEOPLE.map(p => [p.name, '#identities/' + p.id, 'Identities']),
+  ...SENSORS.map(s => [s.name, '#sensors/' + s.id, 'Sensors']),
+  ...AGENTS.map(a => [a.name, '#agents/' + a.id, 'Agents']),
+  ...ACTIONS.map(a => [a.label, '#policy/' + a.id, 'Policy']),
+  ...DECISIONS.map(d => [d.s.replace(/\.$/, ''), '#decisions/' + d.id, `Decisions · ${hm(d.t)}`]),
+  ...GOV.map(g => [g.name, '#governance/' + g.id, 'Governance']),
+  ['Run setup', '#setup/1', 'Connections'],
+];
+let pi = 0, plist = [];
+function drawPal() { const q = pq.value.trim().toLowerCase(); plist = ITEMS.filter(x => !q || x[0].toLowerCase().includes(q) || x[2].toLowerCase().includes(q)).slice(0, 12); pi = Math.min(pi, Math.max(0, plist.length - 1)); pl.innerHTML = plist.map((x, i) => `<li><a href="${x[1]}" class="${i === pi ? 'hi' : ''}" role="option" aria-selected="${i === pi}">${esc(x[0])}<span class="dom">${x[2]}</span></a></li>`).join('') || '<li class="note" style="padding:12px">Nothing matches</li>'; }
+function openPalette() { pal.classList.add('on'); document.getElementById('scrim').classList.add('on'); pq.value = ''; pi = 0; drawPal(); pq.focus(); }
+function closePalette() { pal.classList.remove('on'); document.getElementById('scrim').classList.remove('on'); }
+pq.addEventListener('input', () => { pi = 0; drawPal(); });
+pq.addEventListener('keydown', e => { if (e.key === 'ArrowDown') { pi = Math.min(plist.length - 1, pi + 1); drawPal(); e.preventDefault(); } else if (e.key === 'ArrowUp') { pi = Math.max(0, pi - 1); drawPal(); e.preventDefault(); } else if (e.key === 'Enter' && plist[pi]) { location.hash = plist[pi][1]; closePalette(); } });
+pl.addEventListener('click', () => closePalette());
+let gWait = 0;
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); pal.classList.contains('on') ? closePalette() : openPalette(); return; }
+  if (e.key === 'Escape') { if (pal.classList.contains('on')) { closePalette(); return; } if (document.getElementById('sheet').classList.contains('on')) { closeSheet(); return; } if (parse().d === 'setup') { location.hash = '#connections'; return; } if (route.id && route.d !== 'governance' && route.d !== 'connections') location.hash = '#' + route.d; return; }
+  if (/input|select|textarea/i.test(e.target.tagName) || menu) return;
+  if (e.key === 'g') { gWait = Date.now(); return; }
+  if (Date.now() - gWait < 900) { const d = DOMAINS.concat(SECONDARY).find(x => x.key === e.key); if (d) { location.hash = '#' + d.id; gWait = 0; } return; }
+  if ((e.key === 'j' || e.key === 'k') && !e.metaKey) { const rows = [...document.querySelectorAll('.master a.row, .master td.act a')]; if (!rows.length) return; let i = rows.findIndex(r => r.getAttribute('aria-current') === 'true' || r.closest('tr.cur')); i = e.key === 'j' ? Math.min(rows.length - 1, i + 1) : Math.max(0, i - 1); location.hash = rows[i].getAttribute('href'); }
+});
+
+render(false);
 })();
 </script>
 </body>
