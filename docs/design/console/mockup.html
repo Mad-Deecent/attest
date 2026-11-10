@@ -410,7 +410,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 
 /* ---------- Levels ---------- */
 const LV = ['Anyone','Likely','Sure','Confirmed'];
-const LVD = ['Anyone, recognised or not', 'At least 80% sure, seen in the last 15 minutes', 'At least 95% sure, in the last 5 minutes', '99% sure and recognised two ways, in the last 2 minutes'];
+const LVD = ['Anyone, recognized or not', 'At least 80% sure, seen in the last 15 minutes', 'At least 95% sure, in the last 5 minutes', '99% sure and recognized two ways, in the last 2 minutes'];
 const ENG = ['floor','presumed','confident','corroborated'];
 
 /* ---------- Data ---------- */
@@ -436,17 +436,17 @@ const SENSORS = [
   { id: 'study-speaker', name: 'Study speaker', mod: 'voice', spaces: [], health: 'new', found: 180, cal: 'voice-v1', calq: '—', calnote: 'Will use voice-v1 once adopted.', knows: 0, key: '—' },
 ];
 const PEOPLE = [
-  { id: 'noor', name: 'Noor Haddad', short: 'Noor', email: 'noor@maple.home', roles: ['resident'], admin: true, uuid: '7f3c1a9e-2b44-4d0e-9a51-c8e2f0b6d913', voice: { on: '2 Oct', via: 'enrolment page' }, face: { on: '2 Oct', via: 'Kitchen camera' }, space: 'kitchen',
+  { id: 'noor', name: 'Noor Haddad', short: 'Noor', email: 'noor@maple.home', roles: ['resident'], admin: true, uuid: '7f3c1a9e-2b44-4d0e-9a51-c8e2f0b6d913', voice: { on: '2 Oct', via: 'enrollment page' }, face: { on: '2 Oct', via: 'Kitchen camera' }, space: 'kitchen',
     ev: [{t:-700,m:'voice',p:2.3},{t:-560,m:'voice',p:2.25},{t:-430,m:'face',p:3.3},{t:-250,m:'voice',p:3.4},{t:-95,m:'face',p:3.5},{t:-8,m:'voice',p:3.58},{t:-3,m:'face',p:3.66}] },
-  { id: 'tomas', name: 'Tomás Reyes', short: 'Tomás', email: 'tomas@maple.home', roles: ['resident'], uuid: '1d9b6e20-77fa-4b1c-8f03-5a2e94c1d07b', voice: { on: '3 Oct', via: 'enrolment page' }, face: null, space: 'living',
+  { id: 'tomas', name: 'Tomás Reyes', short: 'Tomás', email: 'tomas@maple.home', roles: ['resident'], uuid: '1d9b6e20-77fa-4b1c-8f03-5a2e94c1d07b', voice: { on: '3 Oct', via: 'enrollment page' }, face: null, space: 'living',
     ev: [{t:-820,m:'voice',p:2.5},{t:-590,m:'voice',p:2.45},{t:-362,m:'voice',p:2.62,where:'Hallway panel'},{t:-362,m:'face',p:null,where:'Front door camera'},{t:-205,m:'voice',p:2.55},{t:-50,m:'voice',p:2.6}] },
-  { id: 'ilse', name: 'Ilse Reyes', short: 'Ilse', email: 'ilse@maple.home', roles: ['teen'], uuid: 'b52e0c7d-9a13-4f66-b2d8-03c7e1f4a588', voice: { on: '3 Oct', via: 'enrolment page' }, face: { on: '5 Oct', via: 'Kitchen camera' }, space: 'kitchen',
+  { id: 'ilse', name: 'Ilse Reyes', short: 'Ilse', email: 'ilse@maple.home', roles: ['teen'], uuid: 'b52e0c7d-9a13-4f66-b2d8-03c7e1f4a588', voice: { on: '3 Oct', via: 'enrollment page' }, face: { on: '5 Oct', via: 'Kitchen camera' }, space: 'kitchen',
     ev: [{t:-760,m:'face',p:3.1},{t:-600,m:'voice',p:2.4},{t:-520,m:'face',p:3.2},{t:-380,m:'face',p:2.5}] },
-  { id: 'ruth', name: 'Ruth Haddad', short: 'Ruth', email: 'ruth.haddad@example.net', roles: ['guest'], uuid: 'e08a4f31-6c2d-4b97-a1e5-7d3f9b20c6e4', voice: { on: '8 Nov', via: 'enrolment page' }, face: null, space: 'living',
+  { id: 'ruth', name: 'Ruth Haddad', short: 'Ruth', email: 'ruth.haddad@example.net', roles: ['guest'], uuid: 'e08a4f31-6c2d-4b97-a1e5-7d3f9b20c6e4', voice: { on: '8 Nov', via: 'enrollment page' }, face: null, space: 'living',
     ev: [{t:-800,m:'voice',p:2.4},{t:-640,m:'voice',p:2.3},{t:-560,m:'voice',p:2.2}] },
 ];
 const OTHERS = [
-  { id: 'u-31', space: 'living', kind: 'unknown', text: 'Someone not recognised', ev: 'voice', t: -70, why: 'A voice that matches nobody enrolled. Only things anyone may do are possible for them.' },
+  { id: 'u-31', space: 'living', kind: 'unknown', text: 'Someone not recognized', ev: 'voice', t: -70, why: 'A voice that matches nobody enrolled. Only things anyone may do are possible for them.' },
   { id: 'u-32', space: 'hallway', kind: 'contested', text: 'Ilse or Ruth, too close to call', ev: 'voice', t: -170, why: 'The voice is about as close to Ilse as to Ruth, so attest names nobody and treats them as anyone.' },
 ];
 const AGENTS = [
@@ -492,7 +492,7 @@ const DECISIONS = [
     reasons: ['agent home-assistant may request email.send','belief ambiguous: leader ilse 0.46, runner-up ruth 0.41, margin 0.05 < 0.20','no leading identity: only floor permissions apply'] },
   { id: 'd-1938', t: -358, ok: false, agent: 'home', action: 'door.unlock', who: 'tomas', space: 'door', had: 2, fail: 4,
     s: 'Home assistant did not unlock the front door for Tomás.',
-    chain: [ ['ok','Subject','Words spoken at the Front door','track h-29, attributed by the Hallway panel'], ['ok','Evidence','Voice: Tomás. Face: no match','the Front door camera saw a face but knows no face for Tomás'], ['ok','Belief','Tomás, Sure, from voice alone',''], ['ok','Consent','Allowed, within Noor’s limit','Front door only, until 31 Dec'], ['no','Rule','Unlocking needs Confirmed: recognised two ways','Tomás has not enrolled his face, so this will keep being refused'] ],
+    chain: [ ['ok','Subject','Words spoken at the Front door','track h-29, attributed by the Hallway panel'], ['ok','Evidence','Voice: Tomás. Face: no match','the Front door camera saw a face but knows no face for Tomás'], ['ok','Belief','Tomás, Sure, from voice alone',''], ['ok','Consent','Allowed, within Noor’s limit','Front door only, until 31 Dec'], ['no','Rule','Unlocking needs Confirmed: recognized two ways','Tomás has not enrolled his face, so this will keep being refused'] ],
     ev: [['19:37:55','Hallway panel','voice','tomas','4.8','noor −1.6','voice-v1'],['19:38:00','Hallway panel','voice','tomas','5.4','noor −2.1','voice-v1'],['19:37:58','Front door camera','face','—','no match','—','face-v2']],
     reasons: ['agent home-assistant may request door.unlock','leading identity tomas (0.9781), modalities 1','delegation admin:noor/d-19 covers door.unlock (zone front-door, until 2026-12-31)','role resident holds door.unlock','band corroborated: confidence 0.9781 < 0.99','band corroborated: modalities 1 < min 2'] },
   { id: 'd-1931', t: -778, ok: true, agent: 'home', action: 'calendar.read', who: 'ilse', space: 'kitchen', had: 2,
@@ -502,12 +502,12 @@ const DECISIONS = [
     reasons: ['agent home-assistant may request calendar.read','leading identity ilse (0.9772), modalities 1','delegation self:ilse/home covers calendar.read','role teen holds calendar.read','band confident holds (0.9772 ≥ 0.95, age 9s ≤ 300s)'] },
   { id: 'd-1926', t: -1090, ok: false, agent: 'home', action: 'calendar.read', who: 'tomas', space: 'living', had: 2, fail: 3,
     s: 'Home assistant did not read Tomás’s calendar to him.',
-    chain: [ ['ok','Subject','Words spoken in the Living room',''], ['ok','Evidence','Voice: Tomás',''], ['ok','Belief','Tomás, Sure',''], ['no','Consent','Tomás hasn’t allowed Home assistant to read his calendar','only he can change this, on his enrolment page'], ['skip','Rule','Not checked',''] ],
+    chain: [ ['ok','Subject','Words spoken in the Living room',''], ['ok','Evidence','Voice: Tomás',''], ['ok','Belief','Tomás, Sure',''], ['no','Consent','Tomás hasn’t allowed Home assistant to read his calendar','only he can change this, on his enrollment page'], ['skip','Rule','Not checked',''] ],
     ev: [['19:25:47','Living room speaker','voice','tomas','6.4','ruth −1.2','voice-v1']],
     reasons: ['agent home-assistant may request calendar.read','leading identity tomas (0.9828), modalities 1','no delegation covers (tomas, home-assistant, calendar.read)'] },
   { id: 'd-1924', t: -1210, ok: false, agent: 'home', action: 'email.send', who: null, space: 'living', had: 0, fail: 2,
-    s: 'Home assistant did not send an email for someone not recognised.',
-    chain: [ ['ok','Subject','Words spoken in the Living room',''], ['ok','Evidence','Voice, matching nobody enrolled',''], ['no','Belief','Not recognised, so treated as anyone',''], ['skip','Consent','Not checked',''], ['skip','Rule','Send email needs Sure',''] ],
+    s: 'Home assistant did not send an email for someone not recognized.',
+    chain: [ ['ok','Subject','Words spoken in the Living room',''], ['ok','Evidence','Voice, matching nobody enrolled',''], ['no','Belief','Not recognized, so treated as anyone',''], ['skip','Consent','Not checked',''], ['skip','Rule','Send email needs Sure',''] ],
     ev: [['19:23:48','Living room speaker','voice','—','no match','—','voice-v1']],
     reasons: ['agent home-assistant may request email.send','belief unknown: no candidate outweighs unknown mass (0.71)','no leading identity: only floor permissions apply'] },
   { id: 'd-1920', t: -1440, ok: true, agent: 'home', action: 'lights.control', who: null, space: 'living', had: 0,
@@ -695,7 +695,7 @@ function vPresence() {
     rows += oth.map(o => `<a class="row r-pres" href="#presence/${o.id}" ${route.id === o.id ? 'aria-current="true"' : ''}><span class="c-n name who-not">${o.text}</span><span class="c-l">${lvTag(0)}</span><span class="c-t"></span><span class="c-f fresh">${o.ev} ${short(tick - o.t)}</span><span class="c-u until end"></span></a>`).join('');
     if (!ppl.length && !oth.length) {
       const lastD = DECISIONS.find(d => d.space === sp.id && d.who);
-      rows = `<p class="note">${off ? 'Nobody can be recognised here until it reports again.' : `Nobody here${lastD ? ` · last, ${P(lastD.who).short} at ${hm(lastD.t)}` : ''}`}</p>`;
+      rows = `<p class="note">${off ? 'Nobody can be recognized here until it reports again.' : `Nobody here${lastD ? ` · last, ${P(lastD.who).short} at ${hm(lastD.t)}` : ''}`}</p>`;
     }
     return `<div class="group"><div class="ghead"><h2>${sp.name}</h2><span class="meta">${ppl.length ? `${ppl.length} ${ppl.length > 1 ? 'people' : 'person'}` : ''}</span><span class="meta end">${meta}</span></div>${rows}</div>`;
   }).join('');
@@ -704,7 +704,7 @@ function vPresence() {
   const p = P(route.id), o = OTHERS.find(x => x.id === route.id);
   if (p) detail = presenceDetail(p);
   if (o) detail = `<div class="dh"><div><div class="kicker">${S(o.space).name} · ${o.ev} ${ago(tick - o.t)}</div><h2 style="font-size:18px">${o.text}</h2></div></div><div class="bigstate">${lvTag(0)}</div><p class="sub">${o.why}</p><div class="sec" style="margin-top:16px"><h3>What an assistant may do for them</h3><ul class="lines">${ACTIONS.filter(a => a.floor).map(a => `<li>${a.label}<span class="rt">Anyone</span></li>`).join('')}</ul></div><div class="sec"><a class="x" href="#decisions/${o.kind === 'contested' ? 'd-1941' : 'd-1924'}">See the decision this caused</a></div>`;
-  return page({ title: 'Presence', lede: `${here.length} people recognised in ${new Set(here.map(p => p.space)).size} spaces, and 2 voices nobody can name. Everything is reporting except the car.`, master, detail });
+  return page({ title: 'Presence', lede: `${here.length} people recognized in ${new Set(here.map(p => p.space)).size} spaces, and 2 voices nobody can name. Everything is reporting except the car.`, master, detail });
 }
 function presenceDetail(p) {
   const v = vAt(p.ev, tick), l = lvOf(v), u = untilOf(p.ev, tick), reach = Math.min(personReach(p), spaceReach(p.space));
@@ -718,7 +718,7 @@ function presenceDetail(p) {
   <div class="sec" style="margin-top:14px"><h3>An assistant may do this for ${p.short} now</h3>
   <ul class="lines">${now.map(a => `<li>${a.label}<span class="rt">${lvTag(a.need)}</span></li>`).join('') || '<li class="dim">Only what anyone may do</li>'}</ul></div>
   ${later.length ? `<div class="sec"><h3>Not until attest is surer</h3><ul class="lines">${later.map(a => `<li>${a.label}<span class="rt">${lvTag(a.need)}</span></li>`).join('')}</ul>
-  ${reach < 3 && later.some(a => a.need === 3) ? `<p class="consequence">${!p.face ? `${p.short} has no face enrolled, so Confirmed can’t be reached anywhere. <a class="x" href="#identities/${p.id}">Enrolment</a>` : `The ${S(p.space).name.toLowerCase()} only hears voices, so Confirmed can’t be reached here. <a class="x" href="#sensors">Coverage</a>`}</p>` : ''}</div>` : ''}
+  ${reach < 3 && later.some(a => a.need === 3) ? `<p class="consequence">${!p.face ? `${p.short} has no face enrolled, so Confirmed can’t be reached anywhere. <a class="x" href="#identities/${p.id}">Enrollment</a>` : `The ${S(p.space).name.toLowerCase()} only hears voices, so Confirmed can’t be reached here. <a class="x" href="#sensors">Coverage</a>`}</p>` : ''}</div>` : ''}
   <p class="small dim" style="margin-top:14px">Rules come from <a class="x" href="#policy">Policy</a>; what ${p.short} has allowed is in <a class="x" href="#identities/${p.id}">Identities</a>.</p>`;
 }
 
@@ -747,7 +747,7 @@ function record(d) {
   <p class="sentence">${d.s}</p>
   <div class="bigstate small" style="margin-top:10px;gap:20px"><span class="dim">Needed</span>${lvTag(a.need)}<span class="dim">Had</span>${lvTag(d.had)}</div>
   <ol class="chain" aria-label="How this was decided">${chain}</ol>
-  ${d.id === 'd-1938' ? `<p class="consequence">Tomás will keep being refused at the door until he enrols his face. <a class="x" href="#identities/tomas">Tomás’s enrolment</a></p>` : ''}
+  ${d.id === 'd-1938' ? `<p class="consequence">Tomás will keep being refused at the door until he enrolls his face. <a class="x" href="#identities/tomas">Tomás’s enrollment</a></p>` : ''}
   <details class="numbers"><summary>Show the numbers</summary>
    ${d.ev.length ? `<table class="raw"><thead><tr><th>Time</th><th>Sensor</th><th>Kind</th><th>Best</th><th>LLR</th><th>Next</th></tr></thead><tbody>${d.ev.map(r => `<tr>${r.slice(0, 6).map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>` : ''}
    <ul class="reasons">${d.reasons.map(r => `<li class="${/<|does not|no delegation|ambiguous|unknown|no leading/.test(r) ? 'f' : ''}">${esc(r)}</li>`).join('')}</ul>
@@ -784,7 +784,7 @@ function vPolicy() {
     const o = A(a.id), sel = (route.id || 'door.unlock') === a.id;
     const sp = spacesFor(a);
     const spTxt = a.need === 0 ? 'Everywhere' : sp.length === SPACES.length ? 'Every space' : `${sp.map(s => s.name).join(', ')}`;
-    if (a.floor) return `<tr class="${sel ? 'cur' : ''}"><td class="act"><a href="#policy/${a.id}"><b>${a.label}</b><code>${a.id}</code></a></td><td class="needc">${lvTag(0)}</td><td class="floor" colspan="3">${a.locked ? 'Always allowed, for anyone. This can’t be turned off.' : 'Anyone, recognised or not'}</td><td class="where wh">Everywhere</td></tr>`;
+    if (a.floor) return `<tr class="${sel ? 'cur' : ''}"><td class="act"><a href="#policy/${a.id}"><b>${a.label}</b><code>${a.id}</code></a></td><td class="needc">${lvTag(0)}</td><td class="floor" colspan="3">${a.locked ? 'Always allowed, for anyone. This can’t be turned off.' : 'Anyone, recognized or not'}</td><td class="where wh">Everywhere</td></tr>`;
     return `<tr class="${sel ? 'cur' : ''}"><td class="act"><a href="#policy/${a.id}"><b>${a.label}</b><code>${a.id}</code></a></td>
       <td class="needc"><button type="button" class="need${o.need !== a.need ? ' changed' : ''}" data-need="${a.id}" aria-haspopup="listbox" aria-expanded="false" aria-label="${a.label} needs ${LV[a.need]}. Change">${ladder(a.need)}<span>${LV[a.need]}</span><svg class="chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 4 5 6.5 7.5 4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button></td>
       ${ROLES.map(r => { const on = a.roles.includes(r.id), was = (o.roles || []).includes(r.id); return `<td class="cell"><button type="button" class="hold${on !== was ? ' changed' : ''}" data-hold="${a.id}:${r.id}" data-role="${r.name}" aria-pressed="${on}" aria-label="${r.name} ${on ? 'holds' : 'does not hold'}: ${a.label}"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke-width="1.3"/></svg></button></td>`; }).join('')}
@@ -792,7 +792,7 @@ function vPolicy() {
   };
   const body = acts.filter(a => !a.floor).map(rowOf).join(''), floorBody = acts.filter(a => a.floor).map(rowOf).join('');
   const master = `<table class="mx" aria-label="Who may have each action done for them">${head}<tbody>
-    <tr class="sec-row"><td colspan="6"><h3>Needs someone recognised</h3></td></tr>${body}
+    <tr class="sec-row"><td colspan="6"><h3>Needs someone recognized</h3></td></tr>${body}
     <tr class="sec-row"><td colspan="6"><h3>Anyone may</h3></td></tr>${floorBody}
   </tbody></table>
   <div class="group" style="margin-top:28px"><div class="ghead"><h2>Limits set by an administrator</h2><span class="meta">On top of what a person allowed</span></div>
@@ -811,7 +811,7 @@ function actionDetail(a) {
   const ppl = PEOPLE.map(p => { const role = hasRole(p, a), ok = allowed(p, a), reach = personReach(p) >= a.need; return { p, role, ok, reach, can: role && ok && reach }; });
   const why = x => !x.role ? 'Role doesn’t hold it' : !x.ok ? 'Hasn’t allowed it' : !x.reach ? `Can’t reach ${LV[a.need]}: no face enrolled` : 'Can';
   return `<div class="dh"><div><div class="kicker"><code>${a.id}</code></div><h2 style="font-size:18px">${a.label}</h2></div>${lvTag(a.need)}</div>
-  <p class="sub">${a.floor ? 'Anyone may have this done, even when attest recognises nobody.' : `Needs ${LV[a.need]}: ${LVD[a.need].toLowerCase()}.`}</p>
+  <p class="sub">${a.floor ? 'Anyone may have this done, even when attest recognizes nobody.' : `Needs ${LV[a.need]}: ${LVD[a.need].toLowerCase()}.`}</p>
   ${a.floor ? '' : `<div class="sec" style="margin-top:16px"><h3>Who can have this done</h3><ul class="lines">${ppl.map(x => `<li>${x.can ? mark('ok').replace('<svg', '<svg style="color:var(--ok)"') : mark('skip')}<span>${x.p.short}</span><span class="rt">${why(x)}</span></li>`).join('')}</ul>
   <p class="small dim" style="margin-top:8px">A person needs the role <em>and</em> to have allowed it themselves. <a class="x" href="#identities">Identities</a></p></div>
   <div class="sec"><h3>Where it can be granted</h3><ul class="lines">${sp.map(({ s, r }) => `<li>${r >= a.need && spaceReach(s.id) >= a.need ? mark('ok').replace('<svg', '<svg style="color:var(--ok)"') : r >= a.need ? mark('warn').replace('<svg', '<svg style="color:var(--warn)"') : mark('skip')}<span>${s.name}</span><span class="rt">${r >= a.need ? (spaceReach(s.id) < r ? `up to ${LV[r]}, once ${SENSORS.find(x => x.spaces.includes(s.id) && x.health === 'off').name} reports` : `up to ${LV[r]}`) : `${r === 2 ? 'Voice only' : 'No sensors'}: never here`}</span></li>`).join('')}</ul><p class="small dim" style="margin-top:8px">From sensor coverage. <a class="x" href="#sensors">Sensors</a></p></div>`}
@@ -825,7 +825,7 @@ function vIdentities() {
   const master = `<div class="colhead r-id" aria-hidden="true"><span>Person</span><span>Role</span><span>Voice</span><span>Face</span><span>Has allowed</span><span style="text-align:right">Can reach</span></div>${PEOPLE.map(row).join('')}
   <p class="note">People and roles come from Keycloak at id.maple.home. To add someone, add them there; they appear here within a minute. <a class="x" href="#connections/idp">Connection</a></p>`;
   const p = P(route.id);
-  return page({ title: 'Identities', lede: 'The people attest can recognise. Accounts and roles live in Keycloak; each person enrols and chooses what agents may do for them.', action: `<button class="btn primary" type="button">Invite to enrol</button>`, master, detail: p ? idDetail(p) : `<p class="empty-detail">Select someone to see their enrolment and what they have allowed.</p>` });
+  return page({ title: 'Identities', lede: 'The people attest can recognize. Accounts and roles live in Keycloak; each person enrolls and chooses what agents may do for them.', action: `<button class="btn primary" type="button">Invite to enroll</button>`, master, detail: p ? idDetail(p) : `<p class="empty-detail">Select someone to see their enrollment and what they have allowed.</p>` });
 }
 function idDetail(p) {
   const l = lvOf(vAt(p.ev, tick));
@@ -834,12 +834,12 @@ function idDetail(p) {
   return `<div class="dh"><div><div class="kicker">${p.email}</div><h2 style="font-size:18px">${p.name}</h2></div><a class="btn" href="#presence/${p.id}">${l ? `In ${S(p.space).name}` : 'Not present'}</a></div>
   <dl class="kv"><dt>Role</dt><dd>${p.roles.map(r => ROLES.find(x => x.id === r).name).join(', ')} <span class="dim small">· from Keycloak</span></dd><dt>Identity</dt><dd><code>${p.uuid}</code></dd><dt>Linked to</dt><dd>id.maple.home · realm home</dd></dl>
   <div class="sec" style="margin-top:16px"><h3>Last ten minutes</h3>${trace(p.ev, { w: 392, h: 130, now: tick })}</div>
-  <div class="sec"><h3>Enrolment</h3><ul class="lines">
+  <div class="sec"><h3>Enrollment</h3><ul class="lines">
    <li>${modGlyph('voice', !!p.voice)}Voice<span class="rt">${p.voice ? `Since ${p.voice.on} · ${p.voice.via}` : 'Not enrolled'}</span></li>
    <li>${modGlyph('face', !!p.face)}Face<span class="rt">${p.face ? `Since ${p.face.on} · ${p.face.via}` : 'Not enrolled'}</span></li></ul>
-   ${!p.face ? `<p class="consequence">Without a face, ${p.short} can only reach Sure, so anything that needs Confirmed, like unlocking the front door, will always be refused. <button class="linkbtn" type="button">Send ${p.short} a link to enrol</button></p>` : ''}
+   ${!p.face ? `<p class="consequence">Without a face, ${p.short} can only reach Sure, so anything that needs Confirmed, like unlocking the front door, will always be refused. <button class="linkbtn" type="button">Send ${p.short} a link to enroll</button></p>` : ''}
    <p class="small dim" style="margin-top:8px">attest keeps when each was enrolled, never the voice or face itself.</p></div>
-  <div class="sec"><h3>What ${p.short} has allowed</h3><ul class="lines">${consent}</ul><p class="small dim" style="margin-top:8px">${p.short} owns these choices and changes them at attest.maple.home/enrol. <a class="x" href="#governance/consent">History</a></p></div>
+  <div class="sec"><h3>What ${p.short} has allowed</h3><ul class="lines">${consent}</ul><p class="small dim" style="margin-top:8px">${p.short} owns these choices and changes them at attest.maple.home/enroll. <a class="x" href="#governance/consent">History</a></p></div>
   <div class="sec"><h3>Recent decisions</h3><ul class="lines">${DECISIONS.filter(d => d.who === p.id).slice(0, 4).map(d => `<li><a class="x" href="#decisions/${d.id}">${hm(d.t)}</a>${outcome(d.ok)}<span class="rt">${A(d.action).label}</span></li>`).join('') || '<li class="dim">None today</li>'}</ul></div>
   <p class="small dim" style="margin-top:8px">To forget ${p.short}, go to <a class="x" href="#governance/forget">Governance</a>.</p>`;
 }
@@ -849,7 +849,7 @@ function coverage() {
   const cell = (sp, m) => { const ss = SENSORS.filter(s => s.spaces.includes(sp.id) && s.mod === m);
     if (!ss.length) return `<td class="m"><span class="seg gap"></span><span class="dim">None</span></td>`;
     return `<td class="m">${ss.map(s => `<span class="seg${s.health === 'off' ? ' off' : ''}"></span><a href="#sensors/${s.id}">${s.name}</a>${s.health === 'off' ? ` <span class="small" style="color:var(--warn)">· not reporting</span>` : ''}`).join('')}</td>`; };
-  const gapTxt = sp => { const r = spaceReach(sp.id, false), live = spaceReach(sp.id); if (live < r) return 'Not reporting: nobody can be recognised here.'; if (r === 2) return 'Voice only, so Confirmed actions can never be granted here.'; return ''; };
+  const gapTxt = sp => { const r = spaceReach(sp.id, false), live = spaceReach(sp.id); if (live < r) return 'Not reporting: nobody can be recognized here.'; if (r === 2) return 'Voice only, so Confirmed actions can never be granted here.'; return ''; };
   return `<table class="cov" aria-label="Which sensors cover each space"><thead><tr><th>Space</th><th>Voice</th><th>Face</th><th class="capc">Highest level here</th></tr></thead><tbody>${SPACES.map(sp => { const g = gapTxt(sp), r = spaceReach(sp.id, false); return `<tr><td class="sp">${sp.name}</td>${cell(sp, 'voice')}${cell(sp, 'face')}<td class="capc">${lvTag(r)}${g ? `<div class="cap">${g}</div>` : ''}</td></tr>${g ? `<tr class="gapnote"><td colspan="3">${g}</td></tr>` : ''}`; }).join('')}</tbody></table>`;
 }
 function vSensors() {
@@ -868,10 +868,10 @@ function sensorDetail(s) {
    <p class="consequence plain">A new Study would hear voices only: up to Sure. Confirmed actions would never be granted there.</p>
    <div style="margin-top:20px;display:flex;gap:10px"><button class="btn primary" type="button">Adopt</button><button class="btn quiet" type="button">Ignore</button></div>`;
   return `<div class="dh"><div><div class="kicker">${s.mod === 'voice' ? 'Voice' : 'Face'} · ${s.spaces.map(x => S(x).name).join(', ')}</div><h2 style="font-size:18px">${s.name}</h2></div>${s.health === 'off' ? attn('Not reporting') : `<span class="oc">${mark('ok').replace('<svg', '<svg style="color:var(--ok)"')}Reporting</span>`}</div>
-  ${s.health === 'off' ? `<p class="consequence">No reports since ${s.since}. The car is probably away or off. Nobody can be recognised in the Car until it reports, so the Car assistant can only do what anyone may.</p>` : ''}
-  <dl class="kv" style="margin-top:14px"><dt>Last report</dt><dd>${s.health === 'off' ? `${s.since} today` : ago(s.last)}</dd><dt>Covers</dt><dd>${s.spaces.map(x => S(x).name).join(', ')} <button class="linkbtn small" type="button">Change</button></dd><dt>Recognises</dt><dd>${s.knows} of 4 people</dd><dt>Adopted</dt><dd>${s.adopted}</dd><dt>Credential</dt><dd><code>${s.key}</code></dd></dl>
+  ${s.health === 'off' ? `<p class="consequence">No reports since ${s.since}. The car is probably away or off. Nobody can be recognized in the Car until it reports, so the Car assistant can only do what anyone may.</p>` : ''}
+  <dl class="kv" style="margin-top:14px"><dt>Last report</dt><dd>${s.health === 'off' ? `${s.since} today` : ago(s.last)}</dd><dt>Covers</dt><dd>${s.spaces.map(x => S(x).name).join(', ')} <button class="linkbtn small" type="button">Change</button></dd><dt>Recognizes</dt><dd>${s.knows} of 4 people</dd><dt>Adopted</dt><dd>${s.adopted}</dd><dt>Credential</dt><dd><code>${s.key}</code></dd></dl>
   <div class="sec" style="margin-top:16px"><h3>Calibration</h3><div class="bigstate small" style="margin:0 0 6px"><span>${s.calq === 'Good' ? `<span class="oc">${mark('ok').replace('<svg', '<svg style="color:var(--ok)"')}Good</span>` : attn('Unverified')}</span><code>${s.cal}</code></div><p class="sub small">${s.calnote}</p></div>
-  <div class="sec"><h3>Who it can recognise</h3><ul class="lines">${PEOPLE.map(p => { const k = s.mod === 'voice' ? p.voice : p.face; return `<li>${modGlyph(s.mod, !!k)}${p.short}<span class="rt">${k ? 'Enrolled' : `<a class="x" href="#identities/${p.id}">Not enrolled</a>`}</span></li>`; }).join('')}</ul></div>
+  <div class="sec"><h3>Who it can recognize</h3><ul class="lines">${PEOPLE.map(p => { const k = s.mod === 'voice' ? p.voice : p.face; return `<li>${modGlyph(s.mod, !!k)}${p.short}<span class="rt">${k ? 'Enrolled' : `<a class="x" href="#identities/${p.id}">Not enrolled</a>`}</span></li>`; }).join('')}</ul></div>
   <div class="sec"><button class="btn danger" type="button">Retire ${s.name}</button><p class="small dim" style="margin-top:8px">Its credential stops working and its evidence is dropped at once.</p></div>`;
 }
 
@@ -925,8 +925,8 @@ function vConnections() {
   const items = [['idp', 'Identity provider', 'Keycloak · connected'], ['address', 'Public address', 'attest.maple.home'], ['backup', 'Backup', 'Last night at 03:00']];
   const master = items.map(([id, n, s]) => `<a class="row r-gov" href="#connections/${id}" ${sel === id ? 'aria-current="true"' : ''}><span class="name">${n}</span><span class="end sub small">${s}</span></a>`).join('') + `<p class="note">Setting up a new place? <a class="x" href="#setup/1">Run setup again</a></p>`;
   const d = {
-    idp: `<div class="dh"><div><div class="kicker">Identity provider</div><h2 style="font-size:18px">Keycloak</h2></div><span class="oc">${mark('ok').replace('<svg', '<svg style="color:var(--ok)"')}Connected</span></div><dl class="kv"><dt>Address</dt><dd>id.maple.home · realm home</dd><dt>Last checked</dt><dd>19:40</dd><dt>People</dt><dd>4</dd><dt>Roles used</dt><dd>resident, teen, guest</dd><dt>Created there</dt><dd><code>attest</code>, <code>attest-enrol</code> clients · <code>attest-admin</code> role</dd><dt>If unreachable</dt><dd><select class="sel"><option selected>Use roles from the last hour</option><option>Refuse everything but Anyone</option></select></dd></dl>`,
-    address: `<div class="dh"><div><div class="kicker">Public address</div><h2 style="font-size:18px">attest.maple.home</h2></div></div><p class="sub">Where people enrol and where Keycloak sends them back after signing in.</p><dl class="kv" style="margin-top:14px"><dt>Certificate</dt><dd>Valid until 2 Feb</dd><dt>Enrolment page</dt><dd><code>https://attest.maple.home/enrol</code></dd></dl>`,
+    idp: `<div class="dh"><div><div class="kicker">Identity provider</div><h2 style="font-size:18px">Keycloak</h2></div><span class="oc">${mark('ok').replace('<svg', '<svg style="color:var(--ok)"')}Connected</span></div><dl class="kv"><dt>Address</dt><dd>id.maple.home · realm home</dd><dt>Last checked</dt><dd>19:40</dd><dt>People</dt><dd>4</dd><dt>Roles used</dt><dd>resident, teen, guest</dd><dt>Created there</dt><dd><code>attest</code>, <code>attest-enroll</code> clients · <code>attest-admin</code> role</dd><dt>If unreachable</dt><dd><select class="sel"><option selected>Use roles from the last hour</option><option>Refuse everything but Anyone</option></select></dd></dl>`,
+    address: `<div class="dh"><div><div class="kicker">Public address</div><h2 style="font-size:18px">attest.maple.home</h2></div></div><p class="sub">Where people enroll and where Keycloak sends them back after signing in.</p><dl class="kv" style="margin-top:14px"><dt>Certificate</dt><dd>Valid until 2 Feb</dd><dt>Enrollment page</dt><dd><code>https://attest.maple.home/enroll</code></dd></dl>`,
     backup: `<div class="dh"><div><div class="kicker">Backup</div><h2 style="font-size:18px">Every night at 03:00</h2></div><button class="btn" type="button">Back up now</button></div><dl class="kv"><dt>To</dt><dd>nas.maple.home/backups/attest</dd><dt>Last</dt><dd>Today 03:00 · 41 KB</dd><dt>Contains</dt><dd>What <a class="x" href="#governance/stores">attest keeps</a>, nothing more</dd></dl>`,
   }[sel];
   return page({ title: 'Connections', lede: 'What attest leans on: your identity provider, its own address, and where it backs up.', action: `<a class="btn primary" href="#setup/1">Run setup</a>`, master, detail: d });
@@ -940,12 +940,12 @@ function setupHTML(n) {
     1: `<h1>Where do your people sign in?</h1><p class="lede">attest uses your identity provider for people and roles. You sign in once as an administrator, and attest creates the clients and roles it needs there.</p>
       <ul class="choice">${[['Keycloak', 'Found at id.maple.home', true], ['Authentik', ''], ['Ory', ''], ['Auth0', 'Hosted']].map(([n, s, c]) => `<li><label><input type="radio" name="idp" ${c ? 'checked' : ''}>${n}<span class="sub">${s}</span></label></li>`).join('')}</ul>
       <label class="field">Address<input value="https://id.maple.home/realms/home"></label>${foot(null, '#setup/2', 'Sign in to Keycloak')}`,
-    2: `<h1>Name this place</h1><p class="lede">People see it when they enrol. You can split it into spaces later; spaces come from where sensors are.</p><label class="field">Name<input value="Maple House"></label>
+    2: `<h1>Name this place</h1><p class="lede">People see it when they enroll. You can split it into spaces later; spaces come from where sensors are.</p><label class="field">Name<input value="Maple House"></label>
       <ul class="choice"><li><label><input type="radio" name="k" checked>A household<span class="sub">Residents, teens, guests</span></label></li><li><label><input type="radio" name="k">A small office<span class="sub">Staff, visitors</span></label></li></ul>${foot('#setup/1', '#setup/3', 'Continue')}`,
     3: `<h1>Adopt a first sensor</h1><p class="lede">These are on your network and offering to join. Adopting one gives it its own credential.</p>
       <ul class="choice">${[['Kitchen display', 'Voice'], ['Kitchen camera', 'Face'], ['Hallway panel', 'Voice']].map(([n, m], i) => `<li><label><input type="checkbox" ${i < 2 ? 'checked' : ''}>${n}<span class="sub">${m}</span></label></li>`).join('')}</ul>
       <p class="consequence plain">Kitchen display and Kitchen camera together let the Kitchen reach Confirmed.</p>${foot('#setup/2', '#setup/4', 'Adopt 2 sensors')}`,
-    4: `<h1>Invite people to enrol</h1><p class="lede">They’re already in Keycloak. Each one signs in, records their voice, and chooses what agents may do for them.</p>
+    4: `<h1>Invite people to enroll</h1><p class="lede">They’re already in Keycloak. Each one signs in, records their voice, and chooses what agents may do for them.</p>
       <ul class="choice">${PEOPLE.map((p, i) => `<li><label><input type="checkbox" ${i === 0 ? 'checked disabled' : i < 3 ? 'checked' : ''}>${p.name}<span class="sub">${i === 0 ? 'You' : p.email}</span></label></li>`).join('')}</ul>${foot('#setup/3', '#presence', 'Send 2 invites and finish')}`,
   }[n];
   return `<div class="setup-in"><div class="brand" style="padding:0"><b>attest</b><span>Set up · ${n} of 4</span></div>${steps}${body}</div>`;

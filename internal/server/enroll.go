@@ -21,13 +21,13 @@ import (
 	"github.com/mad-deecent/attest/internal/identity"
 )
 
-// EnrolConfig configures the self-service enrolment page.
-type EnrolConfig struct {
-	// VoiceURL is the voice producer's enrolment endpoint. The browser posts
+// EnrollConfig configures the self-service enrollment page.
+type EnrollConfig struct {
+	// VoiceURL is the voice producer's enrollment endpoint. The browser posts
 	// the recording there directly; attest never receives audio.
 	VoiceURL string `json:"voiceUrl,omitempty"`
 	// VoiceProducer is the principal id of the voice producer. When set, only
-	// it may redeem enrolment tickets; any other producer is refused.
+	// it may redeem enrollment tickets; any other producer is refused.
 	VoiceProducer string `json:"voiceProducer,omitempty"`
 }
 
@@ -50,10 +50,10 @@ type ticket struct {
 	expires    time.Time
 }
 
-// enrolment is the session and ticket state behind /enrol. Sessions and
+// enrollment is the session and ticket state behind /enroll. Sessions and
 // tickets are short-lived and deliberately not persisted. They outlive a
 // change of provider: they name identities, not connections.
-type enrolment struct {
+type enrollment struct {
 	voiceURL      string
 	voiceProducer string
 	mu            sync.Mutex
@@ -61,8 +61,8 @@ type enrolment struct {
 	tickets       map[string]ticket
 }
 
-func newEnrolment(cfg EnrolConfig) *enrolment {
-	return &enrolment{
+func newEnrollment(cfg EnrollConfig) *enrollment {
+	return &enrollment{
 		voiceURL:      cfg.VoiceURL,
 		voiceProducer: cfg.VoiceProducer,
 		sessions:      map[string]session{},
@@ -79,12 +79,12 @@ func (l *live) oauth(p *oidc.Provider) *oauth2.Config {
 	return &oauth2.Config{
 		ClientID:    l.oidc.cfg.ClientID,
 		Endpoint:    endpoint,
-		RedirectURL: l.public.String() + "/enrol/callback",
+		RedirectURL: l.public.String() + "/enroll/callback",
 		Scopes:      []string{oidc.ScopeOpenID, "profile"},
 	}
 }
 
-func (e *enrolment) startSession(identityID string, now time.Time) (id string, s session) {
+func (e *enrollment) startSession(identityID string, now time.Time) (id string, s session) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for k, old := range e.sessions {
@@ -98,7 +98,7 @@ func (e *enrolment) startSession(identityID string, now time.Time) (id string, s
 	return id, s
 }
 
-func (e *enrolment) session(r *http.Request, now time.Time) (string, session, bool) {
+func (e *enrollment) session(r *http.Request, now time.Time) (string, session, bool) {
 	c, err := r.Cookie(sessionCookie)
 	if err != nil {
 		return "", session{}, false
@@ -113,13 +113,13 @@ func (e *enrolment) session(r *http.Request, now time.Time) (string, session, bo
 	return c.Value, s, true
 }
 
-func (e *enrolment) endSession(id string) {
+func (e *enrollment) endSession(id string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	delete(e.sessions, id)
 }
 
-func (e *enrolment) issueTicket(identityID string, now time.Time) string {
+func (e *enrollment) issueTicket(identityID string, now time.Time) string {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	// A new ticket replaces the identity's earlier ones, so at most one
@@ -135,7 +135,7 @@ func (e *enrolment) issueTicket(identityID string, now time.Time) string {
 }
 
 // redeem spends a ticket. Unknown, spent, and expired tickets look the same.
-func (e *enrolment) redeem(raw string, now time.Time) (string, bool) {
+func (e *enrollment) redeem(raw string, now time.Time) (string, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	t, ok := e.tickets[raw]
@@ -152,15 +152,29 @@ func randomToken() string {
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
-func (s *Server) enrolRoutes(mux *http.ServeMux) {
-	mux.Handle("GET /enrol", s.canonical(http.HandlerFunc(s.enrolPage)))
-	mux.Handle("GET /enrol/static/", s.canonical(http.StripPrefix("/enrol/static/", http.FileServerFS(enrolStatic))))
-	mux.Handle("GET /enrol/login", s.canonical(http.HandlerFunc(s.enrolLogin)))
-	mux.Handle("GET /enrol/callback", s.canonical(http.HandlerFunc(s.enrolCallback)))
-	mux.Handle("POST /enrol/logout", s.canonical(s.withSession(s.enrolLogout)))
-	mux.Handle("POST /enrol/ticket", s.canonical(s.withSession(s.enrolTicket)))
-	mux.Handle("POST /enrol/consent", s.canonical(s.withSession(s.enrolConsent)))
-	mux.Handle("POST /enrol/revoke", s.canonical(s.withSession(s.enrolRevoke)))
+func (s *Server) enrollRoutes(mux *http.ServeMux) {
+	mux.Handle("GET /enroll", s.canonical(http.HandlerFunc(s.enrollPage)))
+	mux.Handle("GET /enroll/static/", s.canonical(http.StripPrefix("/enroll/static/", http.FileServerFS(enrollStatic))))
+	mux.Handle("GET /enroll/login", s.canonical(http.HandlerFunc(s.enrollLogin)))
+	mux.Handle("GET /enroll/callback", s.canonical(http.HandlerFunc(s.enrollCallback)))
+	mux.Handle("POST /enroll/logout", s.canonical(s.withSession(s.enrollLogout)))
+	mux.Handle("POST /enroll/ticket", s.canonical(s.withSession(s.enrollTicket)))
+	mux.Handle("POST /enroll/consent", s.canonical(s.withSession(s.enrollConsent)))
+	mux.Handle("POST /enroll/revoke", s.canonical(s.withSession(s.enrollRevoke)))
+	// The route used to be spelled /enrol; keep old bookmarks and
+	// provider redirect URIs working.
+	mux.HandleFunc("GET /enrol", legacyEnrolRedirect)
+	mux.HandleFunc("GET /enrol/{rest...}", legacyEnrolRedirect)
+}
+
+// legacyEnrolRedirect sends GET /enrol[/...] to the /enroll equivalent,
+// keeping the query string. 308 preserves the method.
+func legacyEnrolRedirect(w http.ResponseWriter, r *http.Request) {
+	target := "/enroll" + strings.TrimPrefix(r.URL.Path, "/enrol")
+	if r.URL.RawQuery != "" {
+		target += "?" + r.URL.RawQuery
+	}
+	http.Redirect(w, r, target, http.StatusPermanentRedirect)
 }
 
 // canonical sends a request that arrived under another host name (say
@@ -204,17 +218,17 @@ func (s *Server) withSession(next sessionHandler) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		id, sess, ok := s.enrol.session(r, s.now())
+		id, sess, ok := s.enroll.session(r, s.now())
 		if ok && !s.registry.Has(sess.identityID) {
-			s.enrol.endSession(id)
+			s.enroll.endSession(id)
 			ok = false
 		}
 		if !ok {
-			if r.URL.Path == "/enrol/ticket" {
+			if r.URL.Path == "/enroll/ticket" {
 				fail(w, http.StatusUnauthorized, "not signed in")
 				return
 			}
-			http.Redirect(w, r, "/enrol", http.StatusSeeOther)
+			http.Redirect(w, r, "/enroll", http.StatusSeeOther)
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
@@ -230,21 +244,21 @@ func (s *Server) withSession(next sessionHandler) http.HandlerFunc {
 	}
 }
 
-func (s *Server) enrolLogin(w http.ResponseWriter, r *http.Request) {
+func (s *Server) enrollLogin(w http.ResponseWriter, r *http.Request) {
 	l := s.cur()
 	if !l.enrolling() {
-		http.Redirect(w, r, "/enrol", http.StatusSeeOther)
+		http.Redirect(w, r, "/enroll", http.StatusSeeOther)
 		return
 	}
 	p, err := l.oidc.provider()
 	if err != nil {
-		s.renderEnrol(w, r, http.StatusServiceUnavailable, "Sign-in is unavailable right now. Please try again in a few minutes.")
+		s.renderEnroll(w, r, http.StatusServiceUnavailable, "Sign-in is unavailable right now. Please try again in a few minutes.")
 		return
 	}
 	state, nonce, verifier := randomToken(), randomToken(), oauth2.GenerateVerifier()
 	http.SetCookie(w, &http.Cookie{
 		Name: flowCookie, Value: state + "." + nonce + "." + verifier,
-		Path: "/enrol", MaxAge: int(flowTTL.Seconds()),
+		Path: "/enroll", MaxAge: int(flowTTL.Seconds()),
 		HttpOnly: true, Secure: l.secure(),
 		// Lax, not Strict: the provider's redirect back is a cross-site navigation.
 		SameSite: http.SameSiteLaxMode,
@@ -253,52 +267,52 @@ func (s *Server) enrolLogin(w http.ResponseWriter, r *http.Request) {
 		oauth2.S256ChallengeOption(verifier), oidc.Nonce(nonce)), http.StatusFound)
 }
 
-func (s *Server) enrolCallback(w http.ResponseWriter, r *http.Request) {
+func (s *Server) enrollCallback(w http.ResponseWriter, r *http.Request) {
 	// The flow finishes against the connection it reads here. If the provider
 	// changed since sign-in began, the code exchange fails and the person
 	// signs in again.
 	l := s.cur()
 	if !l.enrolling() {
-		http.Redirect(w, r, "/enrol", http.StatusSeeOther)
+		http.Redirect(w, r, "/enroll", http.StatusSeeOther)
 		return
 	}
 	const retry = "Sign-in didn't finish. Please try again."
 	c, err := r.Cookie(flowCookie)
-	http.SetCookie(w, &http.Cookie{Name: flowCookie, Path: "/enrol", MaxAge: -1, HttpOnly: true, Secure: l.secure(), SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: flowCookie, Path: "/enroll", MaxAge: -1, HttpOnly: true, Secure: l.secure(), SameSite: http.SameSiteLaxMode})
 	q := r.URL.Query()
 	if err != nil || q.Get("error") != "" {
-		s.renderEnrol(w, r, http.StatusBadRequest, retry)
+		s.renderEnroll(w, r, http.StatusBadRequest, retry)
 		return
 	}
 	flow := strings.SplitN(c.Value, ".", 3)
 	if len(flow) != 3 || subtle.ConstantTimeCompare([]byte(q.Get("state")), []byte(flow[0])) != 1 {
-		s.renderEnrol(w, r, http.StatusBadRequest, retry)
+		s.renderEnroll(w, r, http.StatusBadRequest, retry)
 		return
 	}
 	nonce, verifier := flow[1], flow[2]
 	p, err := l.oidc.provider()
 	if err != nil {
-		s.renderEnrol(w, r, http.StatusServiceUnavailable, "Sign-in is unavailable right now. Please try again in a few minutes.")
+		s.renderEnroll(w, r, http.StatusServiceUnavailable, "Sign-in is unavailable right now. Please try again in a few minutes.")
 		return
 	}
 	ctx, cancel := context.WithTimeout(oidc.ClientContext(r.Context(), providerClient), 15*time.Second)
 	defer cancel()
 	tok, err := l.oauth(p).Exchange(ctx, q.Get("code"), oauth2.VerifierOption(verifier))
 	if err != nil {
-		log.Printf("enrol: token exchange: %v", err)
-		s.renderEnrol(w, r, http.StatusBadGateway, retry)
+		log.Printf("enroll: token exchange: %v", err)
+		s.renderEnroll(w, r, http.StatusBadGateway, retry)
 		return
 	}
 	rawID, _ := tok.Extra("id_token").(string)
-	idt, err := l.oidc.enrolVerifier(p).Verify(ctx, rawID)
+	idt, err := l.oidc.enrollVerifier(p).Verify(ctx, rawID)
 	if err != nil || subtle.ConstantTimeCompare([]byte(idt.Nonce), []byte(nonce)) != 1 {
-		log.Printf("enrol: id token rejected: %v", err)
-		s.renderEnrol(w, r, http.StatusBadRequest, retry)
+		log.Printf("enroll: id token rejected: %v", err)
+		s.renderEnroll(w, r, http.StatusBadRequest, retry)
 		return
 	}
 	var claims map[string]any
 	if err := idt.Claims(&claims); err != nil {
-		s.renderEnrol(w, r, http.StatusBadRequest, retry)
+		s.renderEnroll(w, r, http.StatusBadRequest, retry)
 		return
 	}
 
@@ -308,25 +322,25 @@ func (s *Server) enrolCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	ident, err := s.registry.Link(identity.Provider{Issuer: idt.Issuer, Subject: idt.Subject}, name, s.now())
 	if err != nil {
-		s.renderEnrol(w, r, http.StatusBadRequest, retry)
+		s.renderEnroll(w, r, http.StatusBadRequest, retry)
 		return
 	}
 	if err := s.rbac.SetRoles(ident.ID, l.policyRoles(claims, tok.AccessToken)); err != nil {
-		s.renderEnrol(w, r, http.StatusInternalServerError, retry)
+		s.renderEnroll(w, r, http.StatusInternalServerError, retry)
 		return
 	}
 	if err := s.save(); err != nil {
 		log.Printf("save state: %v", err)
-		s.renderEnrol(w, r, http.StatusInternalServerError, "Something went wrong saving your account. Please try again.")
+		s.renderEnroll(w, r, http.StatusInternalServerError, "Something went wrong saving your account. Please try again.")
 		return
 	}
 
-	id, _ := s.enrol.startSession(ident.ID, s.now())
+	id, _ := s.enroll.startSession(ident.ID, s.now())
 	http.SetCookie(w, &http.Cookie{
-		Name: sessionCookie, Value: id, Path: "/enrol", MaxAge: int(sessionTTL.Seconds()),
+		Name: sessionCookie, Value: id, Path: "/enroll", MaxAge: int(sessionTTL.Seconds()),
 		HttpOnly: true, Secure: l.secure(), SameSite: http.SameSiteLaxMode,
 	})
-	http.Redirect(w, r, "/enrol", http.StatusSeeOther)
+	http.Redirect(w, r, "/enroll", http.StatusSeeOther)
 }
 
 // policyRoles reads the provider's roles for the person signing in and keeps
@@ -363,19 +377,19 @@ func unverifiedClaims(raw string) map[string]any {
 	return claims
 }
 
-func (s *Server) enrolLogout(w http.ResponseWriter, r *http.Request, id string, _ session) {
-	s.enrol.endSession(id)
-	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: "/enrol", MaxAge: -1, HttpOnly: true, Secure: s.cur().secure(), SameSite: http.SameSiteLaxMode})
-	http.Redirect(w, r, "/enrol?done=signedout", http.StatusSeeOther)
+func (s *Server) enrollLogout(w http.ResponseWriter, r *http.Request, id string, _ session) {
+	s.enroll.endSession(id)
+	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: "/enroll", MaxAge: -1, HttpOnly: true, Secure: s.cur().secure(), SameSite: http.SameSiteLaxMode})
+	http.Redirect(w, r, "/enroll?done=signedout", http.StatusSeeOther)
 }
 
-func (s *Server) enrolTicket(w http.ResponseWriter, _ *http.Request, _ string, sess session) {
-	if s.enrol.voiceURL == "" {
+func (s *Server) enrollTicket(w http.ResponseWriter, _ *http.Request, _ string, sess session) {
+	if s.enroll.voiceURL == "" {
 		fail(w, http.StatusNotFound, "no voice producer is configured")
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	reply(w, http.StatusOK, map[string]string{"ticket": s.enrol.issueTicket(sess.identityID, s.now())})
+	reply(w, http.StatusOK, map[string]string{"ticket": s.enroll.issueTicket(sess.identityID, s.now())})
 }
 
 // redeemTicket lets a voice producer learn which identity a recording is for.
@@ -388,11 +402,11 @@ func (s *Server) redeemTicket(w http.ResponseWriter, r *http.Request, p Principa
 	}
 	// Refused before the ticket is touched, so the right producer can still
 	// redeem it.
-	if s.enrol.voiceProducer != "" && p.ID != s.enrol.voiceProducer {
-		fail(w, http.StatusForbidden, "only the configured voice producer may redeem enrolment tickets")
+	if s.enroll.voiceProducer != "" && p.ID != s.enroll.voiceProducer {
+		fail(w, http.StatusForbidden, "only the configured voice producer may redeem enrollment tickets")
 		return
 	}
-	id, ok := s.enrol.redeem(body.Ticket, s.now())
+	id, ok := s.enroll.redeem(body.Ticket, s.now())
 	if !ok || !s.registry.MarkVoiceEnrolled(id, s.now()) {
 		fail(w, http.StatusNotFound, "unknown, used, or expired ticket")
 		return
@@ -403,7 +417,7 @@ func (s *Server) redeemTicket(w http.ResponseWriter, r *http.Request, p Principa
 	reply(w, http.StatusOK, map[string]string{"identityId": id})
 }
 
-func (s *Server) enrolConsent(w http.ResponseWriter, r *http.Request, _ string, sess session) {
+func (s *Server) enrollConsent(w http.ResponseWriter, r *http.Request, _ string, sess session) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Bad request.", http.StatusBadRequest)
 		return
@@ -432,20 +446,20 @@ func (s *Server) enrolConsent(w http.ResponseWriter, r *http.Request, _ string, 
 			if _, err := s.delegations.Add(decision.Delegation{
 				IdentityID: sess.identityID, Agent: offer.agent, Permissions: chosen, GrantedBy: sess.identityID,
 			}, now); err != nil {
-				s.renderEnrol(w, r, http.StatusBadRequest, "That choice couldn't be saved.")
+				s.renderEnroll(w, r, http.StatusBadRequest, "That choice couldn't be saved.")
 				return
 			}
 		}
 	}
 	if err := s.save(); err != nil {
 		log.Printf("save state: %v", err)
-		s.renderEnrol(w, r, http.StatusInternalServerError, "Your choices couldn't be saved. Please try again.")
+		s.renderEnroll(w, r, http.StatusInternalServerError, "Your choices couldn't be saved. Please try again.")
 		return
 	}
-	http.Redirect(w, r, "/enrol?done=saved", http.StatusSeeOther)
+	http.Redirect(w, r, "/enroll?done=saved", http.StatusSeeOther)
 }
 
-func (s *Server) enrolRevoke(w http.ResponseWriter, r *http.Request, _ string, sess session) {
+func (s *Server) enrollRevoke(w http.ResponseWriter, r *http.Request, _ string, sess session) {
 	d, ok := s.delegations.Get(r.PostFormValue("id"))
 	// A person can only withdraw their own, still-live consent.
 	if !ok || d.IdentityID != sess.identityID || d.RevokedAt != nil {
@@ -459,10 +473,10 @@ func (s *Server) enrolRevoke(w http.ResponseWriter, r *http.Request, _ string, s
 	s.delegations.Revoke(d.ID, s.now())
 	if err := s.save(); err != nil {
 		log.Printf("save state: %v", err)
-		s.renderEnrol(w, r, http.StatusInternalServerError, "That couldn't be removed. Please try again.")
+		s.renderEnroll(w, r, http.StatusInternalServerError, "That couldn't be removed. Please try again.")
 		return
 	}
-	http.Redirect(w, r, "/enrol?done=revoked", http.StatusSeeOther)
+	http.Redirect(w, r, "/enroll?done=revoked", http.StatusSeeOther)
 }
 
 // offer is what one agent may ask to do for an identity.
@@ -518,7 +532,7 @@ func (s *Server) liveDelegations(identityID, agent string, now time.Time) []deci
 }
 
 // ownConsent is the live delegations a person granted themselves on the
-// enrolment page, as opposed to those an administrator made for them.
+// enrollment page, as opposed to those an administrator made for them.
 func (s *Server) ownConsent(identityID, agent string, now time.Time) []decision.Delegation {
 	return slices.DeleteFunc(s.liveDelegations(identityID, agent, now), func(d decision.Delegation) bool {
 		return d.GrantedBy != identityID

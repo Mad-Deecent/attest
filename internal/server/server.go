@@ -41,6 +41,29 @@ const (
 	KindAgent    = "agent"
 )
 
+// ParseConfig decodes a JSON config file into cfg. The "enrol" key is a
+// deprecated alias for "enroll"; it is used (with one log line) only when
+// "enroll" is absent.
+func ParseConfig(raw []byte, cfg *Config) error {
+	if err := json.Unmarshal(raw, cfg); err != nil {
+		return err
+	}
+	var old struct {
+		Enrol  *EnrollConfig `json:"enrol"`
+		Enroll *EnrollConfig `json:"enroll"`
+	}
+	if err := json.Unmarshal(raw, &old); err != nil {
+		return err
+	}
+	if old.Enrol != nil {
+		log.Printf("config: key \"enrol\" is deprecated; rename it to \"enroll\"")
+		if old.Enroll == nil {
+			cfg.Enroll = *old.Enrol
+		}
+	}
+	return nil
+}
+
 type Config struct {
 	Listen string `json:"listen"`
 	// Tokens maps a static bearer token to its principal. For development;
@@ -48,9 +71,9 @@ type Config struct {
 	Tokens map[string]Principal `json:"tokens,omitempty"`
 	OIDC   *OIDCConfig          `json:"oidc,omitempty"`
 	// PublicURL is where people reach attest, e.g. http://localhost:8420.
-	// Enrolment redirects back to it.
-	PublicURL string      `json:"publicUrl,omitempty"`
-	Enrol     EnrolConfig `json:"enrol"`
+	// Enrollment redirects back to it.
+	PublicURL string       `json:"publicUrl,omitempty"`
+	Enroll    EnrollConfig `json:"enroll"`
 	// Data is the file attest keeps identities, roles, and delegations in.
 	// Empty keeps them in memory only.
 	Data   string            `json:"data,omitempty"`
@@ -67,7 +90,7 @@ type Server struct {
 	fusion      *perception.Fusion
 	delegations *decision.Delegations
 	rbac        *decision.RBAC
-	enrol       *enrolment
+	enroll      *enrollment
 	setup       *setup
 	data        string
 	live        atomic.Pointer[live]
@@ -115,7 +138,7 @@ func New(cfg Config, now func() time.Time) (*Server, error) {
 		fusion:      perception.NewFusion(cfg.Fusion, registry),
 		delegations: decision.NewDelegations(),
 		rbac:        decision.NewRBAC(seedRoles),
-		enrol:       newEnrolment(cfg.Enrol),
+		enroll:      newEnrollment(cfg.Enroll),
 		setup:       &setup{},
 		data:        cfg.Data,
 		now:         now,
@@ -162,9 +185,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/associations", s.as(KindProducer, s.postAssociation))
 	mux.HandleFunc("POST /v1/retirements", s.as(KindProducer, s.postRetirement))
 
-	mux.HandleFunc("POST /v1/enrolment-tickets/redeem", s.as(KindProducer, s.redeemTicket))
+	mux.HandleFunc("POST /v1/enrollment-tickets/redeem", s.as(KindProducer, s.redeemTicket))
 
-	s.enrolRoutes(mux)
+	s.enrollRoutes(mux)
 
 	mux.HandleFunc("GET /v1/subjects/{key}/belief", s.as(KindAgent, s.getBelief))
 	mux.HandleFunc("POST /v1/decisions", s.as(KindAgent, s.postDecision))

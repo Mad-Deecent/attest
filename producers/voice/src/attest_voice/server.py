@@ -1,8 +1,8 @@
-"""``POST /enrol``: a browser uploads a recording with an enrolment ticket.
+"""``POST /enroll``: a browser uploads a recording with an enrollment ticket.
 
 Request: raw audio body (e.g. ``audio/webm;codecs=opus`` from MediaRecorder),
 ``Authorization: Bearer <ticket>``. The ticket is redeemed at attest with the
-producer's own credential; attest answers with the identity it enrols. The
+producer's own credential; attest answers with the identity it enrolls. The
 audio is checked before the ticket is redeemed, so a too-short recording does
 not burn a single-use ticket.
 
@@ -23,15 +23,15 @@ from typing import Any
 
 from .attest_client import Attest, RedeemUnavailable
 from .audio import DecodeError, decode
-from .enrol import EnrolEngine, TooLittleSpeech, check
+from .enroll import EnrollEngine, TooLittleSpeech, check
 from .speaker import voiceprint
 from .store import Store
 
 log = logging.getLogger("attest_voice.server")
 
 
-class EnrolService:
-    def __init__(self, attest: Attest, engine: EnrolEngine, store: Store, *, model: str,
+class EnrollService:
+    def __init__(self, attest: Attest, engine: EnrollEngine, store: Store, *, model: str,
                  min_seconds: float, cors_origin: str = "", max_body: int = 20 * 1024 * 1024, max_audio_seconds: float = 120):
         self.attest = attest
         self.engine = engine
@@ -41,12 +41,12 @@ class EnrolService:
         self.cors_origin = cors_origin
         self.max_body = max_body
         self.max_audio_seconds = max_audio_seconds
-        # One model instance is not safe for concurrent use; enrolment is rare.
+        # One model instance is not safe for concurrent use; enrollment is rare.
         self._lock = threading.Lock()
 
     def handle(self, ticket: str, body: bytes) -> tuple[int, dict[str, Any]]:
         if not ticket:
-            return 401, {"error": "missing enrolment ticket"}
+            return 401, {"error": "missing enrollment ticket"}
         try:
             audio = decode(body, max_seconds=self.max_audio_seconds)
         except DecodeError as e:
@@ -60,15 +60,15 @@ class EnrolService:
                 identity = self.attest.redeem_ticket(ticket)
             except RedeemUnavailable as e:
                 log.error("ticket redemption failed, not because of the ticket: %s", e)
-                return 502, {"error": "The voice service could not check your enrolment ticket with attest: attest "
+                return 502, {"error": "The voice service could not check your enrollment ticket with attest: attest "
                                       "has no ticket-redemption endpoint or answered unexpectedly. Nothing was saved. "
                                       "Ask whoever runs this system to check the voice service's log."}
             except OSError as e:
                 log.error("ticket redemption failed, attest unreachable: %s", e)
-                return 502, {"error": "The voice service could not reach attest to check your enrolment ticket. "
+                return 502, {"error": "The voice service could not reach attest to check your enrollment ticket. "
                                       "Nothing was saved. Please try again in a few minutes."}
             if identity is None:
-                return 401, {"error": "enrolment ticket is invalid, used, or expired"}
+                return 401, {"error": "enrollment ticket is invalid, used, or expired"}
             vec = voiceprint(samples, self.engine.embed)
             assert vec is not None
             self.store.put(identity, vec, self.model, voiced)
@@ -76,7 +76,7 @@ class EnrolService:
         return 201, {"identityId": identity, "voicedSeconds": round(voiced, 1)}
 
 
-def make_handler(svc: EnrolService) -> type[BaseHTTPRequestHandler]:
+def make_handler(svc: EnrollService) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         server_version = "attest-voice"
 
@@ -103,7 +103,7 @@ def make_handler(svc: EnrolService) -> type[BaseHTTPRequestHandler]:
             self.wfile.write(raw)
 
         def do_OPTIONS(self) -> None:
-            if self.path != "/enrol":
+            if self.path != "/enroll":
                 return self._reply(404, {"error": "not found"})
             origin = self.headers.get("Origin")
             if not svc.cors_origin or origin != svc.cors_origin:
@@ -111,7 +111,7 @@ def make_handler(svc: EnrolService) -> type[BaseHTTPRequestHandler]:
             self._reply(204, None)
 
         def do_POST(self) -> None:
-            if self.path != "/enrol":
+            if self.path != "/enroll":
                 return self._reply(404, {"error": "not found"})
             origin = self.headers.get("Origin")
             if origin is not None and origin != svc.cors_origin:
@@ -131,8 +131,8 @@ def make_handler(svc: EnrolService) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
-def serve(svc: EnrolService, listen: str) -> None:
+def serve(svc: EnrollService, listen: str) -> None:
     host, _, port = listen.rpartition(":")
     httpd = ThreadingHTTPServer((host or "127.0.0.1", int(port)), make_handler(svc))
-    log.info("enrol endpoint on http://%s:%s/enrol", host or "127.0.0.1", port)
+    log.info("enroll endpoint on http://%s:%s/enroll", host or "127.0.0.1", port)
     httpd.serve_forever()

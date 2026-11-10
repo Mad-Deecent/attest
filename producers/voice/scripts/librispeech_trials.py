@@ -1,11 +1,11 @@
-"""Generate labelled same/different-speaker trials from LibriSpeech.
+"""Generate labeled same/different-speaker trials from LibriSpeech.
 
 Speakers are split deterministically: every 4th speaker id (sorted) is held
 out for evaluation and for the demo; the rest are used to fit. For each
-speaker an enrolment print is built from >= ENROL_SECONDS of voiced audio
+speaker an enrollment print is built from >= ENROLL_SECONDS of voiced audio
 from one chapter; test segments are voiced crops of fixed durations taken
-from utterances not used for enrolment (another chapter when there is one).
-Every test segment is scored against every enrolment in its split.
+from utterances not used for enrollment (another chapter when there is one).
+Every test segment is scored against every enrollment in its split.
 
     uv run python scripts/librispeech_trials.py ~/.cache/librispeech/LibriSpeech/dev-clean out/
 """
@@ -23,7 +23,7 @@ from attest_voice.audio import SAMPLE_RATE, decode
 from attest_voice.models import Models
 from attest_voice.speaker import cut, voiceprint
 
-ENROL_SECONDS = 20.0
+ENROLL_SECONDS = 20.0
 DURATIONS = [0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 8.0]
 TESTS_PER_SPEAKER = 6
 
@@ -45,18 +45,18 @@ def main(root: str, out: str, models_dir: str = "~/.cache/sherpa-onnx-models") -
     for s in speakers:
         chapters = utterances(s)
         names = list(chapters)
-        enrol_ch = names[0]
+        enroll_ch = names[0]
         buf, secs, used = [], 0.0, set()
-        for f in chapters[enrol_ch]:
+        for f in chapters[enroll_ch]:
             a = decode(f)
             v = cut(a, m.vad(a))
             buf.append(v)
             used.add(f)
             secs += len(v) / SAMPLE_RATE
-            if secs >= ENROL_SECONDS:
+            if secs >= ENROLL_SECONDS:
                 break
         prints[s.name] = voiceprint(np.concatenate(buf), m.embed)  # type: ignore[assignment]
-        pool = [f for c in names[1:] for f in chapters[c]] or [f for f in chapters[enrol_ch] if f not in used]
+        pool = [f for c in names[1:] for f in chapters[c]] or [f for f in chapters[enroll_ch] if f not in used]
         rng.shuffle(pool)
         for f in pool[:TESTS_PER_SPEAKER]:
             a = decode(f)
@@ -67,7 +67,7 @@ def main(root: str, out: str, models_dir: str = "~/.cache/sherpa-onnx-models") -
                     continue
                 off = rng.randrange(0, len(v) - n + 1)
                 tests.append((s.name, d, m.embed(v[off : off + n])))
-        print(f"speaker {s.name} ({split[s.name]}): enrol {secs:.1f}s, chapters {len(names)}", file=sys.stderr)
+        print(f"speaker {s.name} ({split[s.name]}): enroll {secs:.1f}s, chapters {len(names)}", file=sys.stderr)
 
     files = {k: open(outdir / f"trials-{k}.jsonl", "w") for k in ("fit", "heldout")}
     for spk, d, e in tests:

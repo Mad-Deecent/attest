@@ -28,7 +28,7 @@
     "minSeconds": 3.0,
     "same": 260,
     "different": 7540,
-    "note": "DEMO calibration: clean read audiobook speech, cross-chapter, 20 s enrolments vs voiced test crops. Not valid for in-car or far-field audio; refit on trials from the deployment's own microphones before relying on it.",
+    "note": "DEMO calibration: clean read audiobook speech, cross-chapter, 20 s enrollments vs voiced test crops. Not valid for in-car or far-field audio; refit on trials from the deployment's own microphones before relying on it.",
     "fit": {
       "a": 15.127138698461856,
       "b": -5.496007637913517,

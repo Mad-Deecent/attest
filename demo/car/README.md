@@ -136,7 +136,7 @@ prints both.
 
 | Variable | Default |
 |---|---|
-| `ATTEST_OIDC_ISSUER` | `http://keycloak.ethel.internal:8080/realms/ethel` |
+| `ATTEST_OIDC_ISSUER` | required, e.g. `https://idp.example.com/realms/home` |
 | `CONCIERGE_SECRET_FILE` | `~/.cache/attest-concierge-secret` |
 | `VOICE_PRODUCER_SECRET_FILE` | `~/.cache/attest-voice-producer-secret` |
 

@@ -37,7 +37,7 @@ def test_targets_come_only_from_other_sessions():
         calls.append(len(x))
         return embed(x)
 
-    rows = build_trials(segs(), voiced, counting, enrol_seconds=20, durations=(1.0, 3.0))
+    rows = build_trials(segs(), voiced, counting, enroll_seconds=20, durations=(1.0, 3.0))
     same = [r for r in rows if r["same"]]
     # A: tested on s2 only, B: on s3 only; C has no other session.
     assert len(same) == 4
@@ -49,7 +49,7 @@ def test_targets_come_only_from_other_sessions():
     assert set(rows[0]) == {"score", "same", "seconds"}
 
 
-def test_enrols_from_the_session_with_most_speech():
+def test_enrolls_from_the_session_with_most_speech():
     s = [Segment("x", "A", "short"), Segment("y", "A", "long"), Segment("z", "B", "other")]
 
     def v(seg: Segment) -> np.ndarray:

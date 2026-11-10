@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"io/fs"
@@ -28,7 +27,7 @@ func main() {
 	raw, err := os.ReadFile(*path)
 	switch {
 	case err == nil:
-		if err := json.Unmarshal(raw, &cfg); err != nil {
+		if err := server.ParseConfig(raw, &cfg); err != nil {
 			log.Fatalf("parse config: %v", err)
 		}
 	case errors.Is(err, fs.ErrNotExist) && !explicit:

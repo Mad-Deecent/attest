@@ -19,12 +19,12 @@ import (
 	"github.com/mad-deecent/attest/internal/decision"
 )
 
-//go:embed enrol
-var enrolFiles embed.FS
+//go:embed enroll
+var enrollFiles embed.FS
 
 var (
-	enrolStatic, _ = fs.Sub(enrolFiles, "enrol/static")
-	enrolTemplate  = template.Must(template.ParseFS(enrolFiles, "enrol/enrol.html"))
+	enrollStatic, _ = fs.Sub(enrollFiles, "enroll/static")
+	enrollTemplate  = template.Must(template.ParseFS(enrollFiles, "enroll/enroll.html"))
 )
 
 // readAloud is the sentence offered for a voice recording.
@@ -38,7 +38,7 @@ var doneMessages = map[string]string{
 	"signedout": "You're signed out.",
 }
 
-type enrolView struct {
+type enrollView struct {
 	Configured bool
 	SignedIn   bool
 	Status     string
@@ -77,16 +77,16 @@ type grantView struct {
 	Limits  string
 }
 
-func (s *Server) enrolPage(w http.ResponseWriter, r *http.Request) {
-	s.renderEnrol(w, r, http.StatusOK, "")
+func (s *Server) enrollPage(w http.ResponseWriter, r *http.Request) {
+	s.renderEnroll(w, r, http.StatusOK, "")
 }
 
-func (s *Server) renderEnrol(w http.ResponseWriter, r *http.Request, status int, problem string) {
+func (s *Server) renderEnroll(w http.ResponseWriter, r *http.Request, status int, problem string) {
 	l := s.cur()
-	v := enrolView{Configured: l.enrolling(), Error: problem, Status: doneMessages[r.URL.Query().Get("done")]}
+	v := enrollView{Configured: l.enrolling(), Error: problem, Status: doneMessages[r.URL.Query().Get("done")]}
 	if v.Configured {
-		v.VoiceURL = s.enrol.voiceURL
-		if _, sess, ok := s.enrol.session(r, s.now()); ok {
+		v.VoiceURL = s.enroll.voiceURL
+		if _, sess, ok := s.enroll.session(r, s.now()); ok {
 			if ident, known := s.registry.Get(sess.identityID); known {
 				s.signedInView(&v, l.policy(), ident.ID, sess)
 				v.Name = ident.DisplayName
@@ -110,12 +110,12 @@ func (s *Server) renderEnrol(w http.ResponseWriter, r *http.Request, status int,
 	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; "+
 		"connect-src 'self'"+origin(v.VoiceURL)+"; base-uri 'none'; frame-ancestors 'none'")
 	w.WriteHeader(status)
-	if err := enrolTemplate.Execute(w, v); err != nil {
-		log.Printf("enrol: render: %v", err)
+	if err := enrollTemplate.Execute(w, v); err != nil {
+		log.Printf("enroll: render: %v", err)
 	}
 }
 
-func (s *Server) signedInView(v *enrolView, policy decision.Policy, identityID string, sess session) {
+func (s *Server) signedInView(v *enrollView, policy decision.Policy, identityID string, sess session) {
 	v.SignedIn = true
 	v.CSRF = sess.csrf
 	v.Sentence = readAloud
@@ -182,7 +182,7 @@ func describeBand(b assurance.Band) string {
 		need = "It must be at least " + strconv.FormatFloat(b.MinConfidence*100, 'g', 4, 64) + "% sure it's you"
 	}
 	if b.MinModalities > 1 {
-		need += ", recognising you in " + count(b.MinModalities) + " separate ways, such as your face and your voice"
+		need += ", recognizing you in " + count(b.MinModalities) + " separate ways, such as your face and your voice"
 	}
 	if b.MaxAgeSeconds > 0 {
 		need += ", within the last " + duration(time.Duration(b.MaxAgeSeconds)*time.Second)

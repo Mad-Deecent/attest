@@ -8,7 +8,7 @@ requests, no frameworks). Every view has a link (`#decisions/d-1938`, `#policy/d
 
 1. Navigation is the domain model. Each domain has one responsibility; anything owned elsewhere is a link, never a copy.
 2. An instrument, not a dashboard. Type and hairline rules carry hierarchy; no cards. Each view has one raised surface, its detail pane.
-3. Colour is information. One accent means *now*. Green, red and amber mean allowed, refused and needs attention, always with a glyph and a word.
+3. Color is information. One accent means *now*. Green, red and amber mean allowed, refused and needs attention, always with a glyph and a word.
 4. One concept, one drawing. The level, the belief, the outcome and the chain are each drawn by one function and look the same everywhere.
 5. Plain sentences first. Scores and engine reasons live behind "Show the numbers".
 6. Say what can never happen ("never possible in the Hallway") where you would act on it.
@@ -19,7 +19,7 @@ requests, no frameworks). Every view has a link (`#decisions/d-1938`, `#policy/d
 | Domain | Single responsibility | Writes |
 |---|---|---|
 | **Presence** | Who is here now, per space; how sure, for how long | none |
-| **Identities** | People, provider link, roles (read-only), enrolment, what they allowed | invite |
+| **Identities** | People, provider link, roles (read-only), enrollment, what they allowed | invite |
 | **Sensors** | Adoption, health, coverage, calibration; **owns spaces** | adopt, place, retire |
 | **Agents** | Assistants, tool servers behind the gateway, tools → actions | connect, map |
 | **Policy** | Actions, the level each needs, roles × actions, admin-made limits | **every rule** |
@@ -34,7 +34,7 @@ Identities only shows them. Consent is *current state* in Identities and *histor
 
 ## Signature components
 
-- **Level glyph**: three ascending bars, the top one split in two, because Confirmed means *recognised two
+- **Level glyph**: three ascending bars, the top one split in two, because Confirmed means *recognized two
   ways*. The name always sits beside it. It shows a required level (Policy), a held level (Presence, Identities)
   and needed vs had (Decisions).
 - **Belief trace**: ten minutes back and four ahead. The line steps up when evidence arrives. It decays so that it
@@ -57,7 +57,7 @@ Identities only shows them. Consent is *current state* in Identities and *histor
 | floor / presumed / confident / corroborated | **Anyone / Likely / Sure / Confirmed** |
 | identity · producer · agent · zone · permission | person · sensor · agent (assistant) · space · action ("Unlock the front door") |
 | delegation, self / admin | "what Tomás has allowed" / "limit set by Noor" |
-| ambiguous, conflicted / unknown | "too close to call" / "not recognised", both treated as Anyone |
+| ambiguous, conflicted / unknown | "too close to call" / "not recognized", both treated as Anyone |
 | posterior, LLR, reasons | only under "Show the numbers" |
 
 ## Open questions
@@ -66,5 +66,5 @@ Identities only shows them. Consent is *current state* in Identities and *histor
 2. The engine expires levels by age; the trace draws a decay that matches those cut-offs. Should the belief API return a "valid until" for each level, so the console never recomputes it?
 3. Confirmed needs voice and face *associated* on one subject. At the front door, who submits that association?
 4. Should admins see each person's individual choices, or only counts?
-5. In a household, should Presence show "not recognised" and "too close to call", or should only the ledger?
+5. In a household, should Presence show "not recognized" and "too close to call", or should only the ledger?
 6. Forgetting someone stays visibly incomplete until every sensor acknowledges it (as drawn). Is that enough?

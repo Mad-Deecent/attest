@@ -1,8 +1,8 @@
 """Speaker embeddings over voiced audio, and scoring against voiceprints.
 
-Enrolment and session scoring use the same procedure: voiced audio is
-concatenated, cut into fixed windows, each window embedded and L2-normalised,
-and the embedding is the duration-weighted mean, renormalised. During a
+Enrollment and session scoring use the same procedure: voiced audio is
+concatenated, cut into fixed windows, each window embedded and L2-normalized,
+and the embedding is the duration-weighted mean, renormalized. During a
 session complete windows are cached, so re-scoring a growing speaker costs one
 window, not the whole history.
 """

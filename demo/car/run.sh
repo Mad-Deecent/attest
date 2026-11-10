@@ -18,7 +18,7 @@ Options:
   --keycloak             authenticate the gateway and the producer to attest with
                          OIDC client-credentials tokens (see README for env vars)
   --audio WAV            your own recording instead of the LibriSpeech conversation
-  --owner-sample WAV     enrolment audio of the owner (required with --audio)
+  --owner-sample WAV     enrollment audio of the owner (required with --audio)
   --triggers JSON        trigger phrases (required with --audio)
   --lenient              only check trigger expectations, not the three car outcomes
   --keep                 keep the work directory (holds voiceprints: delete it after)
@@ -49,10 +49,14 @@ VOICE="$ROOT/producers/voice"
 GO=${GO:-$(command -v go || echo "$HOME/sdk/go/bin/go")}
 LIBRISPEECH=${LIBRISPEECH:-$HOME/.cache/librispeech/LibriSpeech/dev-clean}
 MODELS=${MODELS:-$HOME/.cache/sherpa-onnx-models}
-ISSUER=${ATTEST_OIDC_ISSUER:-http://keycloak.ethel.internal:8080/realms/ethel}
+ISSUER=${ATTEST_OIDC_ISSUER:-}
 CONCIERGE_SECRET_FILE=${CONCIERGE_SECRET_FILE:-$HOME/.cache/attest-concierge-secret}
 VOICE_PRODUCER_SECRET_FILE=${VOICE_PRODUCER_SECRET_FILE:-$HOME/.cache/attest-voice-producer-secret}
 TRIGGERS=${TRIGGERS:-$HERE/triggers.json}
+
+if [ "$MODE" = keycloak ] && [ -z "$ISSUER" ]; then
+  echo "--keycloak needs ATTEST_OIDC_ISSUER, e.g. https://idp.example.com/realms/home" >&2; exit 2
+fi
 
 for tool in "$GO" uv curl jq python3; do
   command -v "$tool" >/dev/null || { echo "missing: $tool" >&2; exit 2; }
@@ -162,17 +166,17 @@ if [ -z "$AUDIO" ]; then
   step "building the conversation from LibriSpeech (see README: these are not car commands)"
   (cd "$VOICE" && uv run --quiet python scripts/make_demo_audio.py "$LIBRISPEECH" "$WORK/audio") 2>"$WORK/audio.log"
   jq -c '{mutterText, turns}' "$WORK/audio/truth.json"
-  AUDIO="$WORK/audio/conversation.wav" OWNER_SAMPLE="$WORK/audio/enrol-A.wav"
+  AUDIO="$WORK/audio/conversation.wav" OWNER_SAMPLE="$WORK/audio/enroll-A.wav"
   # A second household member, enrolled but not in the car, so the passenger
   # is compared against more than one voiceprint.
   admin PUT "/v1/identities/$OTHER" '{"displayName":"Household member (not in the car)"}'
   NAMES=$(jq -nc --arg o "$OWNER" --arg c "$OTHER" '{($o): "owner", ($c): "household member"}')
   step "enrolling voices with the producer CLI (audio not in the conversation)"
-  av enrol --identity "$OWNER" "$OWNER_SAMPLE"
-  av enrol --identity "$OTHER" "$WORK/audio/enrol-C.wav"
+  av enroll --identity "$OWNER" "$OWNER_SAMPLE"
+  av enroll --identity "$OTHER" "$WORK/audio/enroll-C.wav"
 else
   step "enrolling the owner's voice with the producer CLI"
-  av enrol --identity "$OWNER" "$OWNER_SAMPLE"
+  av enroll --identity "$OWNER" "$OWNER_SAMPLE"
 fi
 
 SESSION=car-$(date +%s)

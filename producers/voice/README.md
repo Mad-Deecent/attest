@@ -25,7 +25,7 @@ CPU-only, no torch: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)
 with these models (fetched by `scripts/download-models.sh`, ~150 MB, into
 `~/.cache/sherpa-onnx-models`; never committed):
 
-| Job | Model | Licence (upstream) |
+| Job | Model | License (upstream) |
 |---|---|---|
 | VAD | Silero VAD | MIT |
 | Diarization segmentation | pyannote segmentation-3.0 (ONNX) | MIT |
@@ -44,10 +44,10 @@ Audio decoding uses PyAV (bundled FFmpeg libraries; no system ffmpeg).
 uv sync
 scripts/download-models.sh
 cp attest-voice.example.json voice.json   # edit
-uv run attest-voice -c voice.json enrol --identity <uuid> sample.wav
+uv run attest-voice -c voice.json enroll --identity <uuid> sample.wav
 uv run attest-voice -c voice.json run session.wav --session drive-42
 uv run attest-voice -c voice.json forget --identity <uuid>
-uv run attest-voice -c voice.json serve          # browser enrolment endpoint
+uv run attest-voice -c voice.json serve          # browser enrollment endpoint
 uv run attest-voice fit-calibration trials.jsonl --id my-cal-v1 --model <embedding> -o my-cal.json
 ```
 
@@ -111,7 +111,7 @@ speaker change) or *uncovered* (outside every turn). Words group into
 utterances at pauses > 0.5 s and at attribution changes. A contested word
 nulls its whole contiguous run, before and after, because nothing marks where
 one speaker's request ends. Uncovered words (cut at silences, e.g. by the
-guard below) become their own null utterance without poisoning neighbours.
+guard below) become their own null utterance without poisoning neighbors.
 
 ### Short-island guard
 
@@ -135,7 +135,7 @@ bounded. The shipped calibration
 audiobook speech, not on car or far-field audio:
 
 * LibriSpeech dev-clean (CC BY 4.0), 40 speakers split deterministically:
-  30 to fit, 10 held out (every 4th speaker id). Enrolment ≥ 20 s voiced
+  30 to fit, 10 held out (every 4th speaker id). Enrollment ≥ 20 s voiced
   from one chapter; test segments are voiced crops of 0.5–8 s from other
   chapters. `scripts/librispeech_trials.py` generates the trials.
 * Fit on test crops ≥ 3 s: 260 same-speaker / 7,540 different-speaker
@@ -155,7 +155,7 @@ with `fit-calibration` and a new id.
 1. Label stretches of single-speaker audio from the microphones you will
    deploy into a manifest (`attest_voice/trials.py` documents the format).
    Each speaker needs at least two *sessions* (separate recordings): one
-   to enrol from, the others to test on.
+   to enroll from, the others to test on.
 2. `uv run python scripts/manifest_trials.py manifest.jsonl trials.jsonl`
 3. `uv run attest-voice fit-calibration trials.jsonl --id <neutral-id> --model 3dspeaker_speech_eres2net_sv_en_voxceleb_16k -o cal.json`,
    then set `"calibration": "cal.json"` in the config.
@@ -164,12 +164,12 @@ The trials file holds only scores, so it and the calibration can be kept
 without the audio. Pitfalls that make trials look easier than deployment:
 
 * **Same recording on both sides.** A target trial against audio from the
-  enrolment session shares room, microphone and day, and scores far higher
+  enrollment session shares room, microphone and day, and scores far higher
   than a real later attempt. The script never does this.
 * **Bleed.** In a house with several microphones the same utterance lands
   in more than one recording at once. Treat simultaneous recordings as one
   session.
-* **TV, radio and music.** VAD fires on them. A broadcast voice labelled as
+* **TV, radio and music.** VAD fires on them. A broadcast voice labeled as
   a household speaker poisons both classes. Label by ear, not by VAD.
 * **Speaker labels from cameras.** A face in view is not the person
   talking. Use such labels only for single-voice audio, and check some.
@@ -202,33 +202,33 @@ because short real-world segments are less trustworthy than clean crops:
 they can be contaminated by diarization errors, noise, or someone else's
 voice.
 
-## Browser enrolment (`serve`)
+## Browser enrollment (`serve`)
 
-`POST /enrol`, body = the raw recording (e.g. `MediaRecorder` output,
-`audio/webm;codecs=opus`), header `Authorization: Bearer <enrolment ticket>`.
+`POST /enroll`, body = the raw recording (e.g. `MediaRecorder` output,
+`audio/webm;codecs=opus`), header `Authorization: Bearer <enrollment ticket>`.
 
 1. The recording is decoded and voice activity measured. With less than
-   `enrol.minVoicedSeconds` (default 6 s) of speech the reply is **422**,
+   `enroll.minVoicedSeconds` (default 6 s) of speech the reply is **422**,
    with a human-readable message, *before* the ticket is touched, so a retry
    can reuse it.
 2. The ticket is redeemed at attest:
-   `POST {attest}/v1/enrolment-tickets/redeem {"ticket": "..."}` with the
+   `POST {attest}/v1/enrollment-tickets/redeem {"ticket": "..."}` with the
    producer's own credential. 200 `{"identityId"}` → stored; attest's 404
    with a JSON `error` body (unknown, used, or expired ticket) → **401**.
 3. **201** `{"identityId", "voicedSeconds"}`.
 
 Other replies: 415 undecodable, 413 too large, **502** when attest is
 unreachable or answers anything else: no redeem route (a plain-text 404),
-403 (attest's `enrol.voiceProducer` names another producer), 5xx, or a 200
+403 (attest's `enroll.voiceProducer` names another producer), 5xx, or a 200
 without an identity. The 502 body says which of the two it was, nothing is
 stored, and the cause is logged.
-CORS allows only `enrol.corsOrigin`: preflight is answered for it, and
+CORS allows only `enroll.corsOrigin`: preflight is answered for it, and
 requests carrying any other `Origin` get 403.
 
 ```js
 const rec = new MediaRecorder(stream, {mimeType: "audio/webm;codecs=opus"});
 // ... collect chunks into blob ...
-await fetch("http://127.0.0.1:8431/enrol", {method: "POST", body: blob,
+await fetch("http://127.0.0.1:8431/enroll", {method: "POST", body: blob,
   headers: {"Authorization": `Bearer ${ticket}`, "Content-Type": blob.type}});
 ```
 
@@ -292,7 +292,7 @@ The tests need no models. They cover:
 * Word attribution: overlap, straddle, uncovered words, pauses.
 * Evidence payloads and a whole session with a fake engine against a fake
   attest, including the guard and retirement.
-* Enrolment: webm/opus decoding (encoded by PyAV), 422 without redeeming the
+* Enrollment: webm/opus decoding (encoded by PyAV), 422 without redeeming the
   ticket, unknown tickets, CORS, file modes.
 * OIDC client credentials and token caching.
 * Trials from a manifest: target trials only across sessions.

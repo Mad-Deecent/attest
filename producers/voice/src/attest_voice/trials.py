@@ -1,7 +1,7 @@
-"""Labelled same/different-speaker trials from your own recordings, for
+"""Labeled same/different-speaker trials from your own recordings, for
 `attest-voice fit-calibration`.
 
-A manifest is JSON lines, one labelled stretch of single-speaker audio each:
+A manifest is JSON lines, one labeled stretch of single-speaker audio each:
 
     {"path": "rec/kitchen-0412.wav", "speaker": "p1", "session": "0412-kitchen", "start": 3.2, "end": 11.0}
 
@@ -61,7 +61,7 @@ def build_trials(
     voiced: Callable[[Segment], np.ndarray],
     embed: Callable[[np.ndarray], np.ndarray],
     *,
-    enrol_seconds: float = 20.0,
+    enroll_seconds: float = 20.0,
     durations: Sequence[float] = DURATIONS,
     tests_per_speaker: int = 6,
     seed: int = 7,
@@ -83,18 +83,18 @@ def build_trials(
     tests: list[tuple[str, float, np.ndarray]] = []
     for spk in sorted(by):
         sessions = by[spk]
-        enrol = max(sorted(sessions), key=lambda k: sum(len(get(s)) for s in sessions[k]))
+        enroll = max(sorted(sessions), key=lambda k: sum(len(get(s)) for s in sessions[k]))
         buf, n = [], 0
-        for s in sessions[enrol]:
+        for s in sessions[enroll]:
             buf.append(get(s))
             n += len(buf[-1])
-            if n >= enrol_seconds * SAMPLE_RATE:
+            if n >= enroll_seconds * SAMPLE_RATE:
                 break
         p = voiceprint(np.concatenate(buf), embed) if n else None
         if p is None:
             continue
         prints[spk] = p
-        pool = [s for k in sorted(sessions) if k != enrol for s in sessions[k]]
+        pool = [s for k in sorted(sessions) if k != enroll for s in sessions[k]]
         rng.shuffle(pool)
         for s in pool[:tests_per_speaker]:
             v = get(s)

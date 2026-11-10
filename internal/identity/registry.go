@@ -1,5 +1,5 @@
 // Package identity is the stable core: who a person is, never how they are
-// recognised. It holds no biometric material and depends on nothing.
+// recognized. It holds no biometric material and depends on nothing.
 package identity
 
 import (
@@ -73,7 +73,7 @@ func (r *Registry) Link(p Provider, displayName string, now time.Time) (Identity
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	// Linear: a site enrols people, not a population.
+	// Linear: a site enrolls people, not a population.
 	for id, ident := range r.ids {
 		if ident.Provider != nil && *ident.Provider == p {
 			ident.DisplayName = displayName

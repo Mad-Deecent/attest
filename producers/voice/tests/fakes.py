@@ -66,14 +66,14 @@ class FakeAttest:
                 fake.requests.append((self.path, body, auth))
                 if auth != f"Bearer {fake.token}":
                     return self._send(401, {"error": "unauthenticated"})
-                if self.path == "/v1/enrolment-tickets/redeem" and fake.redeem_reply:
+                if self.path == "/v1/enrollment-tickets/redeem" and fake.redeem_reply:
                     code, raw = fake.redeem_reply
                     self.send_response(code)
                     self.send_header("Content-Length", str(len(raw)))
                     self.end_headers()
                     self.wfile.write(raw)
                     return
-                if self.path == "/v1/enrolment-tickets/redeem":
+                if self.path == "/v1/enrollment-tickets/redeem":
                     ident = fake.tickets.pop(body.get("ticket", ""), None)
                     return self._send(200, {"identityId": ident}) if ident else self._send(404, {"error": "unknown ticket"})
                 if self.path == "/v1/evidence":
