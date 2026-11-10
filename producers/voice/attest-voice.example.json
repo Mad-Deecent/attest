@@ -1,0 +1,30 @@
+{
+  "attest": {
+    "url": "http://localhost:8420",
+    "token": "dev-voice-token"
+  },
+  "zone": "car",
+  "ttlSeconds": 60,
+  "dataDir": "~/.local/share/attest-voice",
+  "modelsDir": "~/.cache/sherpa-onnx-models",
+  "calibration": "",
+  "threads": 2,
+  "callbackUrl": "",
+  "diarization": {
+    "numSpeakers": -1,
+    "clusterThreshold": 0.5,
+    "minDurationOn": 0.2,
+    "minDurationOff": 0.3
+  },
+  "guard": {
+    "maxSeconds": 1.5,
+    "minReferenceSeconds": 2,
+    "minLLR": 2
+  },
+  "enrol": {
+    "listen": "127.0.0.1:8431",
+    "corsOrigin": "http://localhost:5173",
+    "minVoicedSeconds": 6,
+    "maxBodyBytes": 20971520
+  }
+}

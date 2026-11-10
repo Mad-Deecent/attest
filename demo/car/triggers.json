@@ -1,0 +1,30 @@
+{
+  "triggers": [
+    {
+      "phrase": "colloquial definition",
+      "tool": "calendar_today",
+      "expect": "granted",
+      "note": "stands in for the owner asking 'what's on my calendar today?'"
+    },
+    {
+      "phrase": "embraces us",
+      "tool": "email_send",
+      "arguments": { "to": "boss@example.com", "subject": "I quit" },
+      "expect": "denied",
+      "note": "stands in for the passenger saying 'email my boss that I quit'"
+    },
+    {
+      "phrase": "it was silent",
+      "tool": "email_send",
+      "arguments": { "to": "boss@example.com", "subject": "Yes" },
+      "expect": "denied",
+      "note": "the passenger's short interjection"
+    },
+    {
+      "phrase": "hotel attachment",
+      "tool": "calendar_today",
+      "expect": "denied",
+      "note": "the owner's words, overlapped by the passenger"
+    }
+  ]
+}
