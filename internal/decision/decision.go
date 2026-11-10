@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -96,6 +97,35 @@ func (r *RBAC) SetRoles(identityID string, roles []string) error {
 	return nil
 }
 
+// Assignments returns every identity's roles.
+func (r *RBAC) Assignments() map[string][]string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make(map[string][]string, len(r.assignments))
+	for id, roles := range r.assignments {
+		out[id] = slices.Clone(roles)
+	}
+	return out
+}
+
+// Restore overlays saved assignments on the policy's seed, dropping roles the
+// policy no longer defines.
+func (r *RBAC) Restore(assignments map[string][]string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for id, roles := range assignments {
+		roles = slices.DeleteFunc(slices.Clone(roles), func(role string) bool {
+			_, ok := r.roles[role]
+			return !ok
+		})
+		if len(roles) == 0 {
+			delete(r.assignments, id)
+		} else {
+			r.assignments[id] = roles
+		}
+	}
+}
+
 func (r *RBAC) Check(identityID, permission, _ string) (bool, error) {
 	for _, role := range r.Roles(identityID) {
 		if slices.Contains(r.roles[role], permission) {
@@ -160,6 +190,36 @@ func (s *Delegations) Revoke(id string, now time.Time) bool {
 	d.RevokedAt = &now
 	s.all[id] = d
 	return true
+}
+
+func (s *Delegations) Get(id string) (Delegation, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	d, ok := s.all[id]
+	return d, ok
+}
+
+// Snapshot returns every delegation, revoked ones included, and the id counter.
+func (s *Delegations) Snapshot() ([]Delegation, int) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]Delegation, 0, len(s.all))
+	for _, d := range s.all {
+		out = append(out, d)
+	}
+	slices.SortFunc(out, func(a, b Delegation) int { return strings.Compare(a.ID, b.ID) })
+	return out, s.next
+}
+
+// Restore replaces the store's contents with a snapshot.
+func (s *Delegations) Restore(all []Delegation, next int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.all = make(map[string]Delegation, len(all))
+	for _, d := range all {
+		s.all[d.ID] = d
+	}
+	s.next = next
 }
 
 func (s *Delegations) RevokeIdentity(identityID string, now time.Time) {

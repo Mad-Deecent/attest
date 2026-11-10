@@ -46,6 +46,28 @@ A token opens the endpoints its roles allow: `attest-admin`, `attest-producer`,
 your provider names them differently, and `audience` to require one. An agent
 is known to policy by the client the token was issued to.
 
+## Enrolment
+
+People enrol themselves at `/enrol`: they sign in through the identity
+provider, can record their voice, and choose what each agent may do for them.
+It needs a public OIDC client (authorization code with PKCE) whose redirect URI
+is `{publicUrl}/enrol/callback`:
+
+```json
+"publicUrl": "http://localhost:8420",
+"oidc": { "issuer": "https://idp.example.com/realms/home", "clientId": "attest-enrol" },
+"enrol": { "voiceUrl": "https://voice.example.com/enrol" }
+```
+
+Signing in links an identity to the provider account and adopts its roles that
+`policy.roles` defines, refreshed on every sign-in. The voice recording goes
+from the browser straight to the voice producer at `enrol.voiceUrl`, carrying a
+single-use ticket; the producer redeems it at `POST /v1/enrolment-tickets/redeem`
+to learn which identity it is for. attest never receives audio.
+
+Set `data` to a file path to keep identities, roles, and delegations across
+restarts. Empty keeps everything in memory.
+
 ## Development
 
 ```bash

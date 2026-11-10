@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Set up your assistant</title>
+<link rel="stylesheet" href="/enrol/static/enrol.css">
+{{- if .SignedIn}}
+<script src="/enrol/static/enrol.js" defer></script>
+{{- end}}
+</head>
+<body>
+<main>
+<h1>Set up your assistant</h1>
+<p id="status" class="status" role="status" aria-live="polite">{{.Status}}</p>
+{{- if .Error}}
+<p class="problem" role="alert">{{.Error}}</p>
+{{- end}}
+
+{{- if not .Configured}}
+<p>Signing up here needs an account service, and none is set up yet.</p>
+<p>Whoever runs this system can turn it on by adding their identity provider's details (<code>oidc.issuer</code> and <code>oidc.clientId</code>) to its settings.</p>
+
+{{- else if not .SignedIn}}
+<p>Signing up lets the assistants here recognise you and act for you, but only in the ways you choose. You sign in with your usual account, can teach it your voice, and then pick what each assistant may do.</p>
+<p><a class="button" href="/enrol/login">Sign in</a></p>
+
+{{- else}}
+<ol class="steps">
+  <li class="done">
+    <h2>Sign in <span class="tag">Done</span></h2>
+    <p>You're signed in{{with .Name}} as <strong>{{.}}</strong>{{end}}.</p>
+    <form method="post" action="/enrol/logout">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <button class="secondary">Sign out</button>
+    </form>
+  </li>
+
+  <li id="voice-step"{{if .VoiceDone}} class="done"{{end}}{{if eq .Current 2}} aria-current="step"{{end}}>
+    <h2>Teach it your voice{{if .VoiceDone}} <span class="tag">Done</span>{{end}}</h2>
+    {{- if not .VoiceURL}}
+    <p>No voice service is set up here, so you can skip this step.</p>
+    {{- else}}
+    {{- with .VoiceDone}}
+    <p>Your voice was saved on {{.}}. You can record it again at any time.</p>
+    {{- end}}
+    <p>Your recording goes straight to the voice service. This site never receives it.</p>
+    <div id="recorder" data-voice-url="{{.VoiceURL}}" data-csrf="{{.CSRF}}" hidden>
+      <p>Press <strong>Start recording</strong>, read this sentence aloud at your normal pace, then press <strong>Stop and save</strong>.</p>
+      <blockquote>{{.Sentence}}</blockquote>
+      <div class="actions">
+        <button type="button" id="start">Start recording</button>
+        <button type="button" id="stop" class="secondary" disabled>Stop and save</button>
+      </div>
+      <p id="voice-status" class="note" role="status" aria-live="polite"></p>
+    </div>
+    <noscript><p>Recording needs JavaScript, which is turned off. You can skip this step and come back later.</p></noscript>
+    {{- end}}
+  </li>
+
+  <li{{if eq .Current 3}} aria-current="step"{{end}}>
+    <h2>Choose what your assistant may do</h2>
+    {{- if .NoRoles}}
+    <p>Your account doesn't have any roles yet, so there is nothing to choose. Roles come from your account with your identity provider: ask whoever manages it to give you one, then sign in again.</p>
+    {{- else if not .Agents}}
+    <p>None of the assistants here can do anything that needs your permission.</p>
+    {{- else}}
+    <p>Tick what each assistant may do for you. Each group says how sure it must be that it's you before it can act.</p>
+    <form method="post" action="/enrol/consent">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      {{- range .Agents}}
+      {{- $agent := .ID}}
+      <fieldset class="agent">
+        <legend>{{.Name}} may:</legend>
+        {{- range .Groups}}
+        <fieldset class="group">
+          <legend>{{.Need}}</legend>
+          {{- range .Permissions}}
+          <label class="check"><input type="checkbox" name="perm:{{$agent}}" value="{{.Name}}"{{if .Checked}} checked{{end}}> {{.Label}}</label>
+          {{- end}}
+        </fieldset>
+        {{- end}}
+      </fieldset>
+      {{- end}}
+      <button>Save my choices</button>
+    </form>
+    {{- end}}
+
+    {{- if .Granted}}
+    <h3>What your assistants may do now</h3>
+    <ul class="granted">
+      {{- range .Granted}}
+      <li>
+        <p><strong>{{.Agent}}</strong> may: {{.What}}. <span class="muted">Since {{.Since}}.</span></p>
+        <form method="post" action="/enrol/revoke">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}">
+          <input type="hidden" name="id" value="{{.ID}}">
+          <button class="secondary">Revoke<span class="visually-hidden"> what {{.Agent}} may do</span></button>
+        </form>
+      </li>
+      {{- end}}
+    </ul>
+    {{- end}}
+  </li>
+</ol>
+{{- end}}
+</main>
+</body>
+</html>

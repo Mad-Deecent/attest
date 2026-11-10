@@ -23,6 +23,9 @@ type OIDCConfig struct {
 	// Roles maps a credential kind (admin, producer, agent) to the provider
 	// role that confers it.
 	Roles map[string]string `json:"roles,omitempty"`
+	// ClientID is the public client people sign in through to enrol. Unset
+	// disables enrolment.
+	ClientID string `json:"clientId,omitempty"`
 }
 
 func (c OIDCConfig) withDefaults() OIDCConfig {
@@ -48,26 +51,42 @@ var errProviderUnavailable = errors.New("identity provider unavailable")
 type oidcVerifier struct {
 	cfg OIDCConfig
 	mu  sync.Mutex
+	p   *oidc.Provider
 	v   *oidc.IDTokenVerifier
 }
 
-func (o *oidcVerifier) verifier() (*oidc.IDTokenVerifier, error) {
+var providerClient = &http.Client{Timeout: 10 * time.Second}
+
+func (o *oidcVerifier) provider() (*oidc.Provider, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if o.v != nil {
-		return o.v, nil
+	if o.p != nil {
+		return o.p, nil
 	}
 	// The provider keeps this context for later key fetches, so it must
 	// outlive the request that triggered discovery.
-	ctx := oidc.ClientContext(context.Background(), &http.Client{Timeout: 10 * time.Second})
-	provider, err := oidc.NewProvider(ctx, o.cfg.Issuer)
+	ctx := oidc.ClientContext(context.Background(), providerClient)
+	p, err := oidc.NewProvider(ctx, o.cfg.Issuer)
 	if err != nil {
 		return nil, errProviderUnavailable
 	}
-	o.v = provider.Verifier(&oidc.Config{
-		ClientID:          o.cfg.Audience,
-		SkipClientIDCheck: o.cfg.Audience == "",
-	})
+	o.p = p
+	return p, nil
+}
+
+func (o *oidcVerifier) verifier() (*oidc.IDTokenVerifier, error) {
+	p, err := o.provider()
+	if err != nil {
+		return nil, err
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.v == nil {
+		o.v = p.Verifier(&oidc.Config{
+			ClientID:          o.cfg.Audience,
+			SkipClientIDCheck: o.cfg.Audience == "",
+		})
+	}
 	return o.v, nil
 }
 
@@ -106,14 +125,7 @@ func (o *oidcVerifier) principal(ctx context.Context, raw string) (Principal, er
 
 // rolesAt reads a string list at a dotted claim path.
 func rolesAt(claims map[string]any, path string) []string {
-	var node any = claims
-	for _, part := range strings.Split(path, ".") {
-		m, ok := node.(map[string]any)
-		if !ok {
-			return nil
-		}
-		node = m[part]
-	}
+	node, _ := claimAt(claims, path)
 	list, _ := node.([]any)
 	var out []string
 	for _, item := range list {
@@ -122,4 +134,19 @@ func rolesAt(claims map[string]any, path string) []string {
 		}
 	}
 	return out
+}
+
+// claimAt reads the value at a dotted claim path and whether it is present.
+func claimAt(claims map[string]any, path string) (any, bool) {
+	var node any = claims
+	for _, part := range strings.Split(path, ".") {
+		m, ok := node.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		if node, ok = m[part]; !ok {
+			return nil, false
+		}
+	}
+	return node, true
 }

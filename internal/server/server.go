@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mad-deecent/attest/internal/assurance"
@@ -41,8 +43,15 @@ type Config struct {
 	// production credentials come from the identity provider.
 	Tokens map[string]Principal `json:"tokens,omitempty"`
 	OIDC   *OIDCConfig          `json:"oidc,omitempty"`
-	Fusion perception.Config    `json:"fusion"`
-	Policy decision.Policy      `json:"policy"`
+	// PublicURL is where people reach attest, e.g. http://localhost:8420.
+	// Enrolment redirects back to it.
+	PublicURL string      `json:"publicUrl,omitempty"`
+	Enrol     EnrolConfig `json:"enrol"`
+	// Data is the file attest keeps identities, roles, and delegations in.
+	// Empty keeps them in memory only.
+	Data   string            `json:"data,omitempty"`
+	Fusion perception.Config `json:"fusion"`
+	Policy decision.Policy   `json:"policy"`
 }
 
 type Server struct {
@@ -53,6 +62,10 @@ type Server struct {
 	delegations *decision.Delegations
 	rbac        *decision.RBAC
 	evaluator   *decision.Evaluator
+	policy      decision.Policy
+	enrol       *enrolment
+	data        string
+	saveMu      sync.Mutex
 	now         func() time.Time
 }
 
@@ -74,7 +87,15 @@ func New(cfg Config, now func() time.Time) (*Server, error) {
 		}
 		verifier = &oidcVerifier{cfg: cfg.OIDC.withDefaults()}
 	}
-	return &Server{
+	var enrol *enrolment
+	if cfg.OIDC != nil && cfg.OIDC.ClientID != "" {
+		public, err := url.Parse(strings.TrimRight(cfg.PublicURL, "/"))
+		if err != nil || (public.Scheme != "http" && public.Scheme != "https") || public.Host == "" {
+			return nil, errors.New("publicUrl must be an absolute http(s) URL when oidc.clientId is set")
+		}
+		enrol = newEnrolment(verifier, public, cfg.Enrol)
+	}
+	s := &Server{
 		tokens:      cfg.Tokens,
 		oidc:        verifier,
 		registry:    registry,
@@ -88,8 +109,15 @@ func New(cfg Config, now func() time.Time) (*Server, error) {
 			Delegations: delegations,
 			Bands:       assurance.Static{},
 		},
-		now: now,
-	}, nil
+		policy: cfg.Policy,
+		enrol:  enrol,
+		data:   cfg.Data,
+		now:    now,
+	}
+	if err := s.load(); err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
 func (s *Server) Handler() http.Handler {
@@ -107,6 +135,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/evidence", s.as(KindProducer, s.postEvidence))
 	mux.HandleFunc("POST /v1/associations", s.as(KindProducer, s.postAssociation))
 	mux.HandleFunc("POST /v1/retirements", s.as(KindProducer, s.postRetirement))
+
+	mux.HandleFunc("POST /v1/enrolment-tickets/redeem", s.as(KindProducer, s.redeemTicket))
+
+	s.enrolRoutes(mux)
 
 	mux.HandleFunc("GET /v1/subjects/{key}/belief", s.as(KindAgent, s.getBelief))
 	mux.HandleFunc("POST /v1/decisions", s.as(KindAgent, s.postDecision))
@@ -168,6 +200,9 @@ func (s *Server) putIdentity(w http.ResponseWriter, r *http.Request, _ Principal
 		fail(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if !s.commit(w) {
+		return
+	}
 	reply(w, http.StatusOK, ident)
 }
 
@@ -187,6 +222,9 @@ func (s *Server) putRoles(w http.ResponseWriter, r *http.Request, _ Principal) {
 		fail(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if !s.commit(w) {
+		return
+	}
 	reply(w, http.StatusOK, map[string][]string{"roles": s.rbac.Roles(id)})
 }
 
@@ -199,6 +237,9 @@ func (s *Server) deleteIdentity(w http.ResponseWriter, r *http.Request, _ Princi
 	s.fusion.RetireIdentity(id)
 	_ = s.rbac.SetRoles(id, nil)
 	s.delegations.RevokeIdentity(id, s.now())
+	if !s.commit(w) {
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -220,12 +261,18 @@ func (s *Server) addDelegation(w http.ResponseWriter, r *http.Request, _ Princip
 		fail(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if !s.commit(w) {
+		return
+	}
 	reply(w, http.StatusCreated, created)
 }
 
 func (s *Server) revokeDelegation(w http.ResponseWriter, r *http.Request, _ Principal) {
 	if !s.delegations.Revoke(r.PathValue("id"), s.now()) {
 		fail(w, http.StatusNotFound, "no such delegation")
+		return
+	}
+	if !s.commit(w) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
