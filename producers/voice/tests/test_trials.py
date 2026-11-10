@@ -70,3 +70,15 @@ def test_manifest_and_reader(tmp_path):
     read = voiced_reader(lambda p: audio, lambda a: [(0.0, 1.0)])
     out = read(seg)
     assert len(out) == SAMPLE_RATE and out[0] == SAMPLE_RATE
+
+
+def test_intervals_join_several_stretches(tmp_path):
+    (tmp_path / "m.jsonl").write_text(
+        json.dumps({"path": "r.wav", "speaker": "a", "session": "k", "intervals": [[0, 1], [3, 4.5]]}) + "\n"
+    )
+    [seg] = load_manifest(tmp_path / "m.jsonl")
+    assert seg.intervals == ((0.0, 1.0), (3.0, 4.5))
+    audio = np.arange(5 * SAMPLE_RATE, dtype=np.float32)
+    out = voiced_reader(lambda p: audio, lambda a: [(0.0, len(a) / SAMPLE_RATE)])(seg)
+    assert len(out) == int(2.5 * SAMPLE_RATE)
+    assert out[SAMPLE_RATE] == 3 * SAMPLE_RATE

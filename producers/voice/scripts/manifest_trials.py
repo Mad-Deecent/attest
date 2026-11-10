@@ -1,7 +1,7 @@
 """Generate calibration trials from a labelled manifest of your own audio
 (see attest_voice/trials.py for the format), for `attest-voice fit-calibration`.
 
-    uv run python scripts/manifest_trials.py manifest.jsonl trials.jsonl
+    uv run python scripts/manifest_trials.py manifest.jsonl trials.jsonl [--durations 1,2,3,5,10] [--tests-per-speaker 6]
 
 Scores carry no speaker labels or audio; the trials file is safe to keep
 next to the calibration it produces.
@@ -9,20 +9,28 @@ next to the calibration it produces.
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from collections import Counter
 
 from attest_voice.audio import decode
 from attest_voice.models import Models
-from attest_voice.trials import build_trials, load_manifest, voiced_reader
+from attest_voice.trials import DURATIONS, build_trials, load_manifest, voiced_reader
 
 
-def main(manifest: str, out: str, models_dir: str = "~/.cache/sherpa-onnx-models") -> None:
-    m = Models(models_dir, threads=4)
-    segs = load_manifest(manifest)
-    rows = build_trials(segs, voiced_reader(decode, m.vad), m.embed)
-    with open(out, "w") as f:
+def main() -> None:
+    p = argparse.ArgumentParser()
+    p.add_argument("manifest")
+    p.add_argument("out")
+    p.add_argument("--durations", default=",".join(f"{d:g}" for d in DURATIONS), help="test crop lengths, seconds")
+    p.add_argument("--tests-per-speaker", type=int, default=6, help="test segments per speaker")
+    p.add_argument("--models", default="~/.cache/sherpa-onnx-models")
+    a = p.parse_args()
+    m = Models(a.models, threads=4)
+    rows = build_trials(load_manifest(a.manifest), voiced_reader(decode, m.vad), m.embed,
+                        durations=[float(x) for x in a.durations.split(",")], tests_per_speaker=a.tests_per_speaker)
+    with open(a.out, "w") as f:
         for r in rows:
             f.write(json.dumps(r) + "\n")
     same = Counter(r["seconds"] for r in rows if r["same"])
@@ -32,4 +40,4 @@ def main(manifest: str, out: str, models_dir: str = "~/.cache/sherpa-onnx-models
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:])
+    main()

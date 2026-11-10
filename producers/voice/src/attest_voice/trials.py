@@ -5,7 +5,9 @@ A manifest is JSON lines, one labelled stretch of single-speaker audio each:
 
     {"path": "rec/kitchen-0412.wav", "speaker": "p1", "session": "0412-kitchen", "start": 3.2, "end": 11.0}
 
-`start`/`end` are optional (default: the whole file). `session` is one
+`start`/`end` are optional (default: the whole file). Instead of them,
+`"intervals": [[s, e], ...]` selects several stretches of one file (e.g. one
+speaker's diarized turns); they are joined. `session` is one
 recording occasion (one microphone, one sitting). Each speaker is enrolled
 from the session where they have the most speech, and only tested on audio
 from their *other* sessions, so a target trial never compares a recording
@@ -37,6 +39,7 @@ class Segment:
     session: str
     start: float = 0.0
     end: float | None = None
+    intervals: tuple[tuple[float, float], ...] = ()
 
 
 def load_manifest(path: str | Path) -> list[Segment]:
@@ -48,7 +51,8 @@ def load_manifest(path: str | Path) -> list[Segment]:
         d = json.loads(line)
         p = Path(d["path"])
         out.append(Segment(str(p if p.is_absolute() else base / p), str(d["speaker"]), str(d["session"]),
-                           float(d.get("start", 0.0)), None if d.get("end") is None else float(d["end"])))
+                           float(d.get("start", 0.0)), None if d.get("end") is None else float(d["end"]),
+                           tuple((float(a), float(b)) for a, b in d.get("intervals", ()))))
     return out
 
 
@@ -116,7 +120,8 @@ def voiced_reader(decode: Callable[[str], np.ndarray], vad: Callable[[np.ndarray
         if s.path not in files:
             files[s.path] = decode(s.path)
         a = files[s.path]
-        a = a[int(s.start * SAMPLE_RATE) : None if s.end is None else int(s.end * SAMPLE_RATE)]
-        return cut(a, vad(a))
+        spans = s.intervals or ((s.start, s.end),)
+        parts = [a[int(b * SAMPLE_RATE) : None if e is None else int(e * SAMPLE_RATE)] for b, e in spans]
+        return np.concatenate([cut(x, vad(x)) for x in parts])
 
     return voiced
