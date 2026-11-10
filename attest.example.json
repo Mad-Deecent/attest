@@ -1,5 +1,7 @@
 {
   "listen": ":8420",
+  "publicUrl": "http://localhost:8420",
+  "data": "",
   "tokens": {
     "dev-admin-token": { "kind": "admin", "id": "admin" },
     "dev-face-token": { "kind": "producer", "id": "face-cam-1" },

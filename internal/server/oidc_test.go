@@ -3,9 +3,13 @@ package server
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,11 +20,30 @@ import (
 	"github.com/mad-deecent/attest/internal/perception"
 )
 
-// issuer is a minimal OIDC provider: discovery, keys, and a way to mint tokens.
+// issuer is a minimal OIDC provider: discovery, keys, a way to mint tokens,
+// and an authorization-code flow with PKCE that signs in whoever user says.
 type issuer struct {
 	t      *testing.T
 	srv    *httptest.Server
 	signer jose.Signer
+
+	mu    sync.Mutex
+	user  person
+	codes map[string]authRequest
+}
+
+// person is who the issuer's login page signs in.
+type person struct {
+	sub, name, username string
+	// idRoles, when non-nil, puts realm roles in the ID token too. Keycloak
+	// by default puts them only in the access token.
+	idRoles     []string
+	accessRoles []string
+}
+
+type authRequest struct {
+	client, redirect, challenge, nonce string
+	user                               person
 }
 
 func newIssuer(t *testing.T) *issuer {
@@ -34,7 +57,7 @@ func newIssuer(t *testing.T) *issuer {
 	if err != nil {
 		t.Fatal(err)
 	}
-	is := &issuer{t: t, signer: signer}
+	is := &issuer{t: t, signer: signer, codes: map[string]authRequest{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -50,6 +73,8 @@ func newIssuer(t *testing.T) *issuer {
 			{Key: &key.PublicKey, KeyID: "k1", Algorithm: "RS256", Use: "sig"},
 		}})
 	})
+	mux.HandleFunc("GET /auth", is.authorize)
+	mux.HandleFunc("POST /token", is.exchange)
 	is.srv = httptest.NewServer(mux)
 	t.Cleanup(is.srv.Close)
 	return is
@@ -64,6 +89,81 @@ func (is *issuer) token(client string, expires time.Time, roles ...string) strin
 		"exp":          expires.Unix(),
 		"realm_access": map[string]any{"roles": roles},
 	}).Serialize()
+	if err != nil {
+		is.t.Fatal(err)
+	}
+	return raw
+}
+
+func (is *issuer) signIn(p person) {
+	is.mu.Lock()
+	defer is.mu.Unlock()
+	is.user = p
+}
+
+// authorize approves at once, as if the user had typed their password.
+func (is *issuer) authorize(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	if q.Get("response_type") != "code" || q.Get("code_challenge_method") != "S256" || q.Get("code_challenge") == "" {
+		http.Error(w, "want code flow with S256 PKCE", http.StatusBadRequest)
+		return
+	}
+	redirect, err := url.Parse(q.Get("redirect_uri"))
+	if err != nil {
+		http.Error(w, "bad redirect_uri", http.StatusBadRequest)
+		return
+	}
+	is.mu.Lock()
+	code := rand.Text()
+	is.codes[code] = authRequest{
+		client: q.Get("client_id"), redirect: q.Get("redirect_uri"),
+		challenge: q.Get("code_challenge"), nonce: q.Get("nonce"), user: is.user,
+	}
+	is.mu.Unlock()
+	back := redirect.Query()
+	back.Set("code", code)
+	back.Set("state", q.Get("state"))
+	redirect.RawQuery = back.Encode()
+	http.Redirect(w, r, redirect.String(), http.StatusFound)
+}
+
+func (is *issuer) exchange(w http.ResponseWriter, r *http.Request) {
+	is.mu.Lock()
+	req, ok := is.codes[r.PostFormValue("code")]
+	delete(is.codes, r.PostFormValue("code"))
+	is.mu.Unlock()
+	sum := sha256.Sum256([]byte(r.PostFormValue("code_verifier")))
+	switch {
+	case !ok:
+		http.Error(w, `{"error":"invalid_grant"}`, http.StatusBadRequest)
+		return
+	case base64.RawURLEncoding.EncodeToString(sum[:]) != req.challenge:
+		http.Error(w, `{"error":"invalid_grant","error_description":"PKCE"}`, http.StatusBadRequest)
+		return
+	case r.PostFormValue("client_id") != req.client || r.PostFormValue("redirect_uri") != req.redirect:
+		http.Error(w, `{"error":"invalid_client"}`, http.StatusBadRequest)
+		return
+	}
+	exp := time.Now().Add(5 * time.Minute).Unix()
+	id := map[string]any{
+		"iss": is.srv.URL, "sub": req.user.sub, "aud": req.client, "exp": exp, "iat": time.Now().Unix(),
+		"nonce": req.nonce, "name": req.user.name, "preferred_username": req.user.username,
+	}
+	if req.user.idRoles != nil {
+		id["realm_access"] = map[string]any{"roles": req.user.idRoles}
+	}
+	access := map[string]any{
+		"iss": is.srv.URL, "sub": req.user.sub, "azp": req.client, "exp": exp,
+		"realm_access": map[string]any{"roles": req.user.accessRoles},
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"access_token": is.sign(access), "id_token": is.sign(id), "token_type": "Bearer", "expires_in": 300,
+	})
+}
+
+func (is *issuer) sign(claims map[string]any) string {
+	raw, err := jwt.Signed(is.signer).Claims(claims).Serialize()
 	if err != nil {
 		is.t.Fatal(err)
 	}
