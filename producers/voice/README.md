@@ -150,6 +150,36 @@ under `provenance.fit`. Before relying on a calibration anywhere real,
 collect trials from your own microphones, cabin and population, then refit
 with `fit-calibration` and a new id.
 
+### Calibrating to your own audio
+
+1. Label stretches of single-speaker audio from the microphones you will
+   deploy into a manifest (`attest_voice/trials.py` documents the format).
+   Each speaker needs at least two *sessions* (separate recordings): one
+   to enrol from, the others to test on.
+2. `uv run python scripts/manifest_trials.py manifest.jsonl trials.jsonl`
+3. `uv run attest-voice fit-calibration trials.jsonl --id <neutral-id> --model 3dspeaker_speech_eres2net_sv_en_voxceleb_16k -o cal.json`,
+   then set `"calibration": "cal.json"` in the config.
+
+The trials file holds only scores, so it and the calibration can be kept
+without the audio. Pitfalls that make trials look easier than deployment:
+
+* **Same recording on both sides.** A target trial against audio from the
+  enrolment session shares room, microphone and day, and scores far higher
+  than a real later attempt. The script never does this.
+* **Bleed.** In a house with several microphones the same utterance lands
+  in more than one recording at once. Treat simultaneous recordings as one
+  session.
+* **TV, radio and music.** VAD fires on them. A broadcast voice labelled as
+  a household speaker poisons both classes. Label by ear, not by VAD.
+* **Speaker labels from cameras.** A face in view is not the person
+  talking. Use such labels only for single-voice audio, and check some.
+  If same-speaker trials do not score clearly above different-speaker
+  ones (EER near 50%, a slope near zero or negative), the labels or the
+  audio carry no voice identity and the fit must not be used.
+* **Labels from this producer's diarization.** Clusters are made with the
+  same embeddings at a fixed threshold, so they confirm the model's own
+  view of who is the same person. Use them to find audio, not to label it.
+
 **Duration shrink.** For a score backed by `d` seconds of voiced audio:
 
 * `d < 0.5 s`: LLR 0, in both directions.
@@ -265,6 +295,7 @@ The tests need no models. They cover:
 * Enrolment: webm/opus decoding (encoded by PyAV), 422 without redeeming the
   ticket, unknown tickets, CORS, file modes.
 * OIDC client credentials and token caching.
+* Trials from a manifest: target trials only across sessions.
 
 ## Known limitations
 
