@@ -173,6 +173,9 @@ without the audio. Pitfalls that make trials look easier than deployment:
   a household speaker poisons both classes. Label by ear, not by VAD.
 * **Speaker labels from cameras.** A face in view is not the person
   talking. Use such labels only for single-voice audio, and check some.
+  If same-speaker trials do not score clearly above different-speaker
+  ones (EER near 50%, a slope near zero or negative), the labels or the
+  audio carry no voice identity and the fit must not be used.
 * **Labels from this producer's diarization.** Clusters are made with the
   same embeddings at a fixed threshold, so they confirm the model's own
   view of who is the same person. Use them to find audio, not to label it.
