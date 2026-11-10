@@ -443,12 +443,16 @@ func (f *Fusion) derive(key string, members []string, now time.Time) *Belief {
 	leader := belief.Candidates[0]
 	contested := len(belief.Candidates) > 1 &&
 		leader.Probability-belief.Candidates[1].Probability < f.cfg.AmbiguityMargin
+	// A leader that does not outweigh "not enrolled" is not a contender, so
+	// candidates that are all unlikely make the subject unknown, not contested.
 	switch {
+	case leader.Probability <= belief.Unknown:
+		belief.State = Unknown
 	case contested && len(producerLeaders) > 1:
 		belief.State = Conflicted
 	case contested:
 		belief.State = Ambiguous
-	case leader.Probability > belief.Unknown:
+	default:
 		belief.State = Resolved
 	}
 	if belief.State != Resolved {
