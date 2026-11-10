@@ -22,8 +22,15 @@ type harness struct {
 
 func newHarness(t *testing.T) *harness {
 	t.Helper()
+	return newHarnessWith(t, "")
+}
+
+// newHarnessWith keeps state in data; empty keeps it in memory.
+func newHarnessWith(t *testing.T, data string) *harness {
+	t.Helper()
 	hn := &harness{t: t, now: time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
 	cfg := Config{
+		Data: data,
 		Tokens: map[string]Principal{
 			"admin": {Kind: KindAdmin, ID: "admin"},
 			"face":  {Kind: KindProducer, ID: "cam"},

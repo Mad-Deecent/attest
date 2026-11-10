@@ -50,23 +50,19 @@ type ticket struct {
 	expires    time.Time
 }
 
-// enrolment is the sign-in, session, and ticket state behind /enrol. Sessions
-// and tickets are short-lived and deliberately not persisted.
+// enrolment is the session and ticket state behind /enrol. Sessions and
+// tickets are short-lived and deliberately not persisted. They outlive a
+// change of provider: they name identities, not connections.
 type enrolment struct {
-	oidc          *oidcVerifier
-	public        *url.URL
 	voiceURL      string
 	voiceProducer string
 	mu            sync.Mutex
-	idv           *oidc.IDTokenVerifier
 	sessions      map[string]session
 	tickets       map[string]ticket
 }
 
-func newEnrolment(v *oidcVerifier, public *url.URL, cfg EnrolConfig) *enrolment {
+func newEnrolment(cfg EnrolConfig) *enrolment {
 	return &enrolment{
-		oidc:          v,
-		public:        public,
 		voiceURL:      cfg.VoiceURL,
 		voiceProducer: cfg.VoiceProducer,
 		sessions:      map[string]session{},
@@ -74,29 +70,18 @@ func newEnrolment(v *oidcVerifier, public *url.URL, cfg EnrolConfig) *enrolment 
 	}
 }
 
-func (e *enrolment) secure() bool { return e.public.Scheme == "https" }
+func (l *live) secure() bool { return l.public != nil && l.public.Scheme == "https" }
 
-func (e *enrolment) oauth(p *oidc.Provider) *oauth2.Config {
+func (l *live) oauth(p *oidc.Provider) *oauth2.Config {
 	endpoint := p.Endpoint()
 	// A public client has no secret to send in a Basic header.
 	endpoint.AuthStyle = oauth2.AuthStyleInParams
 	return &oauth2.Config{
-		ClientID:    e.oidc.cfg.ClientID,
+		ClientID:    l.oidc.cfg.ClientID,
 		Endpoint:    endpoint,
-		RedirectURL: e.public.String() + "/enrol/callback",
+		RedirectURL: l.public.String() + "/enrol/callback",
 		Scopes:      []string{oidc.ScopeOpenID, "profile"},
 	}
-}
-
-// idVerifier checks ID tokens issued to the enrolment client, never skipping
-// the audience check.
-func (e *enrolment) idVerifier(p *oidc.Provider) *oidc.IDTokenVerifier {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.idv == nil {
-		e.idv = p.Verifier(&oidc.Config{ClientID: e.oidc.cfg.ClientID})
-	}
-	return e.idv
 }
 
 func (e *enrolment) startSession(identityID string, now time.Time) (id string, s session) {
@@ -184,11 +169,12 @@ func (s *Server) enrolRoutes(mux *http.ServeMux) {
 // works there. 307 keeps the method and body.
 func (s *Server) canonical(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.enrol == nil || sameHost(r.Host, s.enrol.public) {
+		l := s.cur()
+		if !l.enrolling() || sameHost(r.Host, l.public) {
 			next.ServeHTTP(w, r)
 			return
 		}
-		http.Redirect(w, r, s.enrol.public.String()+r.URL.RequestURI(), http.StatusTemporaryRedirect)
+		http.Redirect(w, r, l.public.String()+r.URL.RequestURI(), http.StatusTemporaryRedirect)
 	})
 }
 
@@ -214,7 +200,7 @@ type sessionHandler func(w http.ResponseWriter, r *http.Request, id string, sess
 // token, in the form or the X-CSRF-Token header.
 func (s *Server) withSession(next sessionHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.enrol == nil {
+		if !s.cur().enrolling() {
 			http.NotFound(w, r)
 			return
 		}
@@ -245,11 +231,12 @@ func (s *Server) withSession(next sessionHandler) http.HandlerFunc {
 }
 
 func (s *Server) enrolLogin(w http.ResponseWriter, r *http.Request) {
-	if s.enrol == nil {
+	l := s.cur()
+	if !l.enrolling() {
 		http.Redirect(w, r, "/enrol", http.StatusSeeOther)
 		return
 	}
-	p, err := s.oidc.provider()
+	p, err := l.oidc.provider()
 	if err != nil {
 		s.renderEnrol(w, r, http.StatusServiceUnavailable, "Sign-in is unavailable right now. Please try again in a few minutes.")
 		return
@@ -258,22 +245,26 @@ func (s *Server) enrolLogin(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name: flowCookie, Value: state + "." + nonce + "." + verifier,
 		Path: "/enrol", MaxAge: int(flowTTL.Seconds()),
-		HttpOnly: true, Secure: s.enrol.secure(),
+		HttpOnly: true, Secure: l.secure(),
 		// Lax, not Strict: the provider's redirect back is a cross-site navigation.
 		SameSite: http.SameSiteLaxMode,
 	})
-	http.Redirect(w, r, s.enrol.oauth(p).AuthCodeURL(state,
+	http.Redirect(w, r, l.oauth(p).AuthCodeURL(state,
 		oauth2.S256ChallengeOption(verifier), oidc.Nonce(nonce)), http.StatusFound)
 }
 
 func (s *Server) enrolCallback(w http.ResponseWriter, r *http.Request) {
-	if s.enrol == nil {
+	// The flow finishes against the connection it reads here. If the provider
+	// changed since sign-in began, the code exchange fails and the person
+	// signs in again.
+	l := s.cur()
+	if !l.enrolling() {
 		http.Redirect(w, r, "/enrol", http.StatusSeeOther)
 		return
 	}
 	const retry = "Sign-in didn't finish. Please try again."
 	c, err := r.Cookie(flowCookie)
-	http.SetCookie(w, &http.Cookie{Name: flowCookie, Path: "/enrol", MaxAge: -1, HttpOnly: true, Secure: s.enrol.secure(), SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: flowCookie, Path: "/enrol", MaxAge: -1, HttpOnly: true, Secure: l.secure(), SameSite: http.SameSiteLaxMode})
 	q := r.URL.Query()
 	if err != nil || q.Get("error") != "" {
 		s.renderEnrol(w, r, http.StatusBadRequest, retry)
@@ -285,21 +276,21 @@ func (s *Server) enrolCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	nonce, verifier := flow[1], flow[2]
-	p, err := s.oidc.provider()
+	p, err := l.oidc.provider()
 	if err != nil {
 		s.renderEnrol(w, r, http.StatusServiceUnavailable, "Sign-in is unavailable right now. Please try again in a few minutes.")
 		return
 	}
 	ctx, cancel := context.WithTimeout(oidc.ClientContext(r.Context(), providerClient), 15*time.Second)
 	defer cancel()
-	tok, err := s.enrol.oauth(p).Exchange(ctx, q.Get("code"), oauth2.VerifierOption(verifier))
+	tok, err := l.oauth(p).Exchange(ctx, q.Get("code"), oauth2.VerifierOption(verifier))
 	if err != nil {
 		log.Printf("enrol: token exchange: %v", err)
 		s.renderEnrol(w, r, http.StatusBadGateway, retry)
 		return
 	}
 	rawID, _ := tok.Extra("id_token").(string)
-	idt, err := s.enrol.idVerifier(p).Verify(ctx, rawID)
+	idt, err := l.oidc.enrolVerifier(p).Verify(ctx, rawID)
 	if err != nil || subtle.ConstantTimeCompare([]byte(idt.Nonce), []byte(nonce)) != 1 {
 		log.Printf("enrol: id token rejected: %v", err)
 		s.renderEnrol(w, r, http.StatusBadRequest, retry)
@@ -320,7 +311,7 @@ func (s *Server) enrolCallback(w http.ResponseWriter, r *http.Request) {
 		s.renderEnrol(w, r, http.StatusBadRequest, retry)
 		return
 	}
-	if err := s.rbac.SetRoles(ident.ID, s.policyRoles(claims, tok.AccessToken)); err != nil {
+	if err := s.rbac.SetRoles(ident.ID, l.policyRoles(claims, tok.AccessToken)); err != nil {
 		s.renderEnrol(w, r, http.StatusInternalServerError, retry)
 		return
 	}
@@ -333,7 +324,7 @@ func (s *Server) enrolCallback(w http.ResponseWriter, r *http.Request) {
 	id, _ := s.enrol.startSession(ident.ID, s.now())
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookie, Value: id, Path: "/enrol", MaxAge: int(sessionTTL.Seconds()),
-		HttpOnly: true, Secure: s.enrol.secure(), SameSite: http.SameSiteLaxMode,
+		HttpOnly: true, Secure: l.secure(), SameSite: http.SameSiteLaxMode,
 	})
 	http.Redirect(w, r, "/enrol", http.StatusSeeOther)
 }
@@ -341,14 +332,14 @@ func (s *Server) enrolCallback(w http.ResponseWriter, r *http.Request) {
 // policyRoles reads the provider's roles for the person signing in and keeps
 // those the policy defines. Keycloak puts realm roles in the access token by
 // default, so it is the fallback when the ID token has no roles claim.
-func (s *Server) policyRoles(idClaims map[string]any, accessToken string) []string {
-	path := s.oidc.cfg.RolesClaim
+func (l *live) policyRoles(idClaims map[string]any, accessToken string) []string {
+	path := l.oidc.cfg.RolesClaim
 	if _, ok := claimAt(idClaims, path); !ok {
 		idClaims = unverifiedClaims(accessToken)
 	}
 	var kept []string
 	for _, role := range rolesAt(idClaims, path) {
-		if _, defined := s.policy.Roles[role]; defined && !slices.Contains(kept, role) {
+		if _, defined := l.settings.Policy.Roles[role]; defined && !slices.Contains(kept, role) {
 			kept = append(kept, role)
 		}
 	}
@@ -374,7 +365,7 @@ func unverifiedClaims(raw string) map[string]any {
 
 func (s *Server) enrolLogout(w http.ResponseWriter, r *http.Request, id string, _ session) {
 	s.enrol.endSession(id)
-	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: "/enrol", MaxAge: -1, HttpOnly: true, Secure: s.enrol.secure(), SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: "/enrol", MaxAge: -1, HttpOnly: true, Secure: s.cur().secure(), SameSite: http.SameSiteLaxMode})
 	http.Redirect(w, r, "/enrol?done=signedout", http.StatusSeeOther)
 }
 
@@ -393,10 +384,6 @@ func (s *Server) redeemTicket(w http.ResponseWriter, r *http.Request, p Principa
 		Ticket string `json:"ticket"`
 	}
 	if !decode(w, r, &body) {
-		return
-	}
-	if s.enrol == nil {
-		fail(w, http.StatusNotFound, "unknown, used, or expired ticket")
 		return
 	}
 	// Refused before the ticket is touched, so the right producer can still
@@ -422,7 +409,7 @@ func (s *Server) enrolConsent(w http.ResponseWriter, r *http.Request, _ string, 
 		return
 	}
 	now := s.now()
-	for _, offer := range s.offers(sess.identityID) {
+	for _, offer := range s.offers(s.cur().policy(), sess.identityID) {
 		// Only what the page offered can be chosen, and never "*": consent
 		// must not widen when roles do.
 		var chosen []string
@@ -487,24 +474,24 @@ type offer struct {
 // offers lists, per agent, the permissions the agent may request and the
 // identity's roles hold. Floor permissions need no consent and permissions
 // without a band can never be granted, so neither is offered.
-func (s *Server) offers(identityID string) []offer {
+func (s *Server) offers(policy decision.Policy, identityID string) []offer {
 	held := map[string]bool{}
 	for _, role := range s.rbac.Roles(identityID) {
-		for _, p := range s.policy.Roles[role] {
+		for _, p := range policy.Roles[role] {
 			held[p] = true
 		}
 	}
 	var agents []string
-	for agent := range s.policy.Agents {
+	for agent := range policy.Agents {
 		agents = append(agents, agent)
 	}
 	slices.Sort(agents)
 	var out []offer
 	for _, agent := range agents {
-		allowed := s.policy.Agents[agent]
+		allowed := policy.Agents[agent]
 		var perms []string
-		for p := range s.policy.Permissions {
-			if held[p] && !slices.Contains(s.policy.Floor, p) &&
+		for p := range policy.Permissions {
+			if held[p] && !slices.Contains(policy.Floor, p) &&
 				(slices.Contains(allowed, "*") || slices.Contains(allowed, p)) {
 				perms = append(perms, p)
 			}

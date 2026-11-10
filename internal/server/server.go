@@ -4,15 +4,16 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
-	"net/url"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/mad-deecent/attest/internal/assurance"
 	"github.com/mad-deecent/attest/internal/decision"
 	"github.com/mad-deecent/attest/internal/identity"
 	"github.com/mad-deecent/attest/internal/perception"
@@ -26,6 +27,8 @@ type Principal struct {
 	ID   string `json:"id"`
 	// kinds are the kinds a provider-issued token confers through its roles.
 	kinds []string
+	// viaSetup marks the first-run setup session, which no token can claim.
+	viaSetup bool
 }
 
 func (p Principal) is(kind string) bool {
@@ -53,75 +56,89 @@ type Config struct {
 	Data   string            `json:"data,omitempty"`
 	Fusion perception.Config `json:"fusion"`
 	Policy decision.Policy   `json:"policy"`
+	// ResetSetup puts attest back into first-run setup, for an operator who
+	// has locked themselves out of settings. Set by a flag, never a file.
+	ResetSetup bool `json:"-"`
 }
 
 type Server struct {
 	tokens      map[string]Principal
-	oidc        *oidcVerifier
 	registry    *identity.Registry
 	fusion      *perception.Fusion
 	delegations *decision.Delegations
 	rbac        *decision.RBAC
-	evaluator   *decision.Evaluator
-	policy      decision.Policy
 	enrol       *enrolment
+	setup       *setup
 	data        string
+	live        atomic.Pointer[live]
+	settingsMu  sync.Mutex
 	saveMu      sync.Mutex
 	now         func() time.Time
 }
 
 func New(cfg Config, now func() time.Time) (*Server, error) {
-	if len(cfg.Policy.Bands) == 0 {
-		cfg.Policy.Bands = assurance.DefaultLadder()
-	}
-	if err := cfg.Policy.Validate(); err != nil {
-		return nil, err
-	}
 	if cfg.Data != "" {
 		if err := checkDataDir(filepath.Dir(cfg.Data)); err != nil {
 			return nil, err
 		}
 	}
-	registry := identity.NewRegistry()
-	fusion := perception.NewFusion(cfg.Fusion, registry)
-	delegations := decision.NewDelegations()
-	rbac := decision.NewRBAC(cfg.Policy)
-	var verifier *oidcVerifier
-	if cfg.OIDC != nil {
-		if cfg.OIDC.Issuer == "" {
-			return nil, errors.New("oidc.issuer is required")
-		}
-		verifier = &oidcVerifier{cfg: cfg.OIDC.withDefaults()}
+	snap, err := readSnapshot(cfg.Data)
+	if err != nil {
+		return nil, err
 	}
-	var enrol *enrolment
-	if cfg.OIDC != nil && cfg.OIDC.ClientID != "" {
-		public, err := url.Parse(strings.TrimRight(cfg.PublicURL, "/"))
-		if err != nil || (public.Scheme != "http" && public.Scheme != "https") || public.Host == "" {
-			return nil, errors.New("publicUrl must be an absolute http(s) URL when oidc.clientId is set")
+	var st Settings
+	if snap != nil && snap.Settings != nil {
+		st = *snap.Settings
+	}
+	seeded, err := seed(&st, cfg)
+	if err != nil {
+		return nil, err
+	}
+	if st.Policy, err = preparePolicy(st.Policy); err != nil {
+		return nil, err
+	}
+	registry := identity.NewRegistry()
+	// Config assignments seed role state on the first start only. Once the
+	// data file holds role state it is the whole truth: roles emptied at
+	// runtime stay empty.
+	seedRoles := st.Policy
+	seedRoles.Assignments = nil
+	if snap == nil || snap.Assignments == nil {
+		seedRoles.Assignments = cfg.Policy.Assignments
+		if err := seedRoles.Validate(); err != nil {
+			return nil, err
 		}
-		enrol = newEnrolment(verifier, public, cfg.Enrol)
 	}
 	s := &Server{
 		tokens:      cfg.Tokens,
-		oidc:        verifier,
 		registry:    registry,
-		fusion:      fusion,
-		delegations: delegations,
-		rbac:        rbac,
-		evaluator: &decision.Evaluator{
-			Policy:      cfg.Policy,
-			Fusion:      fusion,
-			Authz:       rbac,
-			Delegations: delegations,
-			Bands:       assurance.Static{},
-		},
-		policy: cfg.Policy,
-		enrol:  enrol,
-		data:   cfg.Data,
-		now:    now,
+		fusion:      perception.NewFusion(cfg.Fusion, registry),
+		delegations: decision.NewDelegations(),
+		rbac:        decision.NewRBAC(seedRoles),
+		enrol:       newEnrolment(cfg.Enrol),
+		setup:       &setup{},
+		data:        cfg.Data,
+		now:         now,
 	}
-	if err := s.load(); err != nil {
+	l, err := s.build(st)
+	if err != nil {
 		return nil, err
+	}
+	s.live.Store(l)
+	if snap != nil {
+		s.restore(*snap)
+	}
+	if s.data != "" && (snap == nil || snap.Settings == nil || seeded) {
+		if err := s.save(); err != nil {
+			return nil, fmt.Errorf("save data: %w", err)
+		}
+	}
+	switch {
+	case st.SetupComplete:
+	case s.data == "":
+		log.Printf("attest is not set up, and without a data file it cannot be: start it with -data, or set data in the config file")
+	default:
+		s.setup.begin()
 	}
 	return s, nil
 }
@@ -129,6 +146,9 @@ func New(cfg Config, now func() time.Time) (*Server, error) {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+
+	s.setupRoutes(mux)
+	s.settingsRoutes(mux)
 
 	mux.HandleFunc("GET /v1/identities", s.as(KindAdmin, s.listIdentities))
 	mux.HandleFunc("PUT /v1/identities/{id}", s.as(KindAdmin, s.putIdentity))
@@ -177,10 +197,11 @@ func (s *Server) authenticate(r *http.Request) (Principal, int) {
 	if p, known := s.tokens[token]; known {
 		return p, http.StatusOK
 	}
-	if s.oidc == nil {
+	verifier := s.cur().oidc
+	if verifier == nil {
 		return Principal{}, http.StatusUnauthorized
 	}
-	p, err := s.oidc.principal(r.Context(), token)
+	p, err := verifier.principal(r.Context(), token)
 	if errors.Is(err, errProviderUnavailable) {
 		return Principal{}, http.StatusServiceUnavailable
 	}
@@ -346,7 +367,7 @@ func (s *Server) postDecision(w http.ResponseWriter, r *http.Request, p Principa
 		return
 	}
 	req.Agent = p.ID
-	reply(w, http.StatusOK, s.evaluator.Decide(req, s.now()))
+	reply(w, http.StatusOK, s.cur().evaluator.Decide(req, s.now()))
 }
 
 func decode(w http.ResponseWriter, r *http.Request, into any) bool {

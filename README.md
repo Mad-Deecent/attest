@@ -4,7 +4,46 @@ An evidence-driven identity assurance layer. Fuse signals, maintain identity bel
 Status: early. The core runs in memory; see [docs/design/v0.md](docs/design/v0.md)
 for the design and what is built.
 
-## Quickstart
+## First run
+
+```bash
+go run ./cmd/attest
+```
+
+With no config file, attest starts unconfigured, keeps its state in
+`~/.local/state/attest/attest.json` (`-data` to move it), and prints a one-time
+setup code to its log. A console will walk through the rest; until it exists,
+these are the calls it makes:
+
+```bash
+A=localhost:8420
+# Trade the setup code for a 30-minute setup session; note the csrf it returns.
+curl -c jar -X POST $A/v1/setup/session -d '{"code":"ABCD-EFGH-JKMN-PQRS"}'
+CSRF=...
+curl -b jar -H "X-CSRF-Token: $CSRF" -X PUT $A/v1/settings/public-url -d '{"publicUrl":"http://localhost:8420"}'
+# Keycloak: an admin's username/password (or a realm-admin service client's
+# clientId/clientSecret), used once and never stored.
+curl -b jar -H "X-CSRF-Token: $CSRF" -X POST $A/v1/settings/provider -d '{
+  "kind": "keycloak", "url": "https://idp.example.com", "realm": "home",
+  "credential": {"username": "me", "password": "..."}}'
+curl -b jar -H "X-CSRF-Token: $CSRF" -X POST $A/v1/setup/complete
+```
+
+Connecting Keycloak creates what is missing (realm roles `attest-admin`,
+`attest-producer`, `attest-agent`, and a public enrolment client
+`attest-enrol` that sends people back to `{publicUrl}/enrol/callback`), grants
+you `attest-admin`, and reports what it created and what it found. For any
+other OIDC provider, create a public client with PKCE yourself and connect
+with `{"kind": "oidc", "issuer": "...", "clientId": "..."}`.
+
+After setup the code is dead and settings take an `attest-admin` token:
+`GET /v1/settings`, `PUT /v1/settings/public-url`, `PUT /v1/settings/policy`,
+`POST /v1/settings/provider`. Changes apply at once, without a restart.
+Locked out? Restart once with `-reset-setup` for a new code.
+
+## Quickstart with a config file
+
+For development and automation, a config file sets everything up front:
 
 ```bash
 go run ./cmd/attest -config attest.example.json
@@ -50,7 +89,8 @@ demo/car/run.sh --keycloak   # gateway and producer use OIDC client credentials
 ## Credentials from your identity provider
 
 The quickstart uses static development tokens. To accept tokens from an OIDC
-provider (Keycloak, Ory, Auth0, ...) instead, add its issuer to the config:
+provider (Keycloak, Ory, Auth0, ...) instead, connect it as in
+[First run](#first-run), or add its issuer to the config:
 
 ```json
 "oidc": { "issuer": "https://idp.example.com/realms/home" }
@@ -88,9 +128,14 @@ themselves. Delegations an administrator made (with zones, ceilings, or an
 expiry) are shown read-only. `policy.labels` maps permissions to the words the
 page shows, e.g. `{"email.send": "Send email as you"}`.
 
-Set `data` to a file path to keep identities, roles, and delegations across
-restarts; attest refuses to start if its directory is missing or not
-writable. Empty keeps everything in memory.
+Set `data` to a file path to keep identities, roles, delegations, and settings
+across restarts; attest refuses to start if its directory is missing or not
+writable. Empty keeps everything in memory. With a data file, the config's
+`oidc`, `publicUrl`, and `policy` are seeds: each is applied when it first
+appears or changes in the file, replacing the runtime value whole (attest logs
+when it overrides a runtime change); otherwise changes made at runtime survive
+a restart. `policy.assignments` seeds roles on the first start only. Without a
+data file, settings cannot be changed at runtime.
 
 ## Development
 
