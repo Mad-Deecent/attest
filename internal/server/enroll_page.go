@@ -27,8 +27,35 @@ var (
 	enrollTemplate  = template.Must(template.ParseFS(enrollFiles, "enroll/enroll.html"))
 )
 
-// readAloud is the sentence offered for a voice recording.
-const readAloud = "On a quiet morning, I asked the kitchen speaker to play some jazz and to tell me how warm it is outside."
+// voicePrompts are the lines offered, one at a time, while someone records
+// their voice: sentences to read mixed with the kind of thing people say to an
+// assistant, so the sample covers both reading and talking. About 40 seconds
+// of speech in all; the page wraps around if more is needed.
+var voicePrompts = []voicePrompt{
+	{Read: true, Text: "On a quiet morning, I asked the kitchen speaker to play some jazz and to tell me how warm it is outside."},
+	{Text: "Turn the living room lights down to thirty percent."},
+	{Text: "What's on my calendar for tomorrow afternoon?"},
+	{Read: true, Text: "The old bridge over the river was painted bright yellow, and on clear evenings you can see it from the hill behind the school."},
+	{Text: "Set a timer for twelve minutes and remind me to check the oven."},
+	{Text: "Lock the front door and turn on the porch light."},
+	{Read: true, Text: "We packed sandwiches, two thermoses of tea, and a map we never once looked at."},
+	{Text: "Play the next episode of the podcast I was listening to yesterday."},
+	{Text: "Add oat milk, lemons, and a loaf of bread to the shopping list."},
+	{Read: true, Text: "If it rains on Saturday, we'll move the picnic indoors and play board games instead."},
+	{Text: "How long will it take to drive to the airport right now?"},
+	{Text: "Call my sister and tell her I'm running ten minutes late."},
+}
+
+// voiceTargetSeconds is how much speech the page aims for. The voice service
+// decides what is enough (its own minimum, 15 seconds by default) and the
+// page treats its answer as the truth; aiming higher leaves room for the
+// page's rough estimate of when someone is speaking.
+const voiceTargetSeconds = 30
+
+type voicePrompt struct {
+	Read bool
+	Text string
+}
 
 // doneMessages are the fixed confirmations a redirect can ask for, so nothing
 // from the URL is echoed into the page.
@@ -46,7 +73,8 @@ type enrollView struct {
 	Name       string
 	CSRF       string
 	Current    int
-	Sentence   string
+	Prompts    []voicePrompt
+	Target     int
 	VoiceURL   string
 	VoiceDone  string
 	NoRoles    bool
@@ -118,7 +146,8 @@ func (s *Server) renderEnroll(w http.ResponseWriter, r *http.Request, status int
 func (s *Server) signedInView(v *enrollView, policy decision.Policy, identityID string, sess session) {
 	v.SignedIn = true
 	v.CSRF = sess.csrf
-	v.Sentence = readAloud
+	v.Prompts = voicePrompts
+	v.Target = voiceTargetSeconds
 	v.NoRoles = len(s.rbac.Roles(identityID)) == 0
 	now := s.now()
 	for _, o := range s.offers(policy, identityID) {

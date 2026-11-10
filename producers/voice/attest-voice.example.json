@@ -24,7 +24,7 @@
   "enroll": {
     "listen": "127.0.0.1:8431",
     "corsOrigin": "http://localhost:5173",
-    "minVoicedSeconds": 6,
+    "minVoicedSeconds": 15,
     "maxBodyBytes": 20971520
   }
 }
