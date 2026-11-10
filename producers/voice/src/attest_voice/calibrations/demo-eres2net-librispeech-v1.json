@@ -1,0 +1,114 @@
+{
+  "id": "demo-eres2net-librispeech-v1",
+  "model": "3dspeaker_speech_eres2net_sv_en_voxceleb_16k",
+  "a": 15.127138698461856,
+  "b": -5.496007637913517,
+  "bound": 8.0,
+  "shrink": {
+    "floor": 0.5,
+    "full": 4.0,
+    "negativeMinWeight": 0.5,
+    "positiveCap": [
+      [
+        0.5,
+        0.0
+      ],
+      [
+        1.5,
+        1.2
+      ],
+      [
+        3.0,
+        8.0
+      ]
+    ]
+  },
+  "provenance": {
+    "trials": "LibriSpeech dev-clean (CC BY 4.0), 30 speakers; scripts/librispeech_trials.py",
+    "minSeconds": 3.0,
+    "same": 260,
+    "different": 7540,
+    "note": "DEMO calibration: clean read audiobook speech, cross-chapter, 20 s enrolments vs voiced test crops. Not valid for in-car or far-field audio; refit on trials from the deployment's own microphones before relying on it.",
+    "fit": {
+      "a": 15.127138698461856,
+      "b": -5.496007637913517,
+      "eer": 0.05384615384615385,
+      "cllr": 0.15697336899053832,
+      "sameScoreMean": 0.7443912692307693,
+      "differentScoreMean": 0.11069472148541114,
+      "byDuration": {
+        "0.5": {
+          "n": 5400,
+          "eer": 0.0778,
+          "fitA": 19.584,
+          "fitB": -4.574,
+          "cllrUnshrunk": 0.4824,
+          "cllrShrunk": 0.6919,
+          "maxShrunkLLR": 0.0
+        },
+        "1.0": {
+          "n": 5370,
+          "eer": 0.067,
+          "fitA": 16.795,
+          "fitB": -4.886,
+          "cllrUnshrunk": 0.2522,
+          "cllrShrunk": 0.5271,
+          "maxShrunkLLR": 0.6
+        },
+        "1.5": {
+          "n": 5250,
+          "eer": 0.0571,
+          "fitA": 16.974,
+          "fitB": -5.458,
+          "cllrUnshrunk": 0.1753,
+          "cllrShrunk": 0.3777,
+          "maxShrunkLLR": 1.2
+        },
+        "2.0": {
+          "n": 4650,
+          "eer": 0.0581,
+          "fitA": 15.321,
+          "fitB": -5.191,
+          "cllrUnshrunk": 0.1775,
+          "cllrShrunk": 0.2691,
+          "maxShrunkLLR": 3.238
+        },
+        "3.0": {
+          "n": 3870,
+          "eer": 0.0543,
+          "fitA": 16.671,
+          "fitB": -5.921,
+          "cllrUnshrunk": 0.143,
+          "cllrShrunk": 0.1638,
+          "maxShrunkLLR": 5.778
+        },
+        "5.0": {
+          "n": 2490,
+          "eer": 0.0482,
+          "fitA": 13.943,
+          "fitB": -5.221,
+          "cllrUnshrunk": 0.1654,
+          "cllrShrunk": 0.1654,
+          "maxShrunkLLR": 8.0
+        },
+        "8.0": {
+          "n": 1440,
+          "eer": 0.0625,
+          "fitA": 13.714,
+          "fitB": -5.043,
+          "cllrUnshrunk": 0.1801,
+          "cllrShrunk": 0.1801,
+          "maxShrunkLLR": 8.0
+        }
+      },
+      "heldout": {
+        "trials": "LibriSpeech dev-clean, 10 held-out speakers",
+        "n": 3580,
+        "eerAtFitDurations": 0.0009,
+        "cllrAtFitDurations": 0.0939,
+        "cllrAllDurationsShrunk": 0.3196,
+        "maxShrunkLLRUnder1.5s": 0.6
+      }
+    }
+  }
+}
