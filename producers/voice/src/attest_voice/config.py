@@ -28,7 +28,7 @@ class Config:
     threads: int = 2
     callback_url: str = ""
     diarization: DiarizationParams = field(default_factory=DiarizationParams)
-    min_enrol_seconds: float = 6.0
+    min_enroll_seconds: float = 6.0
     listen: str = "127.0.0.1:8431"
     cors_origin: str = ""
     max_body_bytes: int = 20 * 1024 * 1024
@@ -41,7 +41,7 @@ class Config:
         d = json.loads(Path(path).expanduser().read_text())
         a = d.get("attest", {})
         diar = d.get("diarization", {})
-        enrol = d.get("enrol", {})
+        enroll = d.get("enroll", {})
         base = Config()
         return Config(
             attest_url=a.get("url", base.attest_url),
@@ -60,10 +60,10 @@ class Config:
                 min_duration_on=float(diar.get("minDurationOn", 0.2)),
                 min_duration_off=float(diar.get("minDurationOff", 0.3)),
             ),
-            min_enrol_seconds=float(enrol.get("minVoicedSeconds", base.min_enrol_seconds)),
-            listen=enrol.get("listen", base.listen),
-            cors_origin=enrol.get("corsOrigin", ""),
-            max_body_bytes=int(enrol.get("maxBodyBytes", base.max_body_bytes)),
+            min_enroll_seconds=float(enroll.get("minVoicedSeconds", base.min_enroll_seconds)),
+            listen=enroll.get("listen", base.listen),
+            cors_origin=enroll.get("corsOrigin", ""),
+            max_body_bytes=int(enroll.get("maxBodyBytes", base.max_body_bytes)),
             guard={k: float(d.get("guard", {})[j]) for j, k in
                    (("maxSeconds", "max_seconds"), ("minReferenceSeconds", "min_reference"), ("minLLR", "min_llr"))
                    if j in d.get("guard", {})},

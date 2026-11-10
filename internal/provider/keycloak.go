@@ -13,13 +13,13 @@ import (
 	"strings"
 )
 
-// Keycloak makes sure a realm has attest's roles and a public enrolment
+// Keycloak makes sure a realm has attest's roles and a public enrollment
 // client, and grants the admin role to the person who connected it. Every
 // step looks before it writes, so running it twice changes nothing the
 // second time, and it only ever adds to an existing client.
 type Keycloak struct{ Client *http.Client }
 
-const defaultEnrolClient = "attest-enrol"
+const defaultEnrollClient = "attest-enroll"
 
 func (k Keycloak) Connect(ctx context.Context, req Request) (Result, error) {
 	base := strings.TrimRight(req.URL, "/")
@@ -42,7 +42,7 @@ func (k Keycloak) Connect(ctx context.Context, req Request) (Result, error) {
 	}
 	clientID := req.ClientID
 	if clientID == "" {
-		clientID = defaultEnrolClient
+		clientID = defaultEnrollClient
 	}
 	adminRealm := req.AdminRealm
 	if adminRealm == "" {
@@ -267,7 +267,7 @@ func (a *kcAdmin) ensureRole(ctx context.Context, name string) (map[string]any, 
 // web origin, PKCE, the standard flow. Nothing is removed.
 func (a *kcAdmin) ensureClient(ctx context.Context, clientID string, public *url.URL) (Change, error) {
 	change := Change{Object: "client", Name: clientID, Action: "found"}
-	redirect := public.String() + "/enrol/callback"
+	redirect := public.String() + "/enroll/callback"
 	origin := public.Scheme + "://" + public.Host
 	var found []map[string]any
 	if _, err := a.admin(ctx, http.MethodGet, "/clients?clientId="+url.QueryEscape(clientID), nil, &found); err != nil {
@@ -276,8 +276,8 @@ func (a *kcAdmin) ensureClient(ctx context.Context, clientID string, public *url
 	if len(found) == 0 {
 		_, err := a.admin(ctx, http.MethodPost, "/clients", map[string]any{
 			"clientId":                  clientID,
-			"name":                      "attest enrolment",
-			"description":               "Created by attest. People sign in here to enrol.",
+			"name":                      "attest enrollment",
+			"description":               "Created by attest. People sign in here to enroll.",
 			"enabled":                   true,
 			"protocol":                  "openid-connect",
 			"publicClient":              true,

@@ -29,7 +29,7 @@ type Policy struct {
 	Roles       map[string][]string `json:"roles,omitempty"`
 	Assignments map[string][]string `json:"assignments,omitempty"`
 	// Labels maps a permission to the words people see for it, e.g.
-	// "email.send" -> "Send email for you". Optional; unlabelled permissions
+	// "email.send" -> "Send email for you". Optional; unlabeled permissions
 	// get a label derived from their name.
 	Labels map[string]string `json:"labels,omitempty"`
 }

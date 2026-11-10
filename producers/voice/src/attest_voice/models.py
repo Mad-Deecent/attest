@@ -94,7 +94,7 @@ class Models:
         return self._emb
 
     def embed(self, samples: np.ndarray) -> np.ndarray:
-        """L2-normalised embedding of one stretch of speech."""
+        """L2-normalized embedding of one stretch of speech."""
         ex = self._extractor()
         st = ex.create_stream()
         st.accept_waveform(SAMPLE_RATE, samples)

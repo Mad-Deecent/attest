@@ -128,9 +128,9 @@ func TestFirstRunSetup(t *testing.T) {
 	c.csrf = sess.CSRF
 	c.do("POST", "/v1/setup/complete", nil, http.StatusConflict, nil)
 	c.do("PUT", "/v1/settings/public-url", map[string]string{"publicUrl": "ftp://attest.home"}, http.StatusBadRequest, nil)
-	// Any OIDC issuer, with a client the operator made by hand. Enrolment
+	// Any OIDC issuer, with a client the operator made by hand. Enrollment
 	// needs somewhere to send people back to, so the public URL comes first.
-	manual := map[string]string{"kind": "oidc", "issuer": is.srv.URL, "clientId": "attest-enrol"}
+	manual := map[string]string{"kind": "oidc", "issuer": is.srv.URL, "clientId": "attest-enroll"}
 	c.do("POST", "/v1/settings/provider", manual, http.StatusBadRequest, nil)
 	if srv.cur().settings.OIDC != nil {
 		t.Fatal("a connection attest could not restart with was stored")
@@ -151,7 +151,7 @@ func TestFirstRunSetup(t *testing.T) {
 	var view settingsView
 	c.do("GET", "/v1/settings", nil, http.StatusOK, &view)
 	if !view.SetupComplete || view.PublicURL != "http://attest.home:8420" || view.Provider == nil ||
-		view.Provider.Issuer != is.srv.URL || view.Provider.ClientID != "attest-enrol" || view.Provider.Kind != "oidc" {
+		view.Provider.Issuer != is.srv.URL || view.Provider.ClientID != "attest-enroll" || view.Provider.Kind != "oidc" {
 		t.Fatalf("settings after setup: %+v", view)
 	}
 	if len(view.Policy.Bands) != 3 {
@@ -253,19 +253,19 @@ func TestKeycloakConnectIsIdempotent(t *testing.T) {
 	var first connectReply
 	c.do("POST", "/v1/settings/provider", connectKeycloak(ana, "", kc), http.StatusOK, &first)
 	want := "role attest-admin: created, role attest-producer: created, role attest-agent: created, " +
-		"client attest-enrol: created, role grant attest-admin: created"
+		"client attest-enroll: created, role grant attest-admin: created"
 	if got := actions(first); got != want {
 		t.Fatalf("first connect:\n got %s\nwant %s", got, want)
 	}
-	if first.Provider.Issuer != kc.srv.URL+"/realms/home" || first.Provider.ClientID != "attest-enrol" || first.Provider.Kind != "keycloak" {
+	if first.Provider.Issuer != kc.srv.URL+"/realms/home" || first.Provider.ClientID != "attest-enroll" || first.Provider.Kind != "keycloak" {
 		t.Fatalf("connection: %+v", first.Provider)
 	}
-	client := kc.client("attest-enrol")
+	client := kc.client("attest-enroll")
 	if client["publicClient"] != true || client["directAccessGrantsEnabled"] != false ||
 		client["attributes"].(map[string]any)["pkce.code.challenge.method"] != "S256" ||
-		client["redirectUris"].([]any)[0] != "https://attest.home/enrol/callback" ||
+		client["redirectUris"].([]any)[0] != "https://attest.home/enroll/callback" ||
 		client["webOrigins"].([]any)[0] != "https://attest.home" {
-		t.Fatalf("enrolment client: %v", client)
+		t.Fatalf("enrollment client: %v", client)
 	}
 	if got := kc.mappings[kcAnaID]; len(got) != 1 || got[0]["name"] != "attest-admin" {
 		t.Fatalf("ana's realm roles: %v", got)
@@ -346,7 +346,7 @@ func TestKeycloakPartialFailureStoresNothing(t *testing.T) {
 
 	// Running it again finishes the job.
 	c.do("POST", "/v1/settings/provider", connectKeycloak(ana, "", kc), http.StatusOK, &r)
-	if got := actions(r); !strings.HasPrefix(got, "role attest-admin: found") || !strings.Contains(got, "client attest-enrol: created") {
+	if got := actions(r); !strings.HasPrefix(got, "role attest-admin: found") || !strings.Contains(got, "client attest-enroll: created") {
 		t.Fatalf("retry: %s", got)
 	}
 }
@@ -673,7 +673,7 @@ func TestConnectStartedInSetupCannotLandAfterIt(t *testing.T) {
 	srv, _ := unconfigured(t, &now)
 	c := openSetup(t, srv)
 	c.do("PUT", "/v1/settings/public-url", map[string]string{"publicUrl": "http://attest.home"}, http.StatusOK, nil)
-	c.do("POST", "/v1/settings/provider", map[string]string{"kind": "oidc", "issuer": is.srv.URL, "clientId": "attest-enrol"}, http.StatusOK, nil)
+	c.do("POST", "/v1/settings/provider", map[string]string{"kind": "oidc", "issuer": is.srv.URL, "clientId": "attest-enroll"}, http.StatusOK, nil)
 
 	kc.gate = make(chan struct{})
 	done := make(chan *connectReply)

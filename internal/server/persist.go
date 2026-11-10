@@ -73,7 +73,7 @@ func (s *Server) restore(snap snapshot) {
 
 // save writes the current state.
 func (s *Server) save() error {
-	// Serialised so an older snapshot can never land after a newer one, and
+	// Serialized so an older snapshot can never land after a newer one, and
 	// so it cannot interleave with a settings change (see apply).
 	s.saveMu.Lock()
 	defer s.saveMu.Unlock()

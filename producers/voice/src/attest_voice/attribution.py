@@ -98,7 +98,7 @@ def utterances(words: Sequence[Word], turns: Sequence[Turn], *, max_gap: float =
     changes of attribution. A contested word (overlap, straddle) poisons the
     whole contiguous run it is in, before and after, because nothing marks
     where one speaker's request ends. Uncovered words were cut at silences, so
-    they form their own unattributed utterance without poisoning neighbours.
+    they form their own unattributed utterance without poisoning neighbors.
     """
     out: list[Utterance] = []
     cur: Utterance | None = None

@@ -45,7 +45,7 @@
   });
 
   function upload(blob) {
-    fetch("/enrol/ticket", {
+    fetch("/enroll/ticket", {
       method: "POST",
       credentials: "same-origin",
       headers: { "X-CSRF-Token": box.dataset.csrf }

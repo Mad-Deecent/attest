@@ -23,8 +23,8 @@ type OIDCConfig struct {
 	// Roles maps a credential kind (admin, producer, agent) to the provider
 	// role that confers it.
 	Roles map[string]string `json:"roles,omitempty"`
-	// ClientID is the public client people sign in through to enrol. Unset
-	// disables enrolment.
+	// ClientID is the public client people sign in through to enroll. Unset
+	// disables enrollment.
 	ClientID string `json:"clientId,omitempty"`
 }
 
@@ -55,7 +55,7 @@ type oidcVerifier struct {
 	mu  sync.Mutex
 	p   *oidc.Provider
 	v   *oidc.IDTokenVerifier
-	// idv checks ID tokens issued to the enrolment client.
+	// idv checks ID tokens issued to the enrollment client.
 	idv *oidc.IDTokenVerifier
 }
 
@@ -94,9 +94,9 @@ func (o *oidcVerifier) verifier() (*oidc.IDTokenVerifier, error) {
 	return o.v, nil
 }
 
-// enrolVerifier checks ID tokens issued to the enrolment client, never
+// enrollVerifier checks ID tokens issued to the enrollment client, never
 // skipping the audience check.
-func (o *oidcVerifier) enrolVerifier(p *oidc.Provider) *oidc.IDTokenVerifier {
+func (o *oidcVerifier) enrollVerifier(p *oidc.Provider) *oidc.IDTokenVerifier {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.idv == nil {

@@ -20,9 +20,9 @@ import (
 	"github.com/mad-deecent/attest/internal/perception"
 )
 
-// enrolEnv is attest served over HTTP next to a fake identity provider, so a
+// enrollEnv is attest served over HTTP next to a fake identity provider, so a
 // cookie-keeping client can walk the whole sign-in redirect chain.
-type enrolEnv struct {
+type enrollEnv struct {
 	t   *testing.T
 	is  *issuer
 	ts  *httptest.Server
@@ -31,9 +31,9 @@ type enrolEnv struct {
 	api *harness
 }
 
-func newEnrolEnv(t *testing.T, data string) *enrolEnv {
+func newEnrollEnv(t *testing.T, data string) *enrollEnv {
 	t.Helper()
-	e := &enrolEnv{t: t, is: newIssuer(t)}
+	e := &enrollEnv{t: t, is: newIssuer(t)}
 	e.ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		e.api.h.ServeHTTP(w, r)
 	}))
@@ -45,9 +45,9 @@ func newEnrolEnv(t *testing.T, data string) *enrolEnv {
 			"voice": {Kind: KindProducer, ID: "mic"},
 			"agent": {Kind: KindAgent, ID: "concierge"},
 		},
-		OIDC:      &OIDCConfig{Issuer: e.is.srv.URL, ClientID: "attest-enrol"},
+		OIDC:      &OIDCConfig{Issuer: e.is.srv.URL, ClientID: "attest-enroll"},
 		PublicURL: e.ts.URL,
-		Enrol:     EnrolConfig{VoiceURL: "http://voice.invalid/enrol"},
+		Enroll:    EnrollConfig{VoiceURL: "http://voice.invalid/enroll"},
 		Data:      data,
 		Fusion:    perception.DefaultConfig(),
 		Policy: decision.Policy{
@@ -67,7 +67,7 @@ func newEnrolEnv(t *testing.T, data string) *enrolEnv {
 }
 
 // restart replaces the server with a new one built from the same config.
-func (e *enrolEnv) restart() {
+func (e *enrollEnv) restart() {
 	e.t.Helper()
 	srv, err := New(e.cfg, time.Now)
 	if err != nil {
@@ -84,14 +84,14 @@ type browser struct {
 	body string
 }
 
-// signIn walks /enrol/login through the provider and back as p, in a fresh
+// signIn walks /enroll/login through the provider and back as p, in a fresh
 // browser.
-func (e *enrolEnv) signIn(p person) *browser {
+func (e *enrollEnv) signIn(p person) *browser {
 	e.t.Helper()
 	e.is.signIn(p)
 	jar, _ := cookiejar.New(nil)
 	b := &browser{t: e.t, c: &http.Client{Jar: jar}, base: e.ts.URL}
-	if code := b.get("/enrol/login"); code != http.StatusOK {
+	if code := b.get("/enroll/login"); code != http.StatusOK {
 		e.t.Fatalf("sign-in ended with %d: %s", code, b.body)
 	}
 	if !strings.Contains(b.body, "Sign out") {
@@ -147,19 +147,19 @@ func (b *browser) consent(perms map[string][]string) {
 	for agent, ps := range perms {
 		form["perm:"+agent] = ps
 	}
-	if code := b.post("/enrol/consent", form); code != http.StatusOK || !strings.Contains(b.body, "Your choices are saved.") {
+	if code := b.post("/enroll/consent", form); code != http.StatusOK || !strings.Contains(b.body, "Your choices are saved.") {
 		b.t.Fatalf("consent: %d %s", code, b.body)
 	}
 }
 
-func (e *enrolEnv) identities() []identity.Identity {
+func (e *enrollEnv) identities() []identity.Identity {
 	e.t.Helper()
 	var out []identity.Identity
 	e.api.call("admin", "GET", "/v1/identities", nil, http.StatusOK, &out)
 	return out
 }
 
-func (e *enrolEnv) delegations() []decision.Delegation {
+func (e *enrollEnv) delegations() []decision.Delegation {
 	e.t.Helper()
 	var out []decision.Delegation
 	e.api.call("admin", "GET", "/v1/delegations", nil, http.StatusOK, &out)
@@ -171,7 +171,7 @@ var uuidV4 = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-
 var ana = person{sub: "kc-ana", name: "Ana Lima", username: "ana", accessRoles: []string{"resident", "offline_access"}}
 
 func TestSignInLinksAnIdentityAndAdoptsRoles(t *testing.T) {
-	e := newEnrolEnv(t, "")
+	e := newEnrollEnv(t, "")
 	b := e.signIn(ana)
 	if !strings.Contains(b.body, "Ana Lima") || !strings.Contains(b.body, `value="door.unlock"`) {
 		t.Fatalf("signed-in page missing name or choices: %s", b.body)
@@ -213,7 +213,7 @@ func TestSignInLinksAnIdentityAndAdoptsRoles(t *testing.T) {
 }
 
 func TestConsentGrantsAndRevokeDenies(t *testing.T) {
-	e := newEnrolEnv(t, "")
+	e := newEnrollEnv(t, "")
 	b := e.signIn(ana)
 	id := e.identities()[0].ID
 
@@ -252,35 +252,35 @@ func TestConsentGrantsAndRevokeDenies(t *testing.T) {
 
 	// Someone else cannot withdraw it.
 	ben := e.signIn(person{sub: "kc-ben", name: "Ben"})
-	if code := ben.post("/enrol/revoke", url.Values{"csrf": {ben.csrf()}, "id": {live[0].ID}}); code != http.StatusNotFound {
+	if code := ben.post("/enroll/revoke", url.Values{"csrf": {ben.csrf()}, "id": {live[0].ID}}); code != http.StatusNotFound {
 		t.Fatalf("revoking another person's consent: %d", code)
 	}
 
-	if code := b.post("/enrol/revoke", url.Values{"csrf": {b.csrf()}, "id": {live[0].ID}}); code != http.StatusOK {
+	if code := b.post("/enroll/revoke", url.Values{"csrf": {b.csrf()}, "id": {live[0].ID}}); code != http.StatusOK {
 		t.Fatalf("revoke: %d %s", code, b.body)
 	}
 	denied(t, decide("music.control"), "no live delegation")
-	if code := b.post("/enrol/revoke", url.Values{"csrf": {b.csrf()}, "id": {live[0].ID}}); code != http.StatusNotFound {
+	if code := b.post("/enroll/revoke", url.Values{"csrf": {b.csrf()}, "id": {live[0].ID}}); code != http.StatusNotFound {
 		t.Fatalf("revoking twice: %d", code)
 	}
 }
 
-func TestEnrolmentFormsNeedTheCSRFToken(t *testing.T) {
-	e := newEnrolEnv(t, "")
+func TestEnrollmentFormsNeedTheCSRFToken(t *testing.T) {
+	e := newEnrollEnv(t, "")
 	b := e.signIn(ana)
 	token := b.csrf()
 	consent := url.Values{"perm:concierge": {"music.control"}}
-	if code := b.post("/enrol/consent", consent); code != http.StatusForbidden {
+	if code := b.post("/enroll/consent", consent); code != http.StatusForbidden {
 		t.Fatalf("consent without token: %d", code)
 	}
 	consent.Set("csrf", "forged")
-	if code := b.post("/enrol/consent", consent); code != http.StatusForbidden {
+	if code := b.post("/enroll/consent", consent); code != http.StatusForbidden {
 		t.Fatalf("consent with a wrong token: %d", code)
 	}
-	if code := b.post("/enrol/ticket", nil); code != http.StatusForbidden {
+	if code := b.post("/enroll/ticket", nil); code != http.StatusForbidden {
 		t.Fatalf("ticket without token: %d", code)
 	}
-	if code := b.post("/enrol/logout", url.Values{"csrf": {token}}); code != http.StatusOK || !strings.Contains(b.body, "signed out") {
+	if code := b.post("/enroll/logout", url.Values{"csrf": {token}}); code != http.StatusOK || !strings.Contains(b.body, "signed out") {
 		t.Fatalf("logout: %d", code)
 	}
 	if n := len(e.delegations()); n != 0 {
@@ -288,11 +288,11 @@ func TestEnrolmentFormsNeedTheCSRFToken(t *testing.T) {
 	}
 }
 
-func TestEnrolmentTicketIsRedeemedOnce(t *testing.T) {
-	e := newEnrolEnv(t, "")
+func TestEnrollmentTicketIsRedeemedOnce(t *testing.T) {
+	e := newEnrollEnv(t, "")
 	b := e.signIn(ana)
 	id := e.identities()[0].ID
-	if code := b.post("/enrol/ticket", nil, "X-CSRF-Token", b.csrf()); code != http.StatusOK {
+	if code := b.post("/enroll/ticket", nil, "X-CSRF-Token", b.csrf()); code != http.StatusOK {
 		t.Fatalf("ticket: %d %s", code, b.body)
 	}
 	var issued struct{ Ticket string }
@@ -301,19 +301,19 @@ func TestEnrolmentTicketIsRedeemedOnce(t *testing.T) {
 	}
 
 	redeem := map[string]string{"ticket": issued.Ticket}
-	e.api.call("agent", "POST", "/v1/enrolment-tickets/redeem", redeem, http.StatusForbidden, nil)
+	e.api.call("agent", "POST", "/v1/enrollment-tickets/redeem", redeem, http.StatusForbidden, nil)
 	var out struct{ IdentityID string }
-	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", redeem, http.StatusOK, &out)
+	e.api.call("voice", "POST", "/v1/enrollment-tickets/redeem", redeem, http.StatusOK, &out)
 	if out.IdentityID != id {
 		t.Fatalf("redeemed for %q, want %q", out.IdentityID, id)
 	}
-	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", redeem, http.StatusNotFound, nil)
-	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", map[string]string{"ticket": "made-up"}, http.StatusNotFound, nil)
+	e.api.call("voice", "POST", "/v1/enrollment-tickets/redeem", redeem, http.StatusNotFound, nil)
+	e.api.call("voice", "POST", "/v1/enrollment-tickets/redeem", map[string]string{"ticket": "made-up"}, http.StatusNotFound, nil)
 
 	if e.identities()[0].VoiceEnrolledAt == nil {
 		t.Fatal("redeeming must record voiceEnrolledAt")
 	}
-	b.get("/enrol")
+	b.get("/enroll")
 	if !strings.Contains(b.body, "Your voice was saved on") {
 		t.Fatalf("page does not show the voice step done: %s", b.body)
 	}
@@ -321,7 +321,7 @@ func TestEnrolmentTicketIsRedeemedOnce(t *testing.T) {
 
 func TestStateSurvivesARestart(t *testing.T) {
 	data := filepath.Join(t.TempDir(), "attest.json")
-	e := newEnrolEnv(t, data)
+	e := newEnrollEnv(t, data)
 	b := e.signIn(ana)
 	id := e.identities()[0].ID
 	b.consent(map[string][]string{"concierge": {"music.control"}})
@@ -377,21 +377,21 @@ func TestAFailedSaveFailsTheRequest(t *testing.T) {
 	if err := os.Mkdir(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	e := newEnrolEnv(t, filepath.Join(dir, "attest.json"))
+	e := newEnrollEnv(t, filepath.Join(dir, "attest.json"))
 	if err := os.RemoveAll(dir); err != nil {
 		t.Fatal(err)
 	}
 	e.api.call("admin", "PUT", "/v1/identities/dee", map[string]string{"displayName": "Dee"}, http.StatusInternalServerError, nil)
 }
 
-func TestEnrolPageWithoutAProvider(t *testing.T) {
+func TestEnrollPageWithoutAProvider(t *testing.T) {
 	hn := newHarness(t)
 	rec := httptest.NewRecorder()
-	hn.h.ServeHTTP(rec, httptest.NewRequest("GET", "/enrol", nil))
+	hn.h.ServeHTTP(rec, httptest.NewRequest("GET", "/enroll", nil))
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "identity provider") {
 		t.Fatalf("unconfigured page: %d %s", rec.Code, rec.Body)
 	}
-	if strings.Contains(rec.Body.String(), "/enrol/login") {
+	if strings.Contains(rec.Body.String(), "/enroll/login") {
 		t.Fatal("unconfigured page must not offer sign-in")
 	}
 }
@@ -403,7 +403,7 @@ func jsonEqual(a, b any) bool {
 }
 
 func TestConsentLeavesAdministratorDelegationsAlone(t *testing.T) {
-	e := newEnrolEnv(t, "")
+	e := newEnrollEnv(t, "")
 	b := e.signIn(ana)
 	id := e.identities()[0].ID
 	until := time.Now().Add(30 * 24 * time.Hour)
@@ -413,7 +413,7 @@ func TestConsentLeavesAdministratorDelegationsAlone(t *testing.T) {
 		Zones: []string{"car"}, Ceiling: "confident", ExpiresAt: &until, GrantedBy: "admin",
 	}, http.StatusCreated, &managed)
 
-	b.get("/enrol")
+	b.get("/enroll")
 	if !strings.Contains(b.body, "Set up for you by whoever runs this system (only in: car;") ||
 		!strings.Contains(b.body, "until "+day(until)) {
 		t.Fatalf("administrator delegation not shown with its limits: %s", b.body)
@@ -444,14 +444,14 @@ func TestConsentLeavesAdministratorDelegationsAlone(t *testing.T) {
 	if own := e.srv.ownConsent(id, "concierge", time.Now()); len(own) != 0 {
 		t.Fatalf("own consent should be gone: %+v", own)
 	}
-	if code := b.post("/enrol/revoke", url.Values{"csrf": {b.csrf()}, "id": {managed.ID}}); code != http.StatusForbidden {
+	if code := b.post("/enroll/revoke", url.Values{"csrf": {b.csrf()}, "id": {managed.ID}}); code != http.StatusForbidden {
 		t.Fatalf("revoking an administrator delegation: %d", code)
 	}
 	stillLive()
 }
 
 func TestPermissionLabels(t *testing.T) {
-	e := newEnrolEnv(t, "")
+	e := newEnrollEnv(t, "")
 	e.cfg.Policy.Labels = map[string]string{"calendar.read": "Read your calendar"}
 	e.restart()
 	b := e.signIn(ana)
@@ -470,34 +470,34 @@ func TestPermissionLabels(t *testing.T) {
 }
 
 func TestOnlyTheVoiceProducerRedeemsTickets(t *testing.T) {
-	e := newEnrolEnv(t, "")
-	e.cfg.Enrol.VoiceProducer = "mic"
+	e := newEnrollEnv(t, "")
+	e.cfg.Enroll.VoiceProducer = "mic"
 	e.restart()
 	b := e.signIn(ana)
 	ticket := func() map[string]string {
 		t.Helper()
-		if code := b.post("/enrol/ticket", nil, "X-CSRF-Token", b.csrf()); code != http.StatusOK {
+		if code := b.post("/enroll/ticket", nil, "X-CSRF-Token", b.csrf()); code != http.StatusOK {
 			t.Fatalf("ticket: %d %s", code, b.body)
 		}
 		var issued struct{ Ticket string }
 		_ = json.Unmarshal([]byte(b.body), &issued)
-		b.get("/enrol") // back to a page with the CSRF token
+		b.get("/enroll") // back to a page with the CSRF token
 		return map[string]string{"ticket": issued.Ticket}
 	}
 
 	// Another producer is refused without spending the ticket.
 	first := ticket()
-	e.api.call("face", "POST", "/v1/enrolment-tickets/redeem", first, http.StatusForbidden, nil)
-	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", first, http.StatusOK, nil)
+	e.api.call("face", "POST", "/v1/enrollment-tickets/redeem", first, http.StatusForbidden, nil)
+	e.api.call("voice", "POST", "/v1/enrollment-tickets/redeem", first, http.StatusOK, nil)
 
 	// A newer ticket voids the identity's unredeemed one.
 	older, newer := ticket(), ticket()
-	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", older, http.StatusNotFound, nil)
-	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", newer, http.StatusOK, nil)
+	e.api.call("voice", "POST", "/v1/enrollment-tickets/redeem", older, http.StatusNotFound, nil)
+	e.api.call("voice", "POST", "/v1/enrollment-tickets/redeem", newer, http.StatusOK, nil)
 }
 
-func TestEnrolmentLivesOnThePublicHost(t *testing.T) {
-	e := newEnrolEnv(t, "")
+func TestEnrollmentLivesOnThePublicHost(t *testing.T) {
+	e := newEnrollEnv(t, "")
 	serve := func(method, target, host string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(method, target, nil)
 		req.Host = host
@@ -507,19 +507,19 @@ func TestEnrolmentLivesOnThePublicHost(t *testing.T) {
 	}
 	public, _ := url.Parse(e.ts.URL)
 	for _, method := range []string{"GET", "POST"} {
-		path := "/enrol/login?next=1"
+		path := "/enroll/login?next=1"
 		if method == "POST" {
-			path = "/enrol/consent"
+			path = "/enroll/consent"
 		}
 		rec := serve(method, path, "attest.lan:8420")
 		if rec.Code != http.StatusTemporaryRedirect || rec.Header().Get("Location") != e.ts.URL+path {
 			t.Fatalf("%s %s on another host: %d %q", method, path, rec.Code, rec.Header().Get("Location"))
 		}
 	}
-	if rec := serve("GET", "/enrol", strings.ToUpper(public.Host)); rec.Code != http.StatusOK {
+	if rec := serve("GET", "/enroll", strings.ToUpper(public.Host)); rec.Code != http.StatusOK {
 		t.Fatalf("the public host, in any case, is served: %d", rec.Code)
 	}
-	// The API is not enrolment and is not redirected.
+	// The API is not enrollment and is not redirected.
 	if rec := serve("GET", "/healthz", "attest.lan:8420"); rec.Code != http.StatusNoContent {
 		t.Fatalf("healthz: %d", rec.Code)
 	}

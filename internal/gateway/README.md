@@ -34,7 +34,7 @@ claim any speaker, so it must be set by a component the model cannot
 influence (the speech runtime that attributed the words), never by the model
 itself. Signed subjects, which the gateway could verify, are future work.
 
-## Behaviour
+## Behavior
 
 - Granted: the request is forwarded unmodified. The response carries the
   decision as JSON in the `Attest-Decision` header, so the caller can see who

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end: build the car conversation, start attest, enrol A and C,
+# End-to-end: build the car conversation, start attest, enroll A and C,
 # process the conversation, and ask attest what it believes.
 #
 #   scripts/download-models.sh && scripts/fetch-librispeech.sh && scripts/demo.sh
@@ -48,8 +48,8 @@ cat >"$WORK/voice.json" <<EOF
 EOF
 
 step "enrolling A and C from audio not in the conversation"
-av enrol --identity "$ID_A" "$WORK/enrol-A.wav"
-av enrol --identity "$ID_C" "$WORK/enrol-C.wav"
+av enroll --identity "$ID_A" "$WORK/enroll-A.wav"
+av enroll --identity "$ID_C" "$WORK/enroll-C.wav"
 
 step "processing the conversation (session $SESSION)"
 av run "$WORK/conversation.wav" --session "$SESSION" --keep-subjects --scores >"$WORK/stream.jsonl" 2>"$WORK/run.err"

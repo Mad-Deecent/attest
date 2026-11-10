@@ -26,9 +26,9 @@ from attest_voice.audio import SAMPLE_RATE, decode
 from attest_voice.models import Models
 from attest_voice.speaker import cut
 
-A, A_ENROL, A_CONV = "652", "129742", "130726"
+A, A_ENROLL, A_CONV = "652", "129742", "130726"
 B, B_CONV = "5536", "43358"
-C, C_ENROL = "2035", "147960"
+C, C_ENROLL = "2035", "147960"
 
 
 def write(path: Path, x: np.ndarray) -> None:
@@ -54,7 +54,7 @@ def utt(m: Models, root: Path, spk: str, ch: str, lo: float, hi: float, skip: in
     return hits[skip]
 
 
-def enrolment(m: Models, root: Path, spk: str, ch: str, seconds: float = 25) -> np.ndarray:
+def enrollment(m: Models, root: Path, spk: str, ch: str, seconds: float = 25) -> np.ndarray:
     out, n = [], 0.0
     for f in files(root, spk, ch):
         a = decode(f)
@@ -70,8 +70,8 @@ def main(root_s: str, out_s: str) -> None:
     out.mkdir(parents=True, exist_ok=True)
     m = Models("~/.cache/sherpa-onnx-models", threads=4)
 
-    write(out / "enrol-A.wav", enrolment(m, root, A, A_ENROL))
-    write(out / "enrol-C.wav", enrolment(m, root, C, C_ENROL))
+    write(out / "enroll-A.wav", enrollment(m, root, A, A_ENROLL))
+    write(out / "enroll-C.wav", enrollment(m, root, C, C_ENROLL))
 
     a1 = utt(m, root, A, A_CONV, 5, 7.5)
     a2 = utt(m, root, A, A_CONV, 5, 7.5, skip=1)
@@ -100,7 +100,7 @@ def main(root_s: str, out_s: str) -> None:
     conv = np.concatenate([conv, gap(0.5)])
     write(out / "conversation.wav", conv)
     (out / "truth.json").write_text(json.dumps({
-        "speakers": {"A": f"LibriSpeech {A} (enrolled from chapter {A_ENROL}; conversation uses {A_CONV})",
+        "speakers": {"A": f"LibriSpeech {A} (enrolled from chapter {A_ENROLL}; conversation uses {A_CONV})",
                      "B": f"LibriSpeech {B} (not enrolled)", "C": f"LibriSpeech {C} (enrolled, absent)"},
         "mutterText": mutter_text,
         "mutterSeconds": round(len(mutter) / SAMPLE_RATE, 2),

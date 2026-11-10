@@ -1,6 +1,6 @@
 // Package provider connects attest to an identity provider in one step: given
 // a one-time admin credential, an adapter makes sure the provider has what
-// attest needs (roles, an enrolment client) and reports how to reach it.
+// attest needs (roles, an enrollment client) and reports how to reach it.
 //
 // An adapter uses the credential for the length of one Connect call. It never
 // returns, stores, or logs it, nor the admin token it obtains with it.
@@ -45,9 +45,9 @@ type Request struct {
 	Credential Credential `json:"credential"`
 	// Issuer is the issuer URL (oidc).
 	Issuer string `json:"issuer,omitempty"`
-	// ClientID is the public client people enrol through. The keycloak
-	// adapter creates it when missing (default attest-enrol); with oidc it is
-	// whatever client the operator made, or empty for no enrolment.
+	// ClientID is the public client people enroll through. The keycloak
+	// adapter creates it when missing (default attest-enroll); with oidc it is
+	// whatever client the operator made, or empty for no enrollment.
 	ClientID string `json:"clientId,omitempty"`
 
 	// Set by attest, not by the caller.
@@ -125,7 +125,7 @@ func (u unsupported) Connect(context.Context, Request) (Result, error) {
 	return Result{}, fmt.Errorf("connecting %s in one step is %w; use kind oidc with a client you create", string(u), ErrNotSupported)
 }
 
-// Manual connects any OIDC issuer whose enrolment client the operator made by
+// Manual connects any OIDC issuer whose enrollment client the operator made by
 // hand. It only checks that the issuer answers discovery.
 type Manual struct{ Client *http.Client }
 

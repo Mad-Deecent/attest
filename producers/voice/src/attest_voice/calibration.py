@@ -1,7 +1,7 @@
 """Score -> LLR mapping.
 
 A calibration is affine in the cosine score, ``llr = a*score + b``, fitted by
-logistic regression on labelled same/different-speaker trials, plus a
+logistic regression on labeled same/different-speaker trials, plus a
 duration-aware shrink so that a little speech cannot produce strong evidence.
 
 Shrink, for ``d`` seconds of voiced audio behind the score:

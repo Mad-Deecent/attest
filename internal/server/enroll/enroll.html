@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Set up your assistant</title>
-<link rel="stylesheet" href="/enrol/static/enrol.css">
+<link rel="stylesheet" href="/enroll/static/enroll.css">
 {{- if .SignedIn}}
-<script src="/enrol/static/enrol.js" defer></script>
+<script src="/enroll/static/enroll.js" defer></script>
 {{- end}}
 </head>
 <body>
@@ -23,15 +23,15 @@
 <p>Whoever runs this system can turn it on by adding their identity provider's details (<code>oidc.issuer</code> and <code>oidc.clientId</code>) to its settings.</p>
 
 {{- else if not .SignedIn}}
-<p>Signing up lets the assistants here recognise you and act for you, but only in the ways you choose. You sign in with your usual account, can teach it your voice, and then pick what each assistant may do.</p>
-<p><a class="button" href="/enrol/login">Sign in</a></p>
+<p>Signing up lets the assistants here recognize you and act for you, but only in the ways you choose. You sign in with your usual account, can teach it your voice, and then pick what each assistant may do.</p>
+<p><a class="button" href="/enroll/login">Sign in</a></p>
 
 {{- else}}
 <ol class="steps">
   <li class="done">
     <h2>Sign in <span class="tag">Done</span></h2>
     <p>You're signed in{{with .Name}} as <strong>{{.}}</strong>{{end}}.</p>
-    <form method="post" action="/enrol/logout">
+    <form method="post" action="/enroll/logout">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <button class="secondary">Sign out</button>
     </form>
@@ -67,7 +67,7 @@
     <p>None of the assistants here can do anything that needs your permission.</p>
     {{- else}}
     <p>Tick what each assistant may do for you. Each group says how sure it must be that it's you before it can act.</p>
-    <form method="post" action="/enrol/consent">
+    <form method="post" action="/enroll/consent">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       {{- range .Agents}}
       {{- $agent := .ID}}
@@ -96,7 +96,7 @@
         {{- if .Managed}}
         <p class="note">Set up for you by whoever runs this system{{with .Limits}} ({{.}}){{end}}. You can't change this here; ask them if it should change.</p>
         {{- else}}
-        <form method="post" action="/enrol/revoke">
+        <form method="post" action="/enroll/revoke">
           <input type="hidden" name="csrf" value="{{$.CSRF}}">
           <input type="hidden" name="id" value="{{.ID}}">
           <button class="secondary">Revoke<span class="visually-hidden"> what {{.Agent}} may do</span></button>

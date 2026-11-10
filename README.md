@@ -30,8 +30,8 @@ curl -b jar -H "X-CSRF-Token: $CSRF" -X POST $A/v1/setup/complete
 ```
 
 Connecting Keycloak creates what is missing (realm roles `attest-admin`,
-`attest-producer`, `attest-agent`, and a public enrolment client
-`attest-enrol` that sends people back to `{publicUrl}/enrol/callback`), grants
+`attest-producer`, `attest-agent`, and a public enrollment client
+`attest-enroll` that sends people back to `{publicUrl}/enroll/callback`), grants
 you `attest-admin`, and reports what it created and what it found. For any
 other OIDC provider, create a public client with PKCE yourself and connect
 with `{"kind": "oidc", "issuer": "...", "clientId": "..."}`.
@@ -51,7 +51,7 @@ go run ./cmd/attest -config attest.example.json
 
 ```bash
 A=localhost:8420
-# Enrol an identity, give it a role, and let the agent act for it.
+# Enroll an identity, give it a role, and let the agent act for it.
 curl -X PUT $A/v1/identities/ana -H 'Authorization: Bearer dev-admin-token' -d '{"displayName":"Ana"}'
 curl -X PUT $A/v1/identities/ana/roles -H 'Authorization: Bearer dev-admin-token' -d '{"roles":["resident"]}'
 curl -X POST $A/v1/delegations -H 'Authorization: Bearer dev-admin-token' \
@@ -101,26 +101,26 @@ A token opens the endpoints its roles allow: `attest-admin`, `attest-producer`,
 your provider names them differently, and `audience` to require one. An agent
 is known to policy by the client the token was issued to.
 
-## Enrolment
+## Enrollment
 
-People enrol themselves at `/enrol`: they sign in through the identity
+People enroll themselves at `/enroll`: they sign in through the identity
 provider, can record their voice, and choose what each agent may do for them.
 It needs a public OIDC client (authorization code with PKCE) whose redirect URI
-is `{publicUrl}/enrol/callback`:
+is `{publicUrl}/enroll/callback`:
 
 ```json
 "publicUrl": "http://localhost:8420",
-"oidc": { "issuer": "https://idp.example.com/realms/home", "clientId": "attest-enrol" },
-"enrol": { "voiceUrl": "https://voice.example.com/enrol" }
+"oidc": { "issuer": "https://idp.example.com/realms/home", "clientId": "attest-enroll" },
+"enroll": { "voiceUrl": "https://voice.example.com/enroll" }
 ```
 
 Signing in links an identity to the provider account and adopts its roles that
 `policy.roles` defines, refreshed on every sign-in. The voice recording goes
-from the browser straight to the voice producer at `enrol.voiceUrl`, carrying a
-single-use ticket; the producer redeems it at `POST /v1/enrolment-tickets/redeem`
+from the browser straight to the voice producer at `enroll.voiceUrl`, carrying a
+single-use ticket; the producer redeems it at `POST /v1/enrollment-tickets/redeem`
 to learn which identity it is for. attest never receives audio. Set
-`enrol.voiceProducer` to the producer's principal id so no other producer can
-redeem tickets. Requests to `/enrol` under any host other than `publicUrl`'s
+`enroll.voiceProducer` to the producer's principal id so no other producer can
+redeem tickets. Requests to `/enroll` under any host other than `publicUrl`'s
 are redirected there, because sign-in cookies only work on that host.
 
 Choices saved on the page replace only the delegations the person granted

@@ -1,4 +1,4 @@
-"""Talking to attest: evidence, retirements, enrolment-ticket redemption.
+"""Talking to attest: evidence, retirements, enrollment-ticket redemption.
 
 Only identity ids and LLRs leave this process; never audio or embeddings.
 """
@@ -168,12 +168,12 @@ class Attest:
         self._post("/v1/retirements", {"subject": key})
 
     def redeem_ticket(self, ticket: str) -> str | None:
-        """Identity id the ticket enrols, or None if attest says the ticket is
+        """Identity id the ticket enrolls, or None if attest says the ticket is
         unknown, used, or expired (its 404 with a JSON ``error``).
 
         Raises RedeemUnavailable for anything else attest answers, and OSError
         when attest cannot be reached."""
-        path = "/v1/enrolment-tickets/redeem"
+        path = "/v1/enrollment-tickets/redeem"
         try:
             status, body = self._post(path, {"ticket": ticket})
         except AttestError as e:

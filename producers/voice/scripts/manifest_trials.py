@@ -1,4 +1,4 @@
-"""Generate calibration trials from a labelled manifest of your own audio
+"""Generate calibration trials from a labeled manifest of your own audio
 (see attest_voice/trials.py for the format), for `attest-voice fit-calibration`.
 
     uv run python scripts/manifest_trials.py manifest.jsonl trials.jsonl [--durations 1,2,3,5,10] [--tests-per-speaker 6]

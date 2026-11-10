@@ -1,4 +1,4 @@
-"""attest-voice: enrol | forget | run | serve | fit-calibration"""
+"""attest-voice: enroll | forget | run | serve | fit-calibration"""
 
 from __future__ import annotations
 
@@ -18,15 +18,15 @@ def _models(cfg: Config):  # type: ignore[no-untyped-def]
     return Models(cfg.models_dir, threads=cfg.threads, diarization=cfg.diarization)
 
 
-def cmd_enrol(cfg: Config, a: argparse.Namespace) -> int:
+def cmd_enroll(cfg: Config, a: argparse.Namespace) -> int:
     from .audio import decode
-    from .enrol import TooLittleSpeech, enrol
+    from .enroll import TooLittleSpeech, enroll
     from .models import EMBEDDING_MODEL
     from .store import Store
 
     try:
-        voiced = enrol(a.identity, decode(a.audio), _models(cfg), Store(cfg.data_dir),
-                       model=EMBEDDING_MODEL, min_seconds=cfg.min_enrol_seconds)
+        voiced = enroll(a.identity, decode(a.audio), _models(cfg), Store(cfg.data_dir),
+                       model=EMBEDDING_MODEL, min_seconds=cfg.min_enroll_seconds)
     except TooLittleSpeech as e:
         print(e, file=sys.stderr)
         return 2
@@ -67,12 +67,12 @@ def cmd_run(cfg: Config, a: argparse.Namespace) -> int:
 
 def cmd_serve(cfg: Config, a: argparse.Namespace) -> int:
     from .models import EMBEDDING_MODEL
-    from .server import EnrolService, serve
+    from .server import EnrollService, serve
     from .store import Store
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
-    svc = EnrolService(cfg.attest(), _models(cfg), Store(cfg.data_dir), model=EMBEDDING_MODEL,
-                       min_seconds=cfg.min_enrol_seconds, cors_origin=cfg.cors_origin, max_body=cfg.max_body_bytes)
+    svc = EnrollService(cfg.attest(), _models(cfg), Store(cfg.data_dir), model=EMBEDDING_MODEL,
+                       min_seconds=cfg.min_enroll_seconds, cors_origin=cfg.cors_origin, max_body=cfg.max_body_bytes)
     serve(svc, a.listen or cfg.listen)
     return 0
 
@@ -133,10 +133,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-c", "--config", help="config JSON (see attest-voice.example.json)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    e = sub.add_parser("enrol", help="store a voiceprint from an audio file (operator path)")
+    e = sub.add_parser("enroll", help="store a voiceprint from an audio file (operator path)")
     e.add_argument("--identity", required=True)
     e.add_argument("audio")
-    e.set_defaults(fn=cmd_enrol)
+    e.set_defaults(fn=cmd_enroll)
 
     f = sub.add_parser("forget", help="delete an identity's voiceprint")
     f.add_argument("--identity", required=True)
@@ -151,11 +151,11 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--scores", action="store_true", help="include raw cosine scores in evidence events")
     r.set_defaults(fn=cmd_run)
 
-    s = sub.add_parser("serve", help="run the browser enrolment endpoint")
+    s = sub.add_parser("serve", help="run the browser enrollment endpoint")
     s.add_argument("--listen", default="")
     s.set_defaults(fn=cmd_serve)
 
-    c = sub.add_parser("fit-calibration", help="fit a score->LLR calibration from labelled trials")
+    c = sub.add_parser("fit-calibration", help="fit a score->LLR calibration from labeled trials")
     c.add_argument("trials", help='JSON lines: {"score": float, "same": bool, "seconds": float}')
     c.add_argument("--id", required=True, help="calibration id sent to attest")
     c.add_argument("--model", default="", help="embedding model the scores came from")
