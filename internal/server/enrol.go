@@ -415,8 +415,8 @@ func (s *Server) enrolConsent(w http.ResponseWriter, r *http.Request, _ string, 
 
 func (s *Server) enrolRevoke(w http.ResponseWriter, r *http.Request, _ string, sess session) {
 	d, ok := s.delegations.Get(r.PostFormValue("id"))
-	// A person can only withdraw their own consent.
-	if !ok || d.IdentityID != sess.identityID {
+	// A person can only withdraw their own, still-live consent.
+	if !ok || d.IdentityID != sess.identityID || d.RevokedAt != nil {
 		http.Error(w, "Not found.", http.StatusNotFound)
 		return
 	}

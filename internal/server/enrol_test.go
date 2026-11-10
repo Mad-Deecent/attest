@@ -260,6 +260,9 @@ func TestConsentGrantsAndRevokeDenies(t *testing.T) {
 		t.Fatalf("revoke: %d %s", code, b.body)
 	}
 	denied(t, decide("music.control"), "no live delegation")
+	if code := b.post("/enrol/revoke", url.Values{"csrf": {b.csrf()}, "id": {live[0].ID}}); code != http.StatusNotFound {
+		t.Fatalf("revoking twice: %d", code)
+	}
 }
 
 func TestEnrolmentFormsNeedTheCSRFToken(t *testing.T) {
