@@ -74,7 +74,12 @@ trap cleanup EXIT
 trap 'exit 130' INT TERM
 
 step() { printf '\n== %s\n' "$*"; }
-free_port() { python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])'; }
+# Three distinct free ports: all bound at once, so none is handed out twice.
+free_ports() {
+  python3 -c 'import socket; s = [socket.socket() for _ in range(3)]
+for x in s: x.bind(("127.0.0.1", 0))
+print(*(x.getsockname()[1] for x in s))'
+}
 secret() { python3 -c 'import secrets; print(secrets.token_urlsafe(24))'; }
 uuid() { python3 -c 'import uuid; print(uuid.uuid4())'; }
 wait_for() { # url status
@@ -97,7 +102,7 @@ if [ "$MODE" = keycloak ]; then
   echo "discovery ok; secret files present (contents not shown)"
 fi
 
-AP=$(free_port) GP=$(free_port) MP=$(free_port)
+read -r AP GP MP < <(free_ports)
 ATTEST=http://127.0.0.1:$AP
 ADMIN_TOKEN=$(secret)
 step "building into $WORK (mode: $MODE; attest :$AP, gateway :$GP, toy MCP :$MP)"

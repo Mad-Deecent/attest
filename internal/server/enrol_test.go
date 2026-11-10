@@ -485,13 +485,15 @@ func TestOnlyTheVoiceProducerRedeemsTickets(t *testing.T) {
 		return map[string]string{"ticket": issued.Ticket}
 	}
 
-	first := ticket()
 	// Another producer is refused without spending the ticket.
+	first := ticket()
 	e.api.call("face", "POST", "/v1/enrolment-tickets/redeem", first, http.StatusForbidden, nil)
-	// A newer ticket replaces it.
-	second := ticket()
-	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", first, http.StatusNotFound, nil)
-	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", second, http.StatusOK, nil)
+	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", first, http.StatusOK, nil)
+
+	// A newer ticket voids the identity's unredeemed one.
+	older, newer := ticket(), ticket()
+	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", older, http.StatusNotFound, nil)
+	e.api.call("voice", "POST", "/v1/enrolment-tickets/redeem", newer, http.StatusOK, nil)
 }
 
 func TestEnrolmentLivesOnThePublicHost(t *testing.T) {
