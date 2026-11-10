@@ -3,7 +3,7 @@
 `mockup.html` is a self-contained, clickable mockup (no network requests, no
 frameworks). Open it in a browser. The dashed "Mockup" bar switches each
 screen between its normal, empty, pending and problem states, and sets the
-theme. Every view has a link: `#home/problem`, `#setup/2/connected`, `#people/tomas`.
+theme. Only Tomás's person page and the Home assistant's tools are drawn. Every view has a link: `#home/problem`, `#setup/2/connected`, `#people/tomas`.
 
 ## Information architecture
 
@@ -38,7 +38,7 @@ sections, and More holds Activity, Settings and Setup.
 2. **Four named levels, never percentages, outside Advanced.** The same names appear in the room cards, the tool picker, person pages and the log. The 3-step meter always has the word next to it, so it never relies on colour.
 3. **Sensitivity is set per tool with a suggested default.** Adding a tool server is one address plus "Connect". Each discovered tool gets a suggested level that one click changes. Tools that are always allowed (emergency call) are shown as locked.
 4. **The console says when a level can never be reached.** Certain needs two kinds of device in the same room. The tool picker, person page ("Without his face, Tomás can't reach Certain") and offline notices say so in plain words, instead of letting a door refuse forever.
-5. **Every refusal has a reason a person can act on.** Each log entry is one sentence. Opening one gives a yes/no checklist of the six checks, and under Advanced the raw LLRs, belief and engine reasons.
+5. **Every refusal has a reason a person can act on.** Each log entry is one sentence. Opening one gives a yes/no checklist of each check, and under Advanced the raw LLRs, belief and engine reasons.
 6. **The identity provider stays the source of truth.** People and roles are read from it ("add them in Keycloak"). The wizard creates the client and roles there and lists exactly what it created. attest never asks you to edit config.
 7. **Same product as `/enrol`.** Same tokens, 44px targets, focus ring, left-border notices and chose/managed split. New: `--warn` (amber), a surface colour, and cards.
 8. **Privacy is visible.** Setup, Backup and Remove all repeat that attest never holds voices or faces, and say what each action does to devices.

@@ -14,6 +14,7 @@
   --muted: #565656;
   --line: #c9c9c9;
   --line-soft: #e3e4e8;
+  --line-strong: #767676;
   --panel: #f3f4f6;
   --surface: #ffffff;
   --accent: #0b57d0;
@@ -28,14 +29,14 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #121212; --fg: #ececec; --muted: #b4b4b4; --line: #4a4a4a; --line-soft: #2c2d31;
+    --bg: #121212; --fg: #ececec; --muted: #b4b4b4; --line: #4a4a4a; --line-strong: #8a8a8a; --line-soft: #2c2d31;
     --panel: #1f2023; --surface: #18191b; --accent: #8ab4f8; --accent-fg: #0b1a33; --accent-soft: #1c2a42;
     --ok: #7dd99b; --warn: #f2c46d; --problem: #ffb4ab; --shadow: none;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #121212; --fg: #ececec; --muted: #b4b4b4; --line: #4a4a4a; --line-soft: #2c2d31;
+  --bg: #121212; --fg: #ececec; --muted: #b4b4b4; --line: #4a4a4a; --line-strong: #8a8a8a; --line-soft: #2c2d31;
   --panel: #1f2023; --surface: #18191b; --accent: #8ab4f8; --accent-fg: #0b1a33; --accent-soft: #1c2a42;
   --ok: #7dd99b; --warn: #f2c46d; --problem: #ffb4ab; --shadow: none;
 }
@@ -223,7 +224,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 /* Forms */
 label.field { display: grid; gap: 0.35rem; font-weight: 600; }
 input[type="text"], input[type="url"], input[type="email"], input[type="search"], input[type="number"], select {
-  min-height: 44px; width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-radius: var(--radius);
+  min-height: 44px; width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--line-strong); border-radius: var(--radius);
   background: var(--surface); color: var(--fg); font: inherit; font-weight: 400;
 }
 input::placeholder { color: var(--muted); opacity: 0.85; }
@@ -244,7 +245,7 @@ input::placeholder { color: var(--muted); opacity: 0.85; }
 .tile:has(input:checked) .check-mark { display: block; }
 
 /* Level picker: segmented radio group */
-.levels { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: var(--radius); padding: 3px; gap: 3px; margin: 0; background: var(--panel); }
+.levels { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 3px; gap: 3px; margin: 0; background: var(--panel); }
 .levels legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .levels label { position: relative; display: inline-flex; align-items: center; min-height: 38px; padding: 0 0.75rem; border-radius: 0.35rem; font-size: 0.875rem; font-weight: 550; cursor: pointer; white-space: nowrap; }
 .levels input { position: absolute; opacity: 0; inset: 0; cursor: pointer; margin: 0; }
@@ -257,7 +258,7 @@ input::placeholder { color: var(--muted); opacity: 0.85; }
 
 /* Toggles (checkbox styled as switch) */
 .switch { display: flex; align-items: center; gap: 0.75rem; min-height: 44px; cursor: pointer; }
-.switch input { appearance: none; -webkit-appearance: none; width: 2.75rem; height: 1.6rem; border-radius: 999px; background: var(--line); position: relative; margin: 0; flex: none; cursor: pointer; }
+.switch input { appearance: none; -webkit-appearance: none; width: 2.75rem; height: 1.6rem; border-radius: 999px; background: var(--line-strong); position: relative; margin: 0; flex: none; cursor: pointer; }
 .switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: calc(1.6rem - 6px); height: calc(1.6rem - 6px); border-radius: 50%; background: #fff; }
 .switch input:checked { background: var(--ok); }
 .switch input:checked::after { left: calc(100% - 1.6rem + 3px); }
@@ -305,7 +306,7 @@ td input[type="number"] { width: 6rem; min-height: 38px; text-align: right; }
 .filters .field { flex: 1 1 11rem; font-size: 0.875rem; }
 .filters .field.search { flex: 2 1 16rem; }
 .chips { display: inline-flex; flex-wrap: wrap; gap: 0.35rem; border: 0; padding: 0; margin: 0; }
-.chips label { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 0 1rem; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; font-weight: 550; }
+.chips label { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 0 1rem; border: 1px solid var(--line-strong); border-radius: 999px; cursor: pointer; font-weight: 550; }
 .chips input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
 .chips label:has(input:checked) { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .chips label:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -711,7 +712,7 @@ td input[type="number"] { width: 6rem; min-height: 38px; text-align: right; }
 
     <div data-when="problem" class="warning" role="status" style="margin-top:1.25rem">
       <svg class="icon"><use href="#i-alert"/></svg>
-      <div class="notice-body"><p><strong>Front door camera stopped reporting at 18:40.</strong> It may be unplugged or off the network. Until it's back, nobody can be recognised at the front door.</p></div>
+      <div class="notice-body"><p><strong>Front door camera stopped reporting at 18:40.</strong> It may be unplugged or off the network. Until it's back, nobody's face can be recognised at the front door, so only voices count there.</p></div>
     </div>
 
     <section class="card" aria-labelledby="adopted-h" style="margin-top:1.25rem">
@@ -771,7 +772,7 @@ td input[type="number"] { width: 6rem; min-height: 38px; text-align: right; }
         <span class="thing"><svg class="icon"><use href="#i-assistant"/></svg></span>
         <span class="row-main"><strong>Home assistant</strong><br><span class="small muted">Speakers in every room · 3 people let it act for them</span></span>
         <span class="pill ok"><svg class="icon"><use href="#i-check"/></svg>Online</span></a>
-      <a class="card" href="#assistants" style="text-decoration:none;color:inherit;display:flex;gap:0.9rem;align-items:center">
+      <a class="card" href="#assistants" title="Mockup: only the Home assistant view is drawn" style="text-decoration:none;color:inherit;display:flex;gap:0.9rem;align-items:center">
         <span class="thing"><svg class="icon"><use href="#i-car"/></svg></span>
         <span class="row-main"><strong>Car assistant</strong><br><span class="small muted">In the car · 2 people let it act for them</span></span>
         <span class="pill off"><svg class="icon"><use href="#i-info"/></svg>Asleep</span></a>
@@ -860,13 +861,13 @@ td input[type="number"] { width: 6rem; min-height: 38px; text-align: right; }
       <div class="notice-body"><p><strong>Can't reach Keycloak.</strong> Showing people and roles as of 18:52. New people can't sign in until it's back.</p></div></div>
     <section class="card">
       <ul class="rows wrap-sm">
-        <li><span class="avatar a1">NH</span><div class="row-main"><p><a href="#people/noor"><strong>Noor Haddad</strong></a> <span class="tags" style="display:inline-flex"><span class="tag">Admin</span><span class="tag">Resident</span></span></p>
+        <li><span class="avatar a1">NH</span><div class="row-main"><p><strong>Noor Haddad</strong> <span class="tags" style="display:inline-flex"><span class="tag">Admin</span><span class="tag">Resident</span></span></p>
           <div class="enrol-marks"><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Signed in</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Voice</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Face</span></div></div>
           <span class="row-end small muted">2 assistants</span></li>
         <li><span class="avatar a2">TR</span><div class="row-main"><p><a href="#people/tomas"><strong>Tomás Reyes</strong></a> <span class="tags" style="display:inline-flex"><span class="tag">Resident</span></span></p>
           <div class="enrol-marks"><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Signed in</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Voice</span><span class="no">— No face</span></div></div>
           <span class="row-end small muted">2 assistants</span></li>
-        <li><span class="avatar a3">IR</span><div class="row-main"><p><a href="#people/ilse"><strong>Ilse Reyes</strong></a> <span class="tags" style="display:inline-flex"><span class="tag">Child</span></span></p>
+        <li><span class="avatar a3">IR</span><div class="row-main"><p><strong>Ilse Reyes</strong> <span class="tags" style="display:inline-flex"><span class="tag">Child</span></span></p>
           <div class="enrol-marks"><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Signed in</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Voice</span><span class="yes"><svg class="icon"><use href="#i-check"/></svg>Face</span></div></div>
           <span class="row-end small muted">1 assistant</span></li>
         <li><span class="avatar a4">RH</span><div class="row-main"><p><strong>Ruth Haddad</strong> <span class="tags" style="display:inline-flex"><span class="tag">Guest</span></span></p>
@@ -874,7 +875,7 @@ td input[type="number"] { width: 6rem; min-height: 38px; text-align: right; }
           <span class="row-end"><button type="button" class="secondary">Invite</button></span></li>
       </ul>
     </section>
-    <p class="small muted" style="margin-top:1rem">To add someone, add them in Keycloak. They appear here within a minute.</p>
+    <p class="small muted" style="margin-top:1rem">Mockup: only Tomás has a detail page. To add someone, add them in Keycloak. They appear here within a minute.</p>
   </div>
 
   <div data-view="tomas">
@@ -1150,6 +1151,11 @@ td input[type="number"] { width: 6rem; min-height: 38px; text-align: right; }
     if (h1 && route.ready) { h1.focus({ preventScroll: true }); window.scrollTo(0, 0); }
     route.ready = true;
   }
+  document.querySelector(".skip").addEventListener("click", function (e) {
+    e.preventDefault();
+    var h = [].filter.call(document.querySelectorAll("main h1"), function (x) { return x.offsetParent; })[0];
+    if (h) h.focus();
+  });
   window.addEventListener("hashchange", route);
   route();
 
