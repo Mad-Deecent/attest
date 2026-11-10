@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -18,8 +17,8 @@ import (
 //
 //	ATTEST_KEYCLOAK_IT=1 go test ./internal/server -run KeycloakForReal
 //
-// ATTEST_KEYCLOAK_URL and ATTEST_KEYCLOAK_REALM pick the realm, and
-// ATTEST_KEYCLOAK_ADMIN_FILE holds "clientId:secret" of a service client
+// ATTEST_KEYCLOAK_URL and ATTEST_KEYCLOAK_REALM (both required) pick the realm, and
+// ATTEST_KEYCLOAK_ADMIN_FILE (required) holds "clientId:secret" of a service client
 // with realm-admin. The only thing it creates is the client
 // attest-enroll-setup-test, which it deletes afterwards; it checks that the
 // realm's attest roles and the attest-enroll client are untouched.
@@ -27,10 +26,11 @@ func TestKeycloakForReal(t *testing.T) {
 	if os.Getenv("ATTEST_KEYCLOAK_IT") == "" {
 		t.Skip("set ATTEST_KEYCLOAK_IT=1 to run against a real Keycloak")
 	}
-	base := envOr("ATTEST_KEYCLOAK_URL", "http://keycloak.ethel.internal:8080")
-	realm := envOr("ATTEST_KEYCLOAK_REALM", "ethel")
-	home, _ := os.UserHomeDir()
-	raw, err := os.ReadFile(envOr("ATTEST_KEYCLOAK_ADMIN_FILE", filepath.Join(home, ".cache", "kc-keycloak_ethel_mbp_service_client")))
+	base, realm, adminFile := os.Getenv("ATTEST_KEYCLOAK_URL"), os.Getenv("ATTEST_KEYCLOAK_REALM"), os.Getenv("ATTEST_KEYCLOAK_ADMIN_FILE")
+	if base == "" || realm == "" || adminFile == "" {
+		t.Skip("set ATTEST_KEYCLOAK_URL (e.g. https://idp.example.com), ATTEST_KEYCLOAK_REALM and ATTEST_KEYCLOAK_ADMIN_FILE")
+	}
+	raw, err := os.ReadFile(adminFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,13 +108,6 @@ func TestKeycloakForReal(t *testing.T) {
 		t.Fatalf("a realm token after connecting: status %d", resp.StatusCode)
 	}
 	t.Logf("realm service token against /v1/settings: %d", resp.StatusCode)
-}
-
-func envOr(name, fallback string) string {
-	if v := os.Getenv(name); v != "" {
-		return v
-	}
-	return fallback
 }
 
 // realKeycloak is just enough admin API to check and clean up.

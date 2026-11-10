@@ -49,10 +49,14 @@ VOICE="$ROOT/producers/voice"
 GO=${GO:-$(command -v go || echo "$HOME/sdk/go/bin/go")}
 LIBRISPEECH=${LIBRISPEECH:-$HOME/.cache/librispeech/LibriSpeech/dev-clean}
 MODELS=${MODELS:-$HOME/.cache/sherpa-onnx-models}
-ISSUER=${ATTEST_OIDC_ISSUER:-http://keycloak.ethel.internal:8080/realms/ethel}
+ISSUER=${ATTEST_OIDC_ISSUER:-}
 CONCIERGE_SECRET_FILE=${CONCIERGE_SECRET_FILE:-$HOME/.cache/attest-concierge-secret}
 VOICE_PRODUCER_SECRET_FILE=${VOICE_PRODUCER_SECRET_FILE:-$HOME/.cache/attest-voice-producer-secret}
 TRIGGERS=${TRIGGERS:-$HERE/triggers.json}
+
+if [ "$MODE" = keycloak ] && [ -z "$ISSUER" ]; then
+  echo "--keycloak needs ATTEST_OIDC_ISSUER, e.g. https://idp.example.com/realms/home" >&2; exit 2
+fi
 
 for tool in "$GO" uv curl jq python3; do
   command -v "$tool" >/dev/null || { echo "missing: $tool" >&2; exit 2; }
