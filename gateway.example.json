@@ -1,0 +1,17 @@
+{
+  "listen": ":8430",
+  "upstream": "http://localhost:9000/mcp",
+  "attest": {
+    "url": "http://localhost:8420",
+    "oidc": {
+      "issuer": "https://id.example.com/realms/home",
+      "clientId": "attest-gateway",
+      "clientSecretFile": "/run/secrets/gateway-client-secret"
+    }
+  },
+  "tools": {
+    "play_music": { "permission": "music.control" },
+    "unlock_door": { "permission": "door.unlock", "resource": "front" },
+    "call_emergency": { "permission": "emergency.call" }
+  }
+}
