@@ -92,6 +92,7 @@ type Server struct {
 	rbac        *decision.RBAC
 	enroll      *enrollment
 	setup       *setup
+	console     *consoleSessions
 	data        string
 	live        atomic.Pointer[live]
 	settingsMu  sync.Mutex
@@ -140,6 +141,7 @@ func New(cfg Config, now func() time.Time) (*Server, error) {
 		rbac:        decision.NewRBAC(seedRoles),
 		enroll:      newEnrollment(cfg.Enroll),
 		setup:       &setup{},
+		console:     newConsoleSessions(),
 		data:        cfg.Data,
 		now:         now,
 	}
@@ -172,14 +174,17 @@ func (s *Server) Handler() http.Handler {
 
 	s.setupRoutes(mux)
 	s.settingsRoutes(mux)
+	s.consoleRoutes(mux)
 
-	mux.HandleFunc("GET /v1/identities", s.as(KindAdmin, s.listIdentities))
-	mux.HandleFunc("PUT /v1/identities/{id}", s.as(KindAdmin, s.putIdentity))
-	mux.HandleFunc("PUT /v1/identities/{id}/roles", s.as(KindAdmin, s.putRoles))
-	mux.HandleFunc("DELETE /v1/identities/{id}", s.as(KindAdmin, s.deleteIdentity))
-	mux.HandleFunc("GET /v1/delegations", s.as(KindAdmin, s.listDelegations))
-	mux.HandleFunc("POST /v1/delegations", s.as(KindAdmin, s.addDelegation))
-	mux.HandleFunc("DELETE /v1/delegations/{id}", s.as(KindAdmin, s.revokeDelegation))
+	// Admin endpoints take a bearer token or a console session, never the
+	// setup session.
+	mux.HandleFunc("GET /v1/identities", s.asConsoleAdmin(s.listIdentities))
+	mux.HandleFunc("PUT /v1/identities/{id}", s.asConsoleAdmin(s.putIdentity))
+	mux.HandleFunc("PUT /v1/identities/{id}/roles", s.asConsoleAdmin(s.putRoles))
+	mux.HandleFunc("DELETE /v1/identities/{id}", s.asConsoleAdmin(s.deleteIdentity))
+	mux.HandleFunc("GET /v1/delegations", s.asConsoleAdmin(s.listDelegations))
+	mux.HandleFunc("POST /v1/delegations", s.asConsoleAdmin(s.addDelegation))
+	mux.HandleFunc("DELETE /v1/delegations/{id}", s.asConsoleAdmin(s.revokeDelegation))
 
 	mux.HandleFunc("POST /v1/evidence", s.as(KindProducer, s.postEvidence))
 	mux.HandleFunc("POST /v1/associations", s.as(KindProducer, s.postAssociation))
@@ -234,8 +239,23 @@ func (s *Server) authenticate(r *http.Request) (Principal, int) {
 	return p, http.StatusOK
 }
 
+// identityView is an identity with the roles attest holds for it.
+type identityView struct {
+	identity.Identity
+	Roles []string `json:"roles"`
+}
+
 func (s *Server) listIdentities(w http.ResponseWriter, _ *http.Request, _ Principal) {
-	reply(w, http.StatusOK, s.registry.List())
+	list := s.registry.List()
+	out := make([]identityView, len(list))
+	for i, ident := range list {
+		roles := s.rbac.Roles(ident.ID)
+		if roles == nil {
+			roles = []string{}
+		}
+		out[i] = identityView{Identity: ident, Roles: roles}
+	}
+	reply(w, http.StatusOK, out)
 }
 
 func (s *Server) putIdentity(w http.ResponseWriter, r *http.Request, _ Principal) {

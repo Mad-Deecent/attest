@@ -12,8 +12,12 @@ go run ./cmd/attest
 
 With no config file, attest starts unconfigured, keeps its state in
 `~/.local/state/attest/attest.json` (`-data` to move it), and prints a one-time
-setup code to its log. A console will walk through the rest; until it exists,
-these are the calls it makes:
+setup code to its log. Open `http://localhost:8420/` and the console walks
+through the rest: the code, the address people reach attest at, your identity
+provider, finish. Then sign in with the account you connected with, which now
+holds `attest-admin`, to manage connections and policy. Nothing needs a restart.
+
+The console makes these calls, which also work from a script:
 
 ```bash
 A=localhost:8420

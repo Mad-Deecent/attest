@@ -169,36 +169,10 @@ func (s *Server) openSetup(w http.ResponseWriter, r *http.Request) {
 	reply(w, http.StatusCreated, map[string]any{"csrf": csrf, "expiresAt": expires})
 }
 
-// asAdmin admits an admin credential, or the setup session while attest is
-// unconfigured. A request with a bearer token is judged on the token alone.
-func (s *Server) asAdmin(next handler) http.HandlerFunc {
-	bearer := s.as(KindAdmin, next)
-	return func(w http.ResponseWriter, r *http.Request) {
-		c, err := r.Cookie(setupCookie)
-		if err != nil || r.Header.Get("Authorization") != "" {
-			bearer(w, r)
-			return
-		}
-		write := r.Method != http.MethodGet && r.Method != http.MethodHead
-		status := s.setup.check(c.Value, r.Header.Get("X-CSRF-Token"), write, s.now())
-		if s.cur().settings.SetupComplete {
-			status = http.StatusUnauthorized
-		}
-		switch status {
-		case http.StatusOK:
-			next(w, r, Principal{Kind: KindAdmin, ID: "setup", viaSetup: true})
-		case http.StatusForbidden:
-			fail(w, status, "missing or wrong X-CSRF-Token")
-		default:
-			fail(w, status, "setup session expired or invalid")
-		}
-	}
-}
-
 // completeSetup ends first-run setup once attest can verify credentials from
 // the provider and send people back to itself. From then on the setup code
 // and session are dead, including across restarts.
-func (s *Server) completeSetup(w http.ResponseWriter, _ *http.Request, _ Principal) {
+func (s *Server) completeSetup(w http.ResponseWriter, r *http.Request, _ Principal) {
 	// Under the settings lock, so the provider checked here is the one that
 	// is saved as set up, not one a concurrent connect is replacing.
 	s.settingsMu.Lock()
@@ -223,6 +197,12 @@ func (s *Server) completeSetup(w http.ResponseWriter, _ *http.Request, _ Princip
 		return
 	}
 	s.setup.end()
+	// The browser that finished setup signs in next; its dead setup cookie
+	// should not linger beside the console session.
+	http.SetCookie(w, &http.Cookie{
+		Name: setupCookie, Path: "/v1/", MaxAge: -1,
+		HttpOnly: true, Secure: r.TLS != nil || l.secure(), SameSite: http.SameSiteStrictMode,
+	})
 	log.Printf("setup complete: the setup code no longer works")
 	reply(w, http.StatusOK, map[string]bool{"setupComplete": true})
 }
