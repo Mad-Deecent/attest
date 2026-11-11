@@ -1,5 +1,10 @@
 # Admin console: design v2
 
+The real console lives in `internal/server/console/` and is served at `/console/`.
+It implements Setup, Connections, Policy and a read-only Identities list against
+the API; the rest of this mockup is the direction, not yet built. It has no
+"Possible in" column in Policy: that needs sensor coverage attest does not have yet.
+
 `mockup.html` is one self-contained file (inline CSS, JS and SVG; no network
 requests, no frameworks). Every view has a link (`#decisions/d-1938`, `#policy/door.unlock`, `#setup/1`);
 `?theme=dark` and `?still=1` are for screenshots. `⌘K` jumps anywhere; `g` then `p i s a o d v` switches domain; `j`/`k` move through a list.
