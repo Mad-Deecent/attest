@@ -156,7 +156,7 @@
     <noscript><p class="problem">Recording needs JavaScript, which is turned off. You can skip this step and come back later.</p></noscript>
     <div class="actions">
       <button type="button" id="start" class="primary wide" disabled><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5"/><path d="M3 7.5a5 5 0 0 0 10 0M8 12.5V15"/></svg>Start recording</button>
-      <a class="button quiet wide" href="{{.Skip}}">{{if .Returning}}Back{{else}}Skip for now{{end}}</a>
+      <a class="button quiet wide" href="{{.Skip}}">{{if .Editing}}Back{{else}}Skip for now{{end}}</a>
     </div>
   </main>
 
@@ -165,7 +165,7 @@
     <h1 tabindex="-1">Voice saved</h1>
     <p class="lede">The voice service checked <b id="saved-seconds">0 s</b> of speech and saved your summary. The recording is gone.</p>
     <p class="lede" id="saved-replaced" hidden>It replaces the voice you saved before.</p>
-    {{- if not .Returning}}
+    {{- if not .Editing}}
     <p class="lede">Next, choose what each assistant may do for you once it recognizes you.</p>
     {{- end}}
     <div class="actions">
@@ -234,7 +234,7 @@
     <p class="lede">Nothing is allowed until you tick it. Each action needs attest to be at least this sure it’s you.</p>
     <form method="post" action="/enroll/consent" id="consent">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
-      {{- if not .Returning}}
+      {{- if not .Editing}}
       <input type="hidden" name="then" value="done">
       {{- end}}
       {{- range .Agents}}
@@ -294,7 +294,7 @@
           <p class="fine">Assistants can’t recognize you by voice yet</p>
           {{- end}}
         </div>
-        <a class="button" href="/enroll?step=voice">{{if .VoiceSaved}}Record again{{else}}Record{{end}}</a>
+        <a class="button" href="/enroll?step=voice&amp;edit=1">{{if .VoiceSaved}}Record again{{else}}Record{{end}}</a>
       </div>
       {{- if .VoiceSaved}}
       <div id="forget" class="forget" data-voice-url="{{.VoiceURL}}" data-csrf="{{.CSRF}}">
@@ -345,7 +345,7 @@
 
     {{- if .CanChoose}}
     <div class="actions">
-      <a class="button primary wide" href="/enroll?step=choices">Change what it may do</a>
+      <a class="button primary wide" href="/enroll?step=choices&amp;edit=1">Change what it may do</a>
     </div>
     {{- end}}
   </main>

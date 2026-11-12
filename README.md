@@ -107,8 +107,15 @@ is known to policy by the client the token was issued to.
 
 ## Enrollment
 
+Once setup is complete, `/` is a sign-in page. "Continue with your account"
+is one sign-in for everyone: administrators (the `attest-admin` role) land in
+the console, everyone else in their enrollment. Enroll always leads to
+enrollment.
+
 People enroll themselves at `/enroll`: they sign in through the identity
 provider, can record their voice, and choose what each agent may do for them.
+Coming back, they see their voice (Record again, Delete my voice) and what
+each assistant may do, and can revoke any one of those.
 It needs a public OIDC client (authorization code with PKCE) whose redirect URI
 is `{publicUrl}/enroll/callback`:
 
@@ -122,7 +129,10 @@ Signing in links an identity to the provider account and adopts its roles that
 `policy.roles` defines, refreshed on every sign-in. The voice recording goes
 from the browser straight to the voice producer at `enroll.voiceUrl`, carrying a
 single-use ticket; the producer redeems it at `POST /v1/enrollment-tickets/redeem`
-to learn which identity it is for. attest never receives audio. Set
+to learn which identity it is for. attest never receives audio. Deleting a
+voice works the same way with a deletion-only ticket, which the producer
+redeems at `POST /v1/voice-deletion-tickets/redeem` before it deletes; see
+[the voice producer](producers/voice/README.md#deleting-a-voice). Set
 `enroll.voiceProducer` to the producer's principal id so no other producer can
 redeem tickets. Requests to `/enroll` under any host other than `publicUrl`'s
 are redirected there, because sign-in cookies only work on that host.

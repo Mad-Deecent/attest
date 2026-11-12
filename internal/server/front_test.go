@@ -385,7 +385,7 @@ func TestChoicesFlow(t *testing.T) {
 	if !strings.Contains(b.body, "Change what it may do") || strings.Contains(b.body, `aria-label="Steps"`) {
 		t.Fatalf("manage: %s", b.body)
 	}
-	b.get("/enroll?step=choices")
+	b.get("/enroll?step=choices&edit=1")
 	if !strings.Contains(b.body, `value="calendar.read" checked`) || !strings.Contains(b.body, "Save 1 choice") || strings.Contains(b.body, `name="then"`) {
 		t.Fatalf("returning choices: %s", b.body)
 	}

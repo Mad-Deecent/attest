@@ -97,7 +97,9 @@ type enrollView struct {
 	Name, Account string
 	Roles         []string
 	Steps         []stepView
-	Returning     bool
+	// Editing marks a step opened from the manage screen ("Record again",
+	// "Change what it may do"), as opposed to the newcomer's walk-through.
+	Editing bool
 
 	VoiceURL   string
 	VoiceDone  string // the date in full, on the voice step
@@ -193,7 +195,7 @@ func (s *Server) renderEnroll(w http.ResponseWriter, r *http.Request, status int
 		s.renderFront(w, r, status, problem)
 		return
 	}
-	s.signedInView(&v, l, ident, sess, r.URL.Query().Get("step"))
+	s.signedInView(&v, l, ident, sess, r.URL.Query().Get("step"), r.URL.Query().Get("edit") == "1")
 	s.writePage(w, l, status, &v)
 }
 
@@ -218,7 +220,7 @@ func (s *Server) writePage(w http.ResponseWriter, l *live, status int, v *enroll
 	}
 }
 
-func (s *Server) signedInView(v *enrollView, l *live, ident identity.Identity, sess session, step string) {
+func (s *Server) signedInView(v *enrollView, l *live, ident identity.Identity, sess session, step string, editing bool) {
 	policy := l.policy()
 	now := s.now()
 	v.SignedIn = true
@@ -234,16 +236,17 @@ func (s *Server) signedInView(v *enrollView, l *live, ident identity.Identity, s
 	live := s.liveDelegations(ident.ID, "", now)
 	// Someone who has a voice on record or anything allowed has been here
 	// before, and starts from what they have.
-	v.Returning = ident.VoiceEnrolledAt != nil || len(live) > 0
+	returning := ident.VoiceEnrolledAt != nil || len(live) > 0
 
 	switch step {
 	case "you", "voice", "choices", "done", "manage":
 	default:
 		step = "you"
-		if v.Returning {
+		if returning {
 			step = "manage"
 		}
 	}
+	v.Editing = editing && (step == "voice" || step == "choices")
 	if step == "voice" && v.VoiceURL == "" {
 		step = "choices"
 	}
@@ -252,19 +255,16 @@ func (s *Server) signedInView(v *enrollView, l *live, ident identity.Identity, s
 		"you": "You · Enroll · attest", "voice": "Voice · Enroll · attest", "choices": "Choices · Enroll · attest",
 		"done": "Enrolled · attest", "manage": "Your enrollment · attest",
 	}[step]
-	if !v.Returning || step == "you" {
-		phase := map[string]int{"you": 0, "voice": 1, "choices": 2, "done": 2}[step]
-		if step != "manage" {
-			for i, st := range steps {
-				if st.screen == "voice" && v.VoiceURL == "" {
-					continue
-				}
-				sv := stepView{Label: st.label, Current: i == phase}
-				if i <= phase {
-					sv.Class = "reached"
-				}
-				v.Steps = append(v.Steps, sv)
+	if phase, walking := map[string]int{"you": 0, "voice": 1, "choices": 2, "done": 2}[step]; walking && !v.Editing {
+		for i, st := range steps {
+			if st.screen == "voice" && v.VoiceURL == "" {
+				continue
 			}
+			sv := stepView{Label: st.label, Current: i == phase}
+			if i <= phase {
+				sv.Class = "reached"
+			}
+			v.Steps = append(v.Steps, sv)
 		}
 	}
 
@@ -272,7 +272,7 @@ func (s *Server) signedInView(v *enrollView, l *live, ident identity.Identity, s
 	v.Target = voiceTargetSeconds
 	v.MinSeconds = voiceMinFallback
 	v.Next, v.Skip = "/enroll?step=choices", "/enroll?step=choices"
-	if v.Returning {
+	if v.Editing {
 		v.Next, v.Skip = "/enroll", "/enroll"
 	}
 
