@@ -245,8 +245,39 @@ Other replies: 415 undecodable, 413 too large (`enroll.maxBodyBytes`, default
 (a plain-text 404), 403 (attest's `enroll.voiceProducer` names another
 producer), 5xx, or a 200 without an identity. The 502 body says which of the
 two it was, nothing is stored, and the cause is logged.
-CORS allows only `enroll.corsOrigin`: preflight is answered for it, and
-requests carrying any other `Origin` get 403.
+CORS allows only `enroll.corsOrigin` (methods `GET`, `POST`, `DELETE`):
+preflight is answered for it, and requests carrying any other `Origin` get 403.
+
+`GET /enroll` answers `{"minVoicedSeconds", "maxSeconds"}`, so the page's
+meter and its disabled Finish button use this producer's configured minimum
+rather than a guess.
+
+### Deleting a voice
+
+`DELETE /enroll`, header `Authorization: Bearer <voice deletion ticket>`. The
+page gets the ticket from attest (`POST /enroll/voice-deletion-ticket`); it is
+single-use, lasts five minutes, and is good for deletion only: attest refuses
+it at the enrollment redeem route, and refuses an enrollment ticket here.
+
+1. The ticket is redeemed at attest:
+   `POST {attest}/v1/voice-deletion-tickets/redeem {"ticket": "..."}` with the
+   producer's own credential. attest clears the identity's enrollment date and
+   saves that *before* it answers 200 `{"identityId", "hadVoice"}`; if it
+   cannot save, it puts the date back and answers 500, and nothing is deleted.
+2. The voiceprint is deleted, under the same lock as enrollment, so a
+   recording being stored cannot interleave with it. (Asking for a deletion
+   ticket also voids the person's unredeemed enrollment ticket.)
+3. **200** `{"identityId", "deleted": true, "held"}`. `held` is false when
+   there was no print; deleting twice is not an error.
+
+Other replies: **401** no ticket, or attest says it is unknown, used, expired,
+or not a deletion ticket; **502** attest unreachable or answering anything
+else (nothing deleted, attest unchanged); **500** `{"error", "deleted":
+false}` when attest has already forgotten the date but the print could not be
+deleted here (logged). That last case is the one partial failure: attest no
+longer lists a voice the producer still holds. The page says so and offers to
+try again; a retry gets a fresh ticket and deletes. attest never lists a voice
+the producer has deleted.
 
 ```js
 const form = new FormData();
@@ -258,7 +289,8 @@ await fetch("http://127.0.0.1:8431/enroll", {method: "POST", body: form,
 The recording is decoded in memory and discarded. Voiceprints (the embedding,
 its model, voiced seconds and date) are kept in `{dataDir}/voiceprints.json`:
 a 0700 directory and a 0600 file, replaced atomically, keyed by identity id.
-`forget --identity` deletes one. Audio and embeddings are never logged or
+`forget --identity` deletes one from the command line; it does not tell attest,
+so attest's enrollment date stays until the person enrolls or deletes again. Audio and embeddings are never logged or
 transmitted. `serve` warns at startup when `enroll.minVoicedSeconds` is under
 15 s: prints from less speech score unreliably on real room audio.
 

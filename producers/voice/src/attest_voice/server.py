@@ -10,7 +10,22 @@ redeemed at attest (with the producer's own credential), so a refused
 recording does not burn a single-use ticket, and a stored voiceprint is only
 replaced by one that passed every check.
 
-Responses: 201 ``{"identityId", "voicedSeconds", "recordedSeconds",
+``GET /enroll`` tells a page what a recording needs: ``{"minVoicedSeconds",
+"maxSeconds"}``, so it does not have to guess the configured minimum.
+
+``DELETE /enroll`` with ``Authorization: Bearer <voice deletion ticket>``
+deletes the person's voiceprint. The ticket is redeemed at attest first
+(``POST /v1/voice-deletion-tickets/redeem``); attest forgets the enrollment
+date and saves that before it answers, and only then is the print deleted, so
+attest never lists a voice that is gone. 200 ``{"identityId", "deleted":
+true, "held"}`` (``held`` says whether there was a print to delete; deleting
+twice is not an error); 401 no ticket, or attest says it is unknown, used,
+expired, or not a deletion ticket; 502 attest unreachable or answering
+unexpectedly (nothing deleted, attest unchanged); 500 attest has forgotten the
+date but the print could not be deleted here (logged; the page asks the
+person to try again with a fresh ticket).
+
+Responses to ``POST``: 201 ``{"identityId", "voicedSeconds", "recordedSeconds",
 "replaced", "previousVoicedSeconds"?}``; 401 no ticket, or attest says the
 ticket is unknown, used or expired; 413 too large or too long; 415 undecodable; 422
 refused, ``{"error", "reason", "voicedSeconds", "requiredSeconds",
@@ -88,6 +103,38 @@ class EnrollService:
         # One model instance is not safe for concurrent use; enrollment is rare.
         self._lock = threading.Lock()
 
+    def requirements(self) -> dict[str, Any]:
+        return {"minVoicedSeconds": self.min_seconds, "maxSeconds": self.max_audio_seconds}
+
+    def delete(self, ticket: str) -> tuple[int, dict[str, Any]]:
+        """Delete the voiceprint a deletion ticket names. Holds the enrollment
+        lock, so it cannot interleave with an enrollment storing a print."""
+        if not ticket:
+            return 401, {"error": "missing voice deletion ticket"}
+        with self._lock:
+            try:
+                identity = self.attest.redeem_deletion_ticket(ticket)
+            except RedeemUnavailable as e:
+                log.error("deletion ticket redemption failed, not because of the ticket: %s", e)
+                return 502, {"error": "The voice service could not check your deletion ticket with attest. Nothing was "
+                                      "deleted. Ask whoever runs this system to check the voice service's log."}
+            except OSError as e:
+                log.error("deletion ticket redemption failed, attest unreachable: %s", e)
+                return 502, {"error": "The voice service could not reach attest to check your deletion ticket. "
+                                      "Nothing was deleted. Please try again in a few minutes."}
+            if identity is None:
+                return 401, {"error": "deletion ticket is invalid, used, or expired"}
+            try:
+                held = self.store.delete(identity)
+            except OSError as e:
+                # attest has already forgotten the date: say so, and let the
+                # person ask again. A retry redeems a fresh ticket and deletes.
+                log.error("could not delete a voiceprint after attest released it: %s", e)
+                return 500, {"error": "attest no longer lists your voice, but the voice service could not delete it. "
+                                      "Please try again.", "deleted": False}
+        log.info("deleted an identity's voiceprint" if held else "deletion asked for an identity with no voiceprint")
+        return 200, {"identityId": identity, "deleted": True, "held": held}
+
     def handle(self, ticket: str, body: bytes, content_type: str = "") -> tuple[int, dict[str, Any]]:
         if not ticket:
             return 401, {"error": "missing enrollment ticket"}
@@ -140,7 +187,7 @@ def make_handler(svc: EnrollService) -> type[BaseHTTPRequestHandler]:
             if svc.cors_origin and origin == svc.cors_origin:
                 self.send_header("Access-Control-Allow-Origin", origin)
                 self.send_header("Vary", "Origin")
-                self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
                 self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
                 self.send_header("Access-Control-Max-Age", "600")
 
@@ -162,14 +209,34 @@ def make_handler(svc: EnrollService) -> type[BaseHTTPRequestHandler]:
                 return self._reply(403, {"error": "origin not allowed"})
             self._reply(204, None)
 
+        def _ticket(self) -> str | None:
+            """The bearer ticket, or None after refusing another origin."""
+            origin = self.headers.get("Origin")
+            if origin is not None and origin != svc.cors_origin:
+                self._reply(403, {"error": "origin not allowed"})
+                return None
+            auth = self.headers.get("Authorization", "")
+            return auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+
+        def do_GET(self) -> None:
+            if self.path != "/enroll":
+                return self._reply(404, {"error": "not found"})
+            self._reply(200, svc.requirements())
+
+        def do_DELETE(self) -> None:
+            if self.path != "/enroll":
+                return self._reply(404, {"error": "not found"})
+            ticket = self._ticket()
+            if ticket is None:
+                return
+            self._reply(*svc.delete(ticket))
+
         def do_POST(self) -> None:
             if self.path != "/enroll":
                 return self._reply(404, {"error": "not found"})
-            origin = self.headers.get("Origin")
-            if origin is not None and origin != svc.cors_origin:
-                return self._reply(403, {"error": "origin not allowed"})
-            auth = self.headers.get("Authorization", "")
-            ticket = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+            ticket = self._ticket()
+            if ticket is None:
+                return
             try:
                 n = int(self.headers.get("Content-Length", ""))
             except ValueError:

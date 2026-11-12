@@ -1,4 +1,4 @@
-"""Talking to attest: evidence, retirements, enrollment-ticket redemption.
+"""Talking to attest: evidence, retirements, enrollment and deletion tickets.
 
 Only identity ids and LLRs leave this process; never audio or embeddings.
 """
@@ -168,12 +168,21 @@ class Attest:
         self._post("/v1/retirements", {"subject": key})
 
     def redeem_ticket(self, ticket: str) -> str | None:
-        """Identity id the ticket enrolls, or None if attest says the ticket is
-        unknown, used, or expired (its 404 with a JSON ``error``).
+        """Identity id the enrollment ticket enrolls, or None if attest says
+        the ticket is unknown, used, or expired (its 404 with a JSON
+        ``error``).
 
         Raises RedeemUnavailable for anything else attest answers, and OSError
         when attest cannot be reached."""
-        path = "/v1/enrollment-tickets/redeem"
+        return self._redeem("/v1/enrollment-tickets/redeem", ticket)
+
+    def redeem_deletion_ticket(self, ticket: str) -> str | None:
+        """Identity id whose voice the deletion ticket deletes, as
+        :meth:`redeem_ticket`. attest has already forgotten the enrollment
+        date when this returns, so the caller must now delete the print."""
+        return self._redeem("/v1/voice-deletion-tickets/redeem", ticket)
+
+    def _redeem(self, path: str, ticket: str) -> str | None:
         try:
             status, body = self._post(path, {"ticket": ticket})
         except AttestError as e:
