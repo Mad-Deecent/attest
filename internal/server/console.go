@@ -170,9 +170,8 @@ func (s *Server) admin(next handler, setupOK bool) http.HandlerFunc {
 
 func (s *Server) consoleRoutes(mux *http.ServeMux) {
 	// Exactly "/": a bare "GET /" pattern would catch every unknown path.
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/console/", http.StatusFound)
-	})
+	mux.HandleFunc("GET /{$}", s.frontDoor)
+	mux.Handle("GET /login", s.canonical(http.HandlerFunc(s.login)))
 	mux.Handle("GET /console/static/", consoleHeaders(http.StripPrefix("/console/static/", noListing(http.FileServerFS(consoleStatic)))))
 	mux.Handle("GET /console/login", s.canonical(http.HandlerFunc(s.consoleLogin)))
 	mux.Handle("GET /console/", s.consoleCanonical(consoleHeaders(http.HandlerFunc(serveConsole))))
@@ -261,6 +260,64 @@ func consoleProblem(w http.ResponseWriter, r *http.Request, reason string) {
 	http.Redirect(w, r, "/console/sign-in?problem="+reason, http.StatusSeeOther)
 }
 
+// Sign-in modes carried in the flow cookie. A console sign-in needs the
+// admin role; a sign-in from the front door routes by it.
+const (
+	modeConsole = "console"
+	modeAuto    = "auto"
+)
+
+// frontDoor is "/". Until setup is complete it leads to setup in the
+// console. Afterwards it is the sign-in page, on publicUrl's host, unless
+// the browser is already signed in to the console or to enrollment.
+func (s *Server) frontDoor(w http.ResponseWriter, r *http.Request) {
+	if !s.cur().settings.SetupComplete {
+		http.Redirect(w, r, "/console/", http.StatusFound)
+		return
+	}
+	s.canonical(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if where := s.signedInAt(r); where != "" {
+			http.Redirect(w, r, where, http.StatusFound)
+			return
+		}
+		s.renderFront(w, r, http.StatusOK, "")
+	})).ServeHTTP(w, r)
+}
+
+// signedInAt is where a browser that is already signed in belongs: the
+// console for a console session, else enrollment for an enrollment session.
+func (s *Server) signedInAt(r *http.Request) string {
+	if _, _, ok := s.consoleSession(r); ok {
+		return "/console/"
+	}
+	if s.enrollSignedIn(r) {
+		return "/enroll"
+	}
+	return ""
+}
+
+// login is the front door's one sign-in. When the provider sends the person
+// back, holders of the admin role land in the console and everyone else in
+// their enrollment.
+func (s *Server) login(w http.ResponseWriter, r *http.Request) {
+	l := s.cur()
+	if !l.settings.SetupComplete {
+		http.Redirect(w, r, "/console/", http.StatusSeeOther)
+		return
+	}
+	if where := s.signedInAt(r); where != "" {
+		http.Redirect(w, r, where, http.StatusSeeOther)
+		return
+	}
+	if !l.enrolling() {
+		s.renderFront(w, r, http.StatusServiceUnavailable, "Sign-in isn't available: the identity provider is connected without a sign-in client.")
+		return
+	}
+	if !s.startSignIn(w, r, l, modeAuto, "/console/") {
+		s.renderFront(w, r, http.StatusServiceUnavailable, "Sign-in is unavailable right now. Please try again in a few minutes.")
+	}
+}
+
 func (s *Server) consoleLogin(w http.ResponseWriter, r *http.Request) {
 	l := s.cur()
 	if !l.settings.SetupComplete {
@@ -271,15 +328,24 @@ func (s *Server) consoleLogin(w http.ResponseWriter, r *http.Request) {
 		consoleProblem(w, r, "no-client")
 		return
 	}
+	if !s.startSignIn(w, r, l, modeConsole, safeReturn(r.URL.Query().Get("return"))) {
+		consoleProblem(w, r, "unavailable")
+	}
+}
+
+// startSignIn sends the browser to the provider with a fresh state, nonce
+// and PKCE verifier, kept with the mode and the post-sign-in path in a flow
+// cookie only the callback sees. It reports false when the provider cannot
+// be reached.
+func (s *Server) startSignIn(w http.ResponseWriter, r *http.Request, l *live, mode, back string) bool {
 	p, err := l.oidc.provider()
 	if err != nil {
-		consoleProblem(w, r, "unavailable")
-		return
+		return false
 	}
 	state, nonce, verifier := randomToken(), randomToken(), oauth2.GenerateVerifier()
-	back := base64.RawURLEncoding.EncodeToString([]byte(safeReturn(r.URL.Query().Get("return"))))
+	encoded := base64.RawURLEncoding.EncodeToString([]byte(safeReturn(back)))
 	http.SetCookie(w, &http.Cookie{
-		Name: consoleFlowCookie, Value: state + "." + nonce + "." + verifier + "." + back,
+		Name: consoleFlowCookie, Value: state + "." + nonce + "." + verifier + "." + encoded + "." + mode,
 		Path: "/enroll/callback", MaxAge: int(flowTTL.Seconds()),
 		HttpOnly: true, Secure: l.secure(),
 		// Lax: the provider's redirect back is a cross-site navigation.
@@ -289,6 +355,7 @@ func (s *Server) consoleLogin(w http.ResponseWriter, r *http.Request) {
 	// enrollment, so no provider needs reconfiguring for the console.
 	http.Redirect(w, r, l.oauth(p).AuthCodeURL(state,
 		oauth2.S256ChallengeOption(verifier), oidc.Nonce(nonce)), http.StatusFound)
+	return true
 }
 
 // consoleCallback finishes a console sign-in when the callback carries the
@@ -301,7 +368,7 @@ func (s *Server) consoleCallback(w http.ResponseWriter, r *http.Request, l *live
 	}
 	flow := strings.Split(c.Value, ".")
 	q := r.URL.Query()
-	if len(flow) != 4 || q.Get("state") == "" || subtle.ConstantTimeCompare([]byte(q.Get("state")), []byte(flow[0])) != 1 {
+	if len(flow) != 5 || (flow[4] != modeConsole && flow[4] != modeAuto) || q.Get("state") == "" || subtle.ConstantTimeCompare([]byte(q.Get("state")), []byte(flow[0])) != 1 {
 		return false
 	}
 	http.SetCookie(w, &http.Cookie{Name: consoleFlowCookie, Path: "/enroll/callback", MaxAge: -1, HttpOnly: true, Secure: l.secure(), SameSite: http.SameSiteLaxMode})
@@ -309,18 +376,30 @@ func (s *Server) consoleCallback(w http.ResponseWriter, r *http.Request, l *live
 		http.Redirect(w, r, "/console/", http.StatusSeeOther)
 		return true
 	}
+	// A front-door sign-in that did not finish goes back to the front door.
+	problem := func(reason string) {
+		if flow[4] == modeConsole {
+			consoleProblem(w, r, reason)
+			return
+		}
+		msg := "Sign-in didn't finish. Please try again."
+		if reason == "unavailable" {
+			msg = "Sign-in is unavailable right now. Please try again in a few minutes."
+		}
+		s.renderFront(w, r, http.StatusBadRequest, msg)
+	}
 	if q.Get("error") != "" {
-		consoleProblem(w, r, "failed")
+		problem("failed")
 		return true
 	}
 	done, status := finishSignIn(r, l, flow[1], flow[2], "console")
 	switch status {
 	case http.StatusOK:
 	case http.StatusServiceUnavailable:
-		consoleProblem(w, r, "unavailable")
+		problem("unavailable")
 		return true
 	default:
-		consoleProblem(w, r, "failed")
+		problem("failed")
 		return true
 	}
 	// A planted or stale session never survives a sign-in.
@@ -329,8 +408,14 @@ func (s *Server) consoleCallback(w http.ResponseWriter, r *http.Request, l *live
 	}
 	adminRole := l.oidc.cfg.Roles[KindAdmin]
 	if !slices.Contains(l.providerRoles(done.claims, done.tok.AccessToken), adminRole) {
-		log.Printf("console: refused a sign-in without the %s role", adminRole)
 		http.SetCookie(w, &http.Cookie{Name: consoleCookie, Path: "/", MaxAge: -1, HttpOnly: true, Secure: l.secure(), SameSite: http.SameSiteLaxMode})
+		// From the front door, anyone who is not an administrator is
+		// signed in to their own enrollment instead.
+		if flow[4] == modeAuto {
+			s.finishEnroll(w, r, l, done)
+			return true
+		}
+		log.Printf("console: refused a sign-in without the %s role", adminRole)
 		http.Redirect(w, r, "/console/no-access", http.StatusSeeOther)
 		return true
 	}

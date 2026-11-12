@@ -173,8 +173,14 @@ var ana = person{sub: "kc-ana", name: "Ana Lima", username: "ana", accessRoles: 
 func TestSignInLinksAnIdentityAndAdoptsRoles(t *testing.T) {
 	e := newEnrollEnv(t, "")
 	b := e.signIn(ana)
-	if !strings.Contains(b.body, "Ana Lima") || !strings.Contains(b.body, `value="door.unlock"`) {
-		t.Fatalf("signed-in page missing name or choices: %s", b.body)
+	// A newcomer starts at "You", with the account the provider names.
+	if !strings.Contains(b.body, "You’re signed in") || !strings.Contains(b.body, "Ana Lima") ||
+		!strings.Contains(b.body, `<dd class="mono">ana</dd>`) || !strings.Contains(b.body, "<dd>resident</dd>") {
+		t.Fatalf("signed-in page missing name, account or roles: %s", b.body)
+	}
+	b.get("/enroll?step=choices")
+	if !strings.Contains(b.body, `value="door.unlock"`) || strings.Contains(b.body, " checked") {
+		t.Fatalf("choices missing, or something is ticked for a newcomer: %s", b.body)
 	}
 	ids := e.identities()
 	if len(ids) != 1 {
@@ -219,7 +225,7 @@ func TestConsentGrantsAndRevokeDenies(t *testing.T) {
 
 	// Only offered permissions are recorded; "*" and floor permissions are not.
 	b.consent(map[string][]string{"concierge": {"music.control", "*", "emergency.call"}})
-	if !strings.Contains(b.body, "may: music control") {
+	if !strings.Contains(b.body, "Concierge may") || !strings.Contains(b.body, `<span class="what">Music control</span>`) {
 		t.Fatalf("page does not list the new consent: %s", b.body)
 	}
 	dels := e.delegations()
@@ -313,7 +319,7 @@ func TestEnrollmentTicketIsRedeemedOnce(t *testing.T) {
 	if e.identities()[0].VoiceEnrolledAt == nil {
 		t.Fatal("redeeming must record voiceEnrolledAt")
 	}
-	b.get("/enroll")
+	b.get("/enroll?step=voice")
 	if !strings.Contains(b.body, "Your voice was saved on") {
 		t.Fatalf("page does not show the voice step done: %s", b.body)
 	}
@@ -414,13 +420,17 @@ func TestConsentLeavesAdministratorDelegationsAlone(t *testing.T) {
 	}, http.StatusCreated, &managed)
 
 	b.get("/enroll")
-	if !strings.Contains(b.body, "Set up for you by whoever runs this system (only in: car;") ||
-		!strings.Contains(b.body, "until "+day(until)) {
-		t.Fatalf("administrator delegation not shown with its limits: %s", b.body)
+	want := "Set up by an administrator: car only, up to Sure, until " + shortDay(until, time.Now()) + ". Ask them to change it."
+	if !strings.Contains(b.body, want) {
+		t.Fatalf("administrator delegation not shown with its limits (%q): %s", want, b.body)
 	}
 	// It is shown, not offered as the person's own choice or revocable.
-	if strings.Contains(b.body, `value="calendar.read" checked`) || strings.Contains(b.body, `value="`+managed.ID+`"`) {
+	if strings.Contains(b.body, `value="`+managed.ID+`"`) || strings.Contains(b.body, `name="perm" value="calendar.read"`) {
 		t.Fatalf("administrator delegation must be read-only: %s", b.body)
+	}
+	b.get("/enroll?step=choices")
+	if strings.Contains(b.body, `value="calendar.read" checked`) {
+		t.Fatalf("administrator delegation must not be ticked as the person's own: %s", b.body)
 	}
 
 	stillLive := func() {
@@ -455,11 +465,13 @@ func TestPermissionLabels(t *testing.T) {
 	e.cfg.Policy.Labels = map[string]string{"calendar.read": "Read your calendar"}
 	e.restart()
 	b := e.signIn(ana)
-	if !strings.Contains(b.body, `value="calendar.read"> Read your calendar`) || !strings.Contains(b.body, "> Music control") {
+	b.get("/enroll?step=choices")
+	if !strings.Contains(b.body, `value="calendar.read"><span class="what">Read your calendar</span>`) ||
+		!strings.Contains(b.body, `<span class="what">Music control</span>`) {
 		t.Fatalf("labels: %s", b.body)
 	}
 	b.consent(map[string][]string{"concierge": {"calendar.read", "music.control"}})
-	if !strings.Contains(b.body, "may: Read your calendar, music control.") {
+	if !strings.Contains(b.body, `<span class="what">Read your calendar</span>`) || !strings.Contains(b.body, `<span class="what">Music control</span>`) {
 		t.Fatalf("granted list: %s", b.body)
 	}
 
@@ -516,8 +528,12 @@ func TestEnrollmentLivesOnThePublicHost(t *testing.T) {
 			t.Fatalf("%s %s on another host: %d %q", method, path, rec.Code, rec.Header().Get("Location"))
 		}
 	}
-	if rec := serve("GET", "/enroll", strings.ToUpper(public.Host)); rec.Code != http.StatusOK {
-		t.Fatalf("the public host, in any case, is served: %d", rec.Code)
+	// Signed out, /enroll starts at the front door, on the same host.
+	if rec := serve("GET", "/enroll", strings.ToUpper(public.Host)); rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/" {
+		t.Fatalf("the public host, in any case, is served: %d %q", rec.Code, rec.Header().Get("Location"))
+	}
+	if rec := serve("GET", "/", "attest.lan:8420"); rec.Code != http.StatusTemporaryRedirect || rec.Header().Get("Location") != e.ts.URL+"/" {
+		t.Fatalf("the front door on another host: %d %q", rec.Code, rec.Header().Get("Location"))
 	}
 	// The API is not enrollment and is not redirected.
 	if rec := serve("GET", "/healthz", "attest.lan:8420"); rec.Code != http.StatusNoContent {
@@ -553,6 +569,7 @@ func TestDataDirectoryIsCheckedAtStartup(t *testing.T) {
 func TestVoiceStepIsGuidedAndPlain(t *testing.T) {
 	e := newEnrollEnv(t, "")
 	b := e.signIn(ana)
+	b.get("/enroll?step=voice")
 	page := b.body
 	list := regexp.MustCompile(`(?s)<ol id="prompt-list" hidden>(.*?)</ol>`).FindStringSubmatch(page)
 	if list == nil || strings.Count(list[1], "<li") != len(voicePrompts) {
@@ -562,15 +579,15 @@ func TestVoiceStepIsGuidedAndPlain(t *testing.T) {
 		t.Fatal("prompts should mix lines to read with things to say")
 	}
 	for _, want := range []string{
-		`data-target="30"`, `role="progressbar"`, `aria-valuemax="30"`,
-		"This site never receives it", "discards it", "numeric summary",
+		`data-target="30"`, `data-min="15"`, `role="progressbar"`, `aria-valuemax="30"`,
+		"attest never receives it", "then discarded", "numeric summary", "Sign in any time and delete your voice",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page lacks %q", want)
 		}
 	}
 	jargon := regexp.MustCompile(`(?i)\b(voiceprints?|embeddings?|llrs?|posterior|diariz\w*|vad)\b`)
-	for _, path := range []string{"/enroll", "/enroll/static/enroll.js"} {
+	for _, path := range []string{"/enroll?step=voice", "/enroll", "/enroll/static/enroll.js"} {
 		if code := b.get(path); code != http.StatusOK {
 			t.Fatalf("%s: %d", path, code)
 		}

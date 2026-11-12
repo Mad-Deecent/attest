@@ -41,12 +41,23 @@ const (
 
 type session struct {
 	identityID string
-	csrf       string
-	expires    time.Time
+	// account is how the provider names the person (username or email), kept
+	// for the page only, in memory, for the session's life.
+	account string
+	csrf    string
+	expires time.Time
 }
+
+// A ticket is good for one purpose only. An enrollment ticket can never
+// delete a voice, and a deletion ticket can never enroll one.
+const (
+	purposeEnroll      = "enroll"
+	purposeDeleteVoice = "delete-voice"
+)
 
 type ticket struct {
 	identityID string
+	purpose    string
 	expires    time.Time
 }
 
@@ -84,7 +95,7 @@ func (l *live) oauth(p *oidc.Provider) *oauth2.Config {
 	}
 }
 
-func (e *enrollment) startSession(identityID string, now time.Time) (id string, s session) {
+func (e *enrollment) startSession(identityID, account string, now time.Time) (id string, s session) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for k, old := range e.sessions {
@@ -93,7 +104,7 @@ func (e *enrollment) startSession(identityID string, now time.Time) (id string, 
 		}
 	}
 	id = randomToken()
-	s = session{identityID: identityID, csrf: randomToken(), expires: now.Add(sessionTTL)}
+	s = session{identityID: identityID, account: account, csrf: randomToken(), expires: now.Add(sessionTTL)}
 	e.sessions[id] = s
 	return id, s
 }
@@ -119,28 +130,35 @@ func (e *enrollment) endSession(id string) {
 	delete(e.sessions, id)
 }
 
-func (e *enrollment) issueTicket(identityID string, now time.Time) string {
+func (e *enrollment) issueTicket(identityID, purpose string, now time.Time) string {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	// A new ticket replaces the identity's earlier ones, so at most one
-	// recording can be pending for a person at a time.
+	// A new ticket replaces the identity's earlier ones, whatever they were
+	// for, so at most one request can be pending for a person at a time. In
+	// particular a recording still on its way cannot store a voice after the
+	// person asked to delete it.
 	for k, t := range e.tickets {
 		if !now.Before(t.expires) || t.identityID == identityID {
 			delete(e.tickets, k)
 		}
 	}
 	t := randomToken()
-	e.tickets[t] = ticket{identityID: identityID, expires: now.Add(ticketTTL)}
+	e.tickets[t] = ticket{identityID: identityID, purpose: purpose, expires: now.Add(ticketTTL)}
 	return t
 }
 
-// redeem spends a ticket. Unknown, spent, and expired tickets look the same.
-func (e *enrollment) redeem(raw string, now time.Time) (string, bool) {
+// redeem spends a ticket for its purpose. Unknown, spent, expired, and
+// other-purpose tickets look the same. A ticket presented for the wrong
+// purpose is not spent: it stays good for the one thing it was issued for.
+func (e *enrollment) redeem(raw, purpose string, now time.Time) (string, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	t, ok := e.tickets[raw]
+	if !ok || t.purpose != purpose {
+		return "", false
+	}
 	delete(e.tickets, raw)
-	if !ok || !now.Before(t.expires) {
+	if !now.Before(t.expires) {
 		return "", false
 	}
 	return t.identityID, true
@@ -159,6 +177,7 @@ func (s *Server) enrollRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /enroll/callback", s.canonical(http.HandlerFunc(s.enrollCallback)))
 	mux.Handle("POST /enroll/logout", s.canonical(s.withSession(s.enrollLogout)))
 	mux.Handle("POST /enroll/ticket", s.canonical(s.withSession(s.enrollTicket)))
+	mux.Handle("POST /enroll/voice-deletion-ticket", s.canonical(s.withSession(s.voiceDeletionTicket)))
 	mux.Handle("POST /enroll/consent", s.canonical(s.withSession(s.enrollConsent)))
 	mux.Handle("POST /enroll/revoke", s.canonical(s.withSession(s.enrollRevoke)))
 	// The route used to be spelled /enrol; keep old bookmarks and
@@ -224,7 +243,9 @@ func (s *Server) withSession(next sessionHandler) http.HandlerFunc {
 			ok = false
 		}
 		if !ok {
-			if r.URL.Path == "/enroll/ticket" {
+			// The page fetches tickets; it needs an answer it can read, not
+			// a redirect to HTML.
+			if r.URL.Path == "/enroll/ticket" || r.URL.Path == "/enroll/voice-deletion-ticket" {
 				fail(w, http.StatusUnauthorized, "not signed in")
 				return
 			}
@@ -247,6 +268,11 @@ func (s *Server) withSession(next sessionHandler) http.HandlerFunc {
 func (s *Server) enrollLogin(w http.ResponseWriter, r *http.Request) {
 	l := s.cur()
 	if !l.enrolling() {
+		http.Redirect(w, r, "/enroll", http.StatusSeeOther)
+		return
+	}
+	// Someone already signed in is not sent round the provider again.
+	if s.enrollSignedIn(r) {
 		http.Redirect(w, r, "/enroll", http.StatusSeeOther)
 		return
 	}
@@ -304,11 +330,30 @@ func (s *Server) enrollCallback(w http.ResponseWriter, r *http.Request) {
 		s.renderEnroll(w, r, status, retry)
 		return
 	}
-	idt, claims, tok := done.idt, done.claims, done.tok
+	s.finishEnroll(w, r, l, done)
+}
 
+// enrollSignedIn reports whether the request carries a live enrollment
+// session for an identity that still exists.
+func (s *Server) enrollSignedIn(r *http.Request) bool {
+	_, sess, ok := s.enroll.session(r, s.now())
+	return ok && s.registry.Has(sess.identityID)
+}
+
+// finishEnroll signs a person in to enrollment after the provider vouched for
+// them: it links (or finds) their identity, adopts the roles the policy
+// defines, and starts a fresh session. Shared by /enroll/login and by the
+// front door's sign-in for people who are not administrators.
+func (s *Server) finishEnroll(w http.ResponseWriter, r *http.Request, l *live, done signedIn) {
+	const retry = "Sign-in didn't finish. Please try again."
+	idt, claims, tok := done.idt, done.claims, done.tok
 	name, _ := claims["name"].(string)
 	if name == "" {
 		name, _ = claims["preferred_username"].(string)
+	}
+	account, _ := claims["email"].(string)
+	if account == "" {
+		account, _ = claims["preferred_username"].(string)
 	}
 	ident, err := s.registry.Link(identity.Provider{Issuer: idt.Issuer, Subject: idt.Subject}, name, s.now())
 	if err != nil {
@@ -325,12 +370,24 @@ func (s *Server) enrollCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, _ := s.enroll.startSession(ident.ID, s.now())
+	// A planted or stale session never survives a sign-in.
+	if old, err := r.Cookie(sessionCookie); err == nil {
+		s.enroll.endSession(old.Value)
+	}
+	clearEnrollSession(w, l, "/enroll")
+	id, _ := s.enroll.startSession(ident.ID, account, s.now())
 	http.SetCookie(w, &http.Cookie{
-		Name: sessionCookie, Value: id, Path: "/enroll", MaxAge: int(sessionTTL.Seconds()),
+		Name: sessionCookie, Value: id, Path: "/", MaxAge: int(sessionTTL.Seconds()),
 		HttpOnly: true, Secure: l.secure(), SameSite: http.SameSiteLaxMode,
 	})
 	http.Redirect(w, r, "/enroll", http.StatusSeeOther)
+}
+
+// clearEnrollSession expires the session cookie at a path. The cookie lives
+// at "/" so the front door can tell who is signed in; it used to live at
+// "/enroll", and one left there would shadow the new one.
+func clearEnrollSession(w http.ResponseWriter, l *live, path string) {
+	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: path, MaxAge: -1, HttpOnly: true, Secure: l.secure(), SameSite: http.SameSiteLaxMode})
 }
 
 // signedIn is what a finished authorization-code flow yields.
@@ -410,8 +467,10 @@ func unverifiedClaims(raw string) map[string]any {
 
 func (s *Server) enrollLogout(w http.ResponseWriter, r *http.Request, id string, _ session) {
 	s.enroll.endSession(id)
-	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: "/enroll", MaxAge: -1, HttpOnly: true, Secure: s.cur().secure(), SameSite: http.SameSiteLaxMode})
-	http.Redirect(w, r, "/enroll?done=signedout", http.StatusSeeOther)
+	l := s.cur()
+	clearEnrollSession(w, l, "/")
+	clearEnrollSession(w, l, "/enroll")
+	http.Redirect(w, r, "/?done=signedout", http.StatusSeeOther)
 }
 
 func (s *Server) enrollTicket(w http.ResponseWriter, _ *http.Request, _ string, sess session) {
@@ -420,7 +479,21 @@ func (s *Server) enrollTicket(w http.ResponseWriter, _ *http.Request, _ string, 
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	reply(w, http.StatusOK, map[string]string{"ticket": s.enroll.issueTicket(sess.identityID, s.now())})
+	reply(w, http.StatusOK, map[string]string{"ticket": s.enroll.issueTicket(sess.identityID, purposeEnroll, s.now())})
+}
+
+// voiceDeletionTicket gives the page a single-use ticket that only deletes
+// the person's voice. The page sends it to the voice service, which redeems
+// it at /v1/voice-deletion-tickets/redeem and then deletes what it holds.
+// It is issued whether or not attest has a voice on record, so a deletion
+// the voice service did not finish can always be asked for again.
+func (s *Server) voiceDeletionTicket(w http.ResponseWriter, _ *http.Request, _ string, sess session) {
+	if s.enroll.voiceURL == "" {
+		fail(w, http.StatusNotFound, "no voice producer is configured")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	reply(w, http.StatusOK, map[string]string{"ticket": s.enroll.issueTicket(sess.identityID, purposeDeleteVoice, s.now())})
 }
 
 // redeemTicket lets a voice producer learn which identity a recording is for.
@@ -437,7 +510,7 @@ func (s *Server) redeemTicket(w http.ResponseWriter, r *http.Request, p Principa
 		fail(w, http.StatusForbidden, "only the configured voice producer may redeem enrollment tickets")
 		return
 	}
-	id, ok := s.enroll.redeem(body.Ticket, s.now())
+	id, ok := s.enroll.redeem(body.Ticket, purposeEnroll, s.now())
 	if !ok || !s.registry.MarkVoiceEnrolled(id, s.now()) {
 		fail(w, http.StatusNotFound, "unknown, used, or expired ticket")
 		return
@@ -446,6 +519,42 @@ func (s *Server) redeemTicket(w http.ResponseWriter, r *http.Request, p Principa
 		return
 	}
 	reply(w, http.StatusOK, map[string]string{"identityId": id})
+}
+
+// redeemDeletionTicket lets the voice producer learn whose voice to delete.
+// attest forgets the enrollment date and saves that before it answers, so
+// the producer deletes only once attest no longer lists a voice: the date is
+// never left set when the voice is gone. If the save fails, the date is put
+// back and the producer is told to delete nothing.
+func (s *Server) redeemDeletionTicket(w http.ResponseWriter, r *http.Request, p Principal) {
+	var body struct {
+		Ticket string `json:"ticket"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	if s.enroll.voiceProducer != "" && p.ID != s.enroll.voiceProducer {
+		fail(w, http.StatusForbidden, "only the configured voice producer may redeem voice deletion tickets")
+		return
+	}
+	now := s.now()
+	id, ok := s.enroll.redeem(body.Ticket, purposeDeleteVoice, now)
+	if !ok {
+		fail(w, http.StatusNotFound, "unknown, used, or expired ticket")
+		return
+	}
+	prev, ok := s.registry.SetVoiceEnrolledAt(id, nil, now)
+	if !ok {
+		fail(w, http.StatusNotFound, "unknown, used, or expired ticket")
+		return
+	}
+	if err := s.save(); err != nil {
+		log.Printf("save state: %v", err)
+		s.registry.SetVoiceEnrolledAt(id, prev, now)
+		fail(w, http.StatusInternalServerError, "could not save state; delete nothing")
+		return
+	}
+	reply(w, http.StatusOK, map[string]any{"identityId": id, "hadVoice": prev != nil})
 }
 
 func (s *Server) enrollConsent(w http.ResponseWriter, r *http.Request, _ string, sess session) {
@@ -487,10 +596,24 @@ func (s *Server) enrollConsent(w http.ResponseWriter, r *http.Request, _ string,
 		s.renderEnroll(w, r, http.StatusInternalServerError, "Your choices couldn't be saved. Please try again.")
 		return
 	}
+	// A newcomer finishes on the summary; someone changing their choices
+	// goes back to what they have.
+	if r.PostFormValue("then") == "done" {
+		http.Redirect(w, r, "/enroll?step=done", http.StatusSeeOther)
+		return
+	}
 	http.Redirect(w, r, "/enroll?done=saved", http.StatusSeeOther)
 }
 
+// enrollRevoke withdraws the person's own consent: one action for one agent
+// (agent and perm), or, as before, a whole delegation (id). Withdrawing one
+// action leaves the others they allowed in place.
 func (s *Server) enrollRevoke(w http.ResponseWriter, r *http.Request, _ string, sess session) {
+	now := s.now()
+	if perm := r.PostFormValue("perm"); perm != "" {
+		s.revokeOne(w, r, sess, r.PostFormValue("agent"), perm, now)
+		return
+	}
 	d, ok := s.delegations.Get(r.PostFormValue("id"))
 	// A person can only withdraw their own, still-live consent.
 	if !ok || d.IdentityID != sess.identityID || d.RevokedAt != nil {
@@ -498,10 +621,47 @@ func (s *Server) enrollRevoke(w http.ResponseWriter, r *http.Request, _ string, 
 		return
 	}
 	if d.GrantedBy != sess.identityID {
-		http.Error(w, "This was set up by whoever runs this system. Ask them to change it.", http.StatusForbidden)
+		http.Error(w, managedMessage, http.StatusForbidden)
 		return
 	}
-	s.delegations.Revoke(d.ID, s.now())
+	s.delegations.Revoke(d.ID, now)
+	s.revoked(w, r)
+}
+
+const managedMessage = "This was set up by whoever runs this system. Ask them to change it."
+
+func (s *Server) revokeOne(w http.ResponseWriter, r *http.Request, sess session, agent, perm string, now time.Time) {
+	var own []decision.Delegation
+	for _, d := range s.ownConsent(sess.identityID, agent, now) {
+		if slices.Contains(d.Permissions, perm) {
+			own = append(own, d)
+		}
+	}
+	if len(own) == 0 {
+		if covered([]string{perm}, s.liveDelegations(sess.identityID, agent, now)) != nil {
+			http.Error(w, managedMessage, http.StatusForbidden)
+			return
+		}
+		http.Error(w, "Not found.", http.StatusNotFound)
+		return
+	}
+	// Replacing is revoke then add, keeping everything but this action.
+	for _, d := range own {
+		s.delegations.Revoke(d.ID, now)
+		rest := slices.DeleteFunc(slices.Clone(d.Permissions), func(p string) bool { return p == perm })
+		if len(rest) == 0 {
+			continue
+		}
+		d.Permissions = rest
+		if _, err := s.delegations.Add(d, now); err != nil {
+			s.renderEnroll(w, r, http.StatusInternalServerError, "That couldn't be removed. Please try again.")
+			return
+		}
+	}
+	s.revoked(w, r)
+}
+
+func (s *Server) revoked(w http.ResponseWriter, r *http.Request) {
 	if err := s.save(); err != nil {
 		log.Printf("save state: %v", err)
 		s.renderEnroll(w, r, http.StatusInternalServerError, "That couldn't be removed. Please try again.")

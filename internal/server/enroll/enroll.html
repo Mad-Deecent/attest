@@ -1,138 +1,356 @@
+{{- define "mark" -}}
+<svg class="mark" viewBox="0 0 14 14" aria-hidden="true"><rect x="0" y="9" width="3" height="5" rx="0.5"/><rect x="5" y="5" width="3" height="9" rx="0.5"/><rect x="10" y="1" width="1.6" height="13" rx="0.4"/><rect class="now" x="12.4" y="1" width="1.6" height="13" rx="0.4"/></svg>
+{{- end -}}
+
+{{- define "glyph" -}}
+<span class="level"{{with .Desc}} title="{{.}}"{{end}}><svg class="glyph" viewBox="0 0 14 14" aria-hidden="true"><rect{{if ge .Glyph 1}} class="on"{{end}} x="0" y="9" width="3" height="5" rx="0.5"/><rect{{if ge .Glyph 2}} class="on"{{end}} x="5" y="5" width="3" height="9" rx="0.5"/><rect{{if ge .Glyph 3}} class="on"{{end}} x="10" y="1" width="1.6" height="13" rx="0.4"/><rect{{if ge .Glyph 3}} class="on"{{end}} x="12.4" y="1" width="1.6" height="13" rx="0.4"/></svg>{{.Word}}</span>
+{{- end -}}
+
+{{- define "lock" -}}
+<svg class="lock" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>
+{{- end -}}
+
+{{- define "messages" -}}
+<p id="status" class="status" role="status" aria-live="polite">{{.Status}}</p>
+{{- if .Error}}
+<p class="problem" role="alert">{{.Error}}</p>
+{{- end}}
+{{- end -}}
+
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Set up your assistant</title>
+<title>{{.Title}}</title>
+<link rel="icon" href="/console/static/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/enroll/static/enroll.css">
 {{- if .SignedIn}}
 <script src="/enroll/static/enroll.js" defer></script>
 {{- end}}
 </head>
+{{- if eq .Screen "front"}}
+<body class="front">
+<div class="split">
+  <section class="brand dark" aria-label="About attest">
+    <div class="brand-in">
+      <p class="brand-name">{{template "mark"}}<span>attest</span></p>
+      <h2>Identity assurance for agents that listen.</h2>
+      <p class="blurb">attest turns evidence from microphones, cameras and other sensors into how sure it is who is there, and tells your assistants what they may do for that person. It works with the identity provider you already run. Open source under the MIT license. To learn more, read the <a href="{{.DocsURL}}">documentation</a>.</p>
+    </div>
+    <svg class="trace wide" viewBox="0 0 900 340" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <g class="grid"><line x1="0" y1="110" x2="900" y2="110"/><line x1="0" y1="170" x2="900" y2="170"/><line x1="0" y1="230" x2="900" y2="230"/></g>
+      <path class="ghost-live" d="M0 300 L90 300 L90 250 C130 262 170 276 220 282 L220 236 C270 250 330 270 400 278 L400 298 L900 298"/>
+      <path class="ghost" d="M0 296 L300 296 L300 210 C350 228 400 250 470 262 L470 190 C520 206 560 226 620 240 L620 300 L900 300"/>
+      <path class="line" d="M0 302 L150 302 L150 196 C200 210 250 226 300 234 L300 150 C350 160 400 176 450 186 L450 120 C470 122 485 126 500 128 L500 96 C560 106 620 120 680 132"/>
+      <path class="ahead" d="M680 132 C730 144 800 180 900 232"/>
+      <circle class="halo" cx="680" cy="132" r="14"/>
+      <circle class="head" cx="680" cy="132" r="4.5"/>
+      <g class="ticks"><line x1="150" y1="318" x2="150" y2="332"/><line x1="300" y1="318" x2="300" y2="332"/><line x1="450" y1="318" x2="450" y2="332"/><line x1="500" y1="318" x2="500" y2="332"/></g>
+    </svg>
+    <svg class="trace narrow" viewBox="0 0 390 110" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <g class="grid"><line x1="0" y1="40" x2="390" y2="40"/><line x1="0" y1="70" x2="390" y2="70"/></g>
+      <path class="ghost" d="M0 100 L120 100 L120 62 C150 70 180 78 210 82 L210 98 L390 98"/>
+      <path class="line" d="M0 102 L60 102 L60 66 C90 72 120 80 150 84 L150 50 C180 54 200 58 220 60 L220 34 C250 38 270 42 290 46"/>
+      <path class="ahead" d="M290 46 C320 52 350 66 390 84"/>
+      <circle class="halo" cx="290" cy="46" r="10"/>
+      <circle class="head" cx="290" cy="46" r="4"/>
+    </svg>
+  </section>
+
+  <section class="auth">
+    <div class="auth-head">
+      <p class="wordmark">{{template "mark"}}<span>attest</span></p>
+      <p class="tagline">IDENTITY ASSURANCE · MIT LICENSE</p>
+    </div>
+    <main class="auth-main">
+      <h1>Sign in</h1>
+      {{- template "messages" .}}
+      {{- if .SignInAvailable}}
+      <a class="button primary wide" href="/login">Continue with your account <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3h7v10H6M2 8h8M7 5l3 3-3 3"/></svg></a>
+      {{- with .IdPHost}}
+      <p class="via">via {{.}}</p>
+      {{- end}}
+      {{- else}}
+      <p class="lede">Sign-in isn't available yet: no identity provider is connected with a sign-in client. Whoever runs this system can connect one in the console.</p>
+      {{- end}}
+      <div class="enroll-cta">
+        <p>Not enrolled yet? Teach attest your voice and choose what your assistants may do.</p>
+        {{- if .SignInAvailable}}
+        <a class="button wide" href="/enroll/login">Enroll</a>
+        {{- end}}
+      </div>
+    </main>
+    <nav class="project" aria-label="Project">
+      <a href="{{.DocsURL}}">Documentation</a>
+      <a href="{{.RepoURL}}">GitHub</a>
+    </nav>
+  </section>
+</div>
+</body>
+
+{{- else if eq .Screen "unconfigured"}}
 <body>
-<main>
-<h1>Set up your assistant</h1>
-<p id="status" class="status" role="status" aria-live="polite">{{.Status}}</p>
-{{- if .Error}}
-<p class="problem" role="alert">{{.Error}}</p>
-{{- end}}
-
-{{- if not .Configured}}
-<p>Signing up here needs an account service, and none is set up yet.</p>
-<p>Whoever runs this system can turn it on by adding their identity provider's details (<code>oidc.issuer</code> and <code>oidc.clientId</code>) to its settings.</p>
-
-{{- else if not .SignedIn}}
-<p>Signing up lets the assistants here recognize you and act for you, but only in the ways you choose. You sign in with your usual account, can teach it your voice, and then pick what each assistant may do.</p>
-<p><a class="button" href="/enroll/login">Sign in</a></p>
+<div class="shell">
+  <header class="top"><p class="wordmark small">{{template "mark"}}<span>attest</span></p></header>
+  <main class="screen">
+    <h1>Enrollment isn't set up</h1>
+    {{- template "messages" .}}
+    <p class="lede">Signing up here needs an account service, and none is set up yet.</p>
+    <p class="lede">Whoever runs this system can turn it on by connecting their identity provider (<code>oidc.issuer</code> and <code>oidc.clientId</code>) in the console.</p>
+  </main>
+</div>
+</body>
 
 {{- else}}
-<ol class="steps">
-  <li class="done">
-    <h2>Sign in <span class="tag">Done</span></h2>
-    <p>You're signed in{{with .Name}} as <strong>{{.}}</strong>{{end}}.</p>
+<body class="app">
+<div class="shell">
+  <header class="top">
+    <a class="wordmark small" href="/enroll">{{template "mark"}}<span>attest</span></a>
     <form method="post" action="/enroll/logout">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <button>Sign out</button>
+      <button class="link">Sign out</button>
     </form>
-  </li>
-
-  <li id="voice-step"{{if .VoiceDone}} class="done"{{end}}{{if eq .Current 2}} aria-current="step"{{end}}>
-    <h2>Teach it your voice{{if .VoiceDone}} <span class="tag">Done</span>{{end}}</h2>
-    {{- if not .VoiceURL}}
-    <p>No voice service is set up here, so you can skip this step.</p>
-    {{- else}}
-    {{- with .VoiceDone}}
-    <p>Your voice was saved on {{.}}. You can record it again at any time. Your saved voice is replaced only if the new recording is good enough.</p>
+  </header>
+  {{- if .Steps}}
+  <ol class="progress" aria-label="Steps">
+    {{- range .Steps}}
+    <li class="{{.Class}}"{{if .Current}} aria-current="step"{{end}}>{{.Label}}</li>
     {{- end}}
-    <p class="lede">You'll say a few short lines, one at a time: about {{.Target}} seconds of talking in all. Speak the way you normally would, from where you'd usually talk to your assistant.</p>
-    <dl class="kept">
-      <dt>What's kept</dt>
-      <dd>A numeric summary of how your voice sounds, kept by the voice service so it can recognize you.</dd>
-      <dt>Your recording</dt>
-      <dd>Goes straight to the voice service, which uses it once to make that summary and then discards it. This site never receives it.</dd>
-      <dt>Removing it</dt>
-      <dd>Ask whoever runs this system to delete your saved voice.</dd>
+  </ol>
+  {{- end}}
+
+  {{- if eq .Screen "you"}}
+  <main class="screen">
+    <h1>You’re signed in</h1>
+    {{- template "messages" .}}
+    <p class="lede">This is the account attest will know you by.</p>
+    <dl class="facts">
+      <div><dt>Name</dt><dd>{{.Name}}</dd></div>
+      {{- with .Account}}
+      <div><dt>Account</dt><dd class="mono">{{.}}</dd></div>
+      {{- end}}
+      <div><dt>Roles</dt><dd>{{if .Roles}}{{range $i, $r := .Roles}}{{if $i}}, {{end}}{{$r}}{{end}}{{else}}None yet{{end}}</dd></div>
     </dl>
-    <div id="recorder" class="recorder" data-voice-url="{{.VoiceURL}}" data-csrf="{{.CSRF}}" data-target="{{.Target}}" hidden>
-      <ol id="prompt-list" hidden>
-        {{- range .Prompts}}
-        <li{{if .Read}} data-read{{end}}>{{.Text}}</li>
-        {{- end}}
-      </ol>
-      <div id="stage" class="stage" hidden>
-        <p class="kicker"><span id="prompt-count"></span> <span aria-hidden="true">·</span> <span id="prompt-kind"></span></p>
+    <p class="fine">Roles come from {{with .IdPHost}}{{.}}{{else}}your identity provider{{end}}. attest reads them on every sign-in and never changes them.</p>
+    <div class="actions">
+      <a class="button primary wide" href="{{if .VoiceURL}}/enroll?step=voice{{else}}/enroll?step=choices{{end}}">Continue</a>
+    </div>
+  </main>
+
+  {{- else if eq .Screen "voice"}}
+  <main class="screen" id="voice-intro">
+    <h1>Teach it your voice</h1>
+    {{- template "messages" .}}
+    {{- with .VoiceDone}}
+    <p class="lede">Your voice was saved on {{.}}. Your saved voice is replaced only if the new recording is good enough.</p>
+    {{- end}}
+    <p class="lede">You’ll say a few short lines, one at a time, about {{.Target}} seconds of talking in all. Speak normally, from where you’d usually talk to your assistant.</p>
+    <dl class="kept">
+      <div><dt>What’s kept</dt><dd>A numeric summary of how your voice sounds, held by the voice service.</dd></div>
+      <div><dt>Your recording</dt><dd>Goes straight to the voice service, is used once, then discarded. attest never receives it.</dd></div>
+      <div><dt>Removing it</dt><dd>Sign in any time and delete your voice.</dd></div>
+    </dl>
+    <p id="voice-status" class="voice-status" role="status" aria-live="polite"></p>
+    <noscript><p class="problem">Recording needs JavaScript, which is turned off. You can skip this step and come back later.</p></noscript>
+    <div class="actions">
+      <button type="button" id="start" class="primary wide" disabled><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5"/><path d="M3 7.5a5 5 0 0 0 10 0M8 12.5V15"/></svg>Start recording</button>
+      <a class="button quiet wide" href="{{.Skip}}">{{if .Editing}}Back{{else}}Skip for now{{end}}</a>
+    </div>
+  </main>
+
+  <main class="screen" id="voice-saved" hidden>
+    <svg class="done-mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="19"/><path d="M12.5 20.5l5 5 10-11"/></svg>
+    <h1 tabindex="-1">Voice saved</h1>
+    <p class="lede">The voice service checked <b id="saved-seconds">0 s</b> of speech and saved your summary. The recording is gone.</p>
+    <p class="lede" id="saved-replaced" hidden>It replaces the voice you saved before.</p>
+    {{- if not .Editing}}
+    <p class="lede">Next, choose what each assistant may do for you once it recognizes you.</p>
+    {{- end}}
+    <div class="actions">
+      <a class="button primary wide" href="{{.Next}}">Continue</a>
+    </div>
+  </main>
+
+  <div id="recorder" class="rec dark" data-voice-url="{{.VoiceURL}}" data-csrf="{{.CSRF}}" data-target="{{.Target}}" data-min="{{.MinSeconds}}" hidden>
+    <ol id="prompt-list" hidden>
+      {{- range .Prompts}}
+      <li{{if .Read}} data-read{{end}}>{{.Text}}</li>
+      {{- end}}
+    </ol>
+    <div class="rec-in">
+      <header class="rec-head">
+        <span class="rec-state" id="rec-state"><span class="dot" aria-hidden="true"></span><span id="rec-state-word">Recording</span></span>
+        <button type="button" id="restart" class="link">Start over</button>
+      </header>
+
+      <div class="rec-body" id="rec-live">
+        <p class="kicker"><span id="prompt-count"></span> · <span id="prompt-kind"></span></p>
         <p id="prompt" class="prompt" aria-live="polite"></p>
-        <canvas id="trace" class="trace" aria-hidden="true"></canvas>
-        <div id="meter" class="meter" role="progressbar" aria-label="Speech recorded" aria-valuemin="0" aria-valuemax="{{.Target}}" aria-valuenow="0">
-          <span id="meter-fill" class="meter-fill"></span>
-        </div>
-        <p class="meter-label"><span><b id="heard">0</b> s of speech</span> <span class="dim">about {{.Target}} s</span></p>
       </div>
-      <div class="actions">
-        <button type="button" id="start" class="primary">{{if .VoiceDone}}Record again{{else}}Start recording{{end}}</button>
-        <button type="button" id="next" hidden>Next line</button>
-        <button type="button" id="finish" class="primary" hidden>Finish</button>
+
+      <div class="rec-body" id="rec-saving" hidden>
+        <div class="pulse" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        <p role="status">Checking your recording…</p>
+      </div>
+
+      <div class="rec-body" id="rec-refused" hidden>
+        <p class="warn"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8L15 14H1z"/><path d="M8 6.5v3.5M8 12v.01"/></svg><span id="refused-kicker">Not saved yet</span></p>
+        <h1 id="refused-title" tabindex="-1"></h1>
+        <p id="refused-text" class="dim"></p>
+      </div>
+
+      <canvas id="wave" class="wave" aria-hidden="true"></canvas>
+
+      <div id="meter" class="meter" role="progressbar" aria-label="Speech recorded" aria-valuemin="0" aria-valuemax="{{.Target}}" aria-valuenow="0">
+        <span id="meter-fill" class="meter-fill"></span>
+        <span id="meter-tick" class="meter-tick"></span>
+      </div>
+      <p class="meter-label"><span id="meter-left"><b id="heard">0</b> s of speech</span><span id="meter-right">about {{.Target}} s</span></p>
+
+      <div class="rec-actions">
+        <button type="button" id="next" class="primary">Next line</button>
+        <button type="button" id="finish" disabled>Finish</button>
         <button type="button" id="more" class="primary" hidden>Keep going</button>
         <button type="button" id="retry" class="primary" hidden>Try again</button>
-        <button type="button" id="restart" class="quiet" hidden>Start over</button>
+        <button type="button" id="over" class="primary" hidden>Start over</button>
       </div>
-      <p id="voice-status" class="voice-status" role="status" aria-live="polite"></p>
+      <p class="rec-hint" id="rec-hint" aria-live="polite"></p>
     </div>
-    <noscript><p>Recording needs JavaScript, which is turned off. You can skip this step and come back later.</p></noscript>
-    {{- end}}
-  </li>
+  </div>
 
-  <li{{if eq .Current 3}} aria-current="step"{{end}}>
-    <h2>Choose what your assistant may do</h2>
+  {{- else if eq .Screen "choices"}}
+  <main class="screen choices">
+    <h1>What may it do for you?</h1>
+    {{- template "messages" .}}
     {{- if .NoRoles}}
-    <p>Your account doesn't have any roles yet, so there is nothing to choose. Roles come from your account with your identity provider: ask whoever manages it to give you one, then sign in again.</p>
+    <p class="lede">Your account doesn’t have any roles yet, so there is nothing to choose. Roles come from {{with .IdPHost}}{{.}}{{else}}your identity provider{{end}}: ask whoever manages it to give you one, then sign in again.</p>
+    <div class="actions"><a class="button primary wide" href="/enroll">Done</a></div>
     {{- else if not .Agents}}
-    <p>None of the assistants here can do anything that needs your permission.</p>
+    <p class="lede">None of the assistants here can do anything that needs your permission.</p>
+    <div class="actions"><a class="button primary wide" href="/enroll">Done</a></div>
     {{- else}}
-    <p>Tick what each assistant may do for you. Each group says how sure it must be that it's you before it can act.</p>
-    <form method="post" action="/enroll/consent">
+    <p class="lede">Nothing is allowed until you tick it. Each action needs attest to be at least this sure it’s you.</p>
+    <form method="post" action="/enroll/consent" id="consent">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
+      {{- if not .Editing}}
+      <input type="hidden" name="then" value="done">
+      {{- end}}
       {{- range .Agents}}
       {{- $agent := .ID}}
-      <fieldset class="agent">
-        <legend>{{.Name}} may:</legend>
-        {{- range .Groups}}
-        <fieldset class="group">
-          <legend>{{.Need}}</legend>
-          {{- range .Permissions}}
-          <label class="check"><input type="checkbox" name="perm:{{$agent}}" value="{{.Name}}"{{if .Checked}} checked{{end}}> {{.Label}}</label>
-          {{- end}}
-        </fieldset>
+      <fieldset class="may">
+        <legend>{{.Name}} may</legend>
+        {{- range .Perms}}
+        <label class="check"><input type="checkbox" name="perm:{{$agent}}" value="{{.Name}}"{{if .Checked}} checked{{end}}><span class="what">{{.Label}}</span>{{template "glyph" .Level}}</label>
         {{- end}}
       </fieldset>
       {{- end}}
-      <button class="primary">Save my choices</button>
+      <p class="fine">Only actions your roles allow are listed. Whoever runs attest decides how sure each one needs it to be.</p>
+      <div class="actions sticky">
+        <button class="primary wide" id="save" data-label-none="Save, allowing nothing" data-label-one="Save 1 choice" data-label-many="Save {n} choices">{{.SaveLabel}}</button>
+      </div>
     </form>
     {{- end}}
+  </main>
 
-    {{- if .Granted}}
-    <h3>What your assistants may do now</h3>
-    <ul class="granted">
-      {{- range .Granted}}
-      <li{{if .Managed}} class="managed"{{end}}>
-        <p><strong>{{.Agent}}</strong> may: {{.What}}. <span class="muted">Since {{.Since}}.</span></p>
-        {{- if .Managed}}
-        <p class="note">Set up for you by whoever runs this system{{with .Limits}} ({{.}}){{end}}. You can't change this here; ask them if it should change.</p>
-        {{- else}}
-        <form method="post" action="/enroll/revoke">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}">
-          <input type="hidden" name="id" value="{{.ID}}">
-          <button>Revoke<span class="visually-hidden"> what {{.Agent}} may do</span></button>
-        </form>
-        {{- end}}
-      </li>
+  {{- else if eq .Screen "done"}}
+  <main class="screen">
+    <h1>You’re enrolled</h1>
+    {{- template "messages" .}}
+    {{- range .May}}
+    <p class="lede">When it’s sure enough that it’s you, {{.Name}} may:</p>
+    <ul class="rows">
+      {{- range .Rows}}
+      <li><span class="what">{{.Label}}</span>{{if .Level.Word}}{{template "glyph" .Level}}{{end}}</li>
       {{- end}}
     </ul>
+    {{- else}}
+    <p class="lede">Nothing yet. It can still do what anyone in the room can.</p>
     {{- end}}
-  </li>
-</ol>
-{{- end}}
-</main>
+    <p class="fine ruled">Sign in again any time to change this or re-record your voice.</p>
+    <form class="actions" method="post" action="/enroll/logout">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <button class="primary wide">Done</button>
+    </form>
+  </main>
+
+  {{- else}}
+  <main class="screen manage">
+    <h1 class="who">{{.Name}}</h1>
+    <p class="mono dim">{{with .Account}}{{.}}{{if $.Roles}} · {{end}}{{end}}{{range $i, $r := .Roles}}{{if $i}}, {{end}}{{$r}}{{end}}</p>
+    {{- template "messages" .}}
+
+    {{- if .VoiceURL}}
+    <section aria-labelledby="voice-h" class="block">
+      <h2 id="voice-h">Voice</h2>
+      <div class="voice-row">
+        <div>
+          {{- if .VoiceSaved}}
+          <p class="strong">Saved {{.VoiceSaved}}</p>
+          <p class="fine">Held by the voice service</p>
+          {{- else}}
+          <p class="strong">Not recorded</p>
+          <p class="fine">Assistants can’t recognize you by voice yet</p>
+          {{- end}}
+        </div>
+        <a class="button" href="/enroll?step=voice&amp;edit=1">{{if .VoiceSaved}}Record again{{else}}Record{{end}}</a>
+      </div>
+      {{- if .VoiceSaved}}
+      <div id="forget" class="forget" data-voice-url="{{.VoiceURL}}" data-csrf="{{.CSRF}}">
+        <button type="button" id="forget-ask" class="link danger">Delete my voice</button>
+        <div id="forget-confirm" class="forget-confirm" hidden>
+          <p>Delete your voice? The voice service deletes what it holds, and assistants stop recognizing you by voice. You can record again later.</p>
+          <div class="inline-actions">
+            <button type="button" id="forget-yes" class="danger-solid">Delete my voice</button>
+            <button type="button" id="forget-no" class="link">Keep it</button>
+          </div>
+        </div>
+        <p id="forget-status" class="voice-status" role="status" aria-live="polite"></p>
+        <noscript><p class="fine">Deleting your voice needs JavaScript, which is turned off.</p></noscript>
+      </div>
+      {{- end}}
+    </section>
+    {{- end}}
+
+    {{- range .May}}
+    <section class="block" aria-label="What {{.Name}} may do">
+      <h2>{{.Name}} may</h2>
+      <ul class="rows">
+        {{- range .Rows}}
+        <li{{if .Managed}} class="managed"{{end}}>
+          <div class="row-main"><span class="what">{{.Label}}</span>{{if .Level.Word}}{{template "glyph" .Level}}{{end}}
+          {{- if not .Managed}}
+          <form method="post" action="/enroll/revoke">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <input type="hidden" name="agent" value="{{.Agent}}">
+            <input type="hidden" name="perm" value="{{.Perm}}">
+            <button class="link">Revoke<span class="visually-hidden"> {{.Label}}</span></button>
+          </form>
+          {{- end}}
+          </div>
+          {{- if .Managed}}
+          <p class="locked">{{template "lock"}}<span>{{.Limits}}</span></p>
+          {{- end}}
+        </li>
+        {{- end}}
+      </ul>
+    </section>
+    {{- else}}
+    <section class="block">
+      <h2>Your assistants may</h2>
+      <p class="lede ruled">Nothing yet. They can still do what anyone in the room can.</p>
+    </section>
+    {{- end}}
+
+    {{- if .CanChoose}}
+    <div class="actions">
+      <a class="button primary wide" href="/enroll?step=choices&amp;edit=1">Change what it may do</a>
+    </div>
+    {{- end}}
+  </main>
+  {{- end}}
+</div>
 </body>
+{{- end}}
 </html>

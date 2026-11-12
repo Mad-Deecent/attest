@@ -191,6 +191,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/retirements", s.as(KindProducer, s.postRetirement))
 
 	mux.HandleFunc("POST /v1/enrollment-tickets/redeem", s.as(KindProducer, s.redeemTicket))
+	mux.HandleFunc("POST /v1/voice-deletion-tickets/redeem", s.as(KindProducer, s.redeemDeletionTicket))
 
 	s.enrollRoutes(mux)
 
