@@ -262,7 +262,7 @@
     <p class="lede">When it’s sure enough that it’s you, {{.Name}} may:</p>
     <ul class="rows">
       {{- range .Rows}}
-      <li><span class="what">{{.Label}}</span>{{template "glyph" .Level}}</li>
+      <li><span class="what">{{.Label}}</span>{{if .Level.Word}}{{template "glyph" .Level}}{{end}}</li>
       {{- end}}
     </ul>
     {{- else}}
@@ -319,7 +319,7 @@
       <ul class="rows">
         {{- range .Rows}}
         <li{{if .Managed}} class="managed"{{end}}>
-          <div class="row-main"><span class="what">{{.Label}}</span>{{template "glyph" .Level}}
+          <div class="row-main"><span class="what">{{.Label}}</span>{{if .Level.Word}}{{template "glyph" .Level}}{{end}}
           {{- if not .Managed}}
           <form method="post" action="/enroll/revoke">
             <input type="hidden" name="csrf" value="{{$.CSRF}}">
