@@ -101,6 +101,23 @@ func (r *Registry) MarkVoiceEnrolled(id string, now time.Time) bool {
 	return true
 }
 
+// SetVoiceEnrolledAt replaces when the identity's voice was enrolled; nil
+// says it has no voice on record. It returns the value it replaced, so a
+// change that cannot be saved can be put back.
+func (r *Registry) SetVoiceEnrolledAt(id string, at *time.Time, now time.Time) (prev *time.Time, ok bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	ident, ok := r.ids[id]
+	if !ok {
+		return nil, false
+	}
+	prev = ident.VoiceEnrolledAt
+	ident.VoiceEnrolledAt = at
+	ident.UpdatedAt = now
+	r.ids[id] = ident
+	return prev, true
+}
+
 func (r *Registry) Get(id string) (Identity, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

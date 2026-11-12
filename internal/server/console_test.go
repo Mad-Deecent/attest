@@ -360,8 +360,10 @@ func TestConsoleIsServedWithStrictHeaders(t *testing.T) {
 		e.api.h.ServeHTTP(rec, req)
 		return rec
 	}
-	if rec := get("/"); rec.Code != http.StatusFound || rec.Header().Get("Location") != "/console/" {
-		t.Fatalf("GET /: %d %q", rec.Code, rec.Header().Get("Location"))
+	// After setup, "/" is the sign-in page, under the same strict policy.
+	if rec := get("/"); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Continue with your account") ||
+		!strings.Contains(rec.Header().Get("Content-Security-Policy"), "default-src 'none'") {
+		t.Fatalf("GET /: %d %v", rec.Code, rec.Header())
 	}
 	if rec := get("/no-such-thing"); rec.Code != http.StatusNotFound {
 		t.Fatalf("an unknown path: %d", rec.Code)
@@ -387,11 +389,11 @@ func TestConsoleIsServedWithStrictHeaders(t *testing.T) {
 	}
 
 	// The policy forbids inline script and style: keep the files to it.
-	_ = fs.WalkDir(consoleFiles, "console", func(path string, d fs.DirEntry, err error) error {
+	walk := func(files fs.FS, path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
-		raw, _ := consoleFiles.ReadFile(path)
+		raw, _ := fs.ReadFile(files, path)
 		text := string(raw)
 		if strings.Contains(text, `style="`) || strings.Contains(text, "<style") || strings.Contains(text, " on"+"click=") {
 			t.Errorf("%s has inline style or handlers, which the policy blocks", path)
@@ -404,7 +406,9 @@ func TestConsoleIsServedWithStrictHeaders(t *testing.T) {
 			}
 		}
 		return nil
-	})
+	}
+	_ = fs.WalkDir(consoleFiles, "console", func(path string, d fs.DirEntry, err error) error { return walk(consoleFiles, path, d, err) })
+	_ = fs.WalkDir(enrollFiles, "enroll", func(path string, d fs.DirEntry, err error) error { return walk(enrollFiles, path, d, err) })
 }
 
 func TestConsoleLivesOnThePublicHost(t *testing.T) {
